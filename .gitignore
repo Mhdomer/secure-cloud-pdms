@@ -1,0 +1,31 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Jekyll
+blog/_site/
+blog/.jekyll-cache/
+blog/.jekyll-metadata
+blog/vendor/
+
+# Node / npm (if used later in implementation)
+node_modules/
+npm-debug.log
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# Terraform (PSM2 — don't commit state or secrets)
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.lock.hcl
+
+# IDE
+.vscode/settings.json
+.idea/
+blog
+linkedin
