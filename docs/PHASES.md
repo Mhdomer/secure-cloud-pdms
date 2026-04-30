@@ -42,27 +42,27 @@ This is the master progress tracker for the PSM1 FYP report. Each phase maps to 
 ---
 
 ## Phase 2 — Chapter 2: Literature Review
-**Status:** 🔄 Next  
+**Status:** ✅ Complete  
 **File:** [[chapter-2-literature-review]]
 
 | Section | Description | Status |
 |---------|-------------|--------|
-| 2.1 | Introduction | ⬜ |
-| 2.2 | Case Study — Alamin Clinic | ⬜ |
-| 2.2.1 | Organisation Structure | ⬜ |
-| 2.2.2 | Manual Operation / Current Workflow | ⬜ |
-| 2.3 | Current System Analysis | ⬜ |
-| 2.4 | Comparison between Existing Systems | ⬜ |
-| 2.5 | Literature Review of Technology Used | ⬜ |
-| 2.6 | Chapter Summary | ⬜ |
+| 2.1 | Introduction | ✅ |
+| 2.2 | Case Study — Alamin Clinic | ✅ |
+| 2.2.1 | Organisation Structure | ✅ |
+| 2.2.2 | Manual Operation / Current Workflow | ✅ |
+| 2.3 | Current System Analysis | ✅ |
+| 2.4 | Comparison between Existing Systems | ✅ |
+| 2.5 | Literature Review of Technology Used (7 subsections) | ✅ |
+| 2.6 | Chapter Summary | ✅ |
 
-**Blog post:** [[2026-04-xx-literature-review]]  
+**Blog post:** [[2026-05-01-literature-review]]  
 **Design ref:** [[docs/design/literature/README]]
 
 ---
 
 ## Phase 3 — Chapter 3: System Development Methodology
-**Status:** ⬜ Pending  
+**Status:** 🔄 Next  
 **File:** [[chapter-3-methodology]]
 
 | Section | Description | Status |
@@ -83,14 +83,14 @@ This is the master progress tracker for the PSM1 FYP report. Each phase maps to 
 **Status:** ⬜ Pending  
 **File:** [[chapter-4-requirement-design]]
 
-| Section | Description | Status |
-|---------|-------------|--------|
-| 4.1 | Introduction | ⬜ |
-| 4.2 | Requirement Analysis — use cases, functional/non-functional | ⬜ |
-| 4.3 | Project Design — VPC architecture, 3-tier diagram | ⬜ |
-| 4.4 | Database Design — ER diagram, schema | ⬜ |
-| 4.5 | Interface Design — wireframes for Doctor/Admin/Patient views | ⬜ |
-| 4.6 | Chapter Summary | ⬜ |
+| Section | Description                                                  | Status |
+| ------- | ------------------------------------------------------------ | ------ |
+| 4.1     | Introduction                                                 | ⬜      |
+| 4.2     | Requirement Analysis — use cases, functional/non-functional  | ⬜      |
+| 4.3     | Project Design — VPC architecture, 3-tier diagram            | ⬜      |
+| 4.4     | Database Design — ER diagram, schema                         | ⬜      |
+| 4.5     | Interface Design — wireframes for Doctor/Admin/Patient views | ⬜      |
+| 4.6     | Chapter Summary                                              | ⬜      |
 
 **Blog post:** [[2026-xx-xx-system-design]]  
 **Design ref:** [[docs/design/architecture/README]] · [[docs/design/security/README]]
