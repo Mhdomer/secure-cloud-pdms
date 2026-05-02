@@ -62,17 +62,17 @@ This is the master progress tracker for the PSM1 FYP report. Each phase maps to 
 ---
 
 ## Phase 3 — Chapter 3: System Development Methodology
-**Status:** 🔄 Next  
+**Status:** ✅ Complete  
 **File:** [[chapter-3-methodology]]
 
 | Section | Description | Status |
 |---------|-------------|--------|
-| 3.1 | Introduction | ⬜ |
-| 3.2 | Methodology Choice and Justification — Agile + DevSecOps | ⬜ |
-| 3.3 | Phases of the Chosen Methodology | ⬜ |
-| 3.4 | Technology Used Description | ⬜ |
-| 3.5 | System Requirement Analysis — functional + non-functional | ⬜ |
-| 3.6 | Chapter Summary | ⬜ |
+| 3.1 | Introduction | ✅ |
+| 3.2 | Methodology Choice and Justification — Agile + DevSecOps | ✅ |
+| 3.3 | Phases of the Chosen Methodology | ✅ |
+| 3.4 | Technology Used Description | ✅ |
+| 3.5 | System Requirement Analysis — functional + non-functional | ✅ |
+| 3.6 | Chapter Summary | ✅ |
 
 **Blog post:** [[2026-xx-xx-methodology]]  
 **Design ref:** [[docs/design/architecture/README]]
@@ -80,17 +80,17 @@ This is the master progress tracker for the PSM1 FYP report. Each phase maps to 
 ---
 
 ## Phase 4 — Chapter 4: Requirement Analysis and Design
-**Status:** ⬜ Pending  
+**Status:** ✅ Complete  
 **File:** [[chapter-4-requirement-design]]
 
 | Section | Description                                                  | Status |
 | ------- | ------------------------------------------------------------ | ------ |
-| 4.1     | Introduction                                                 | ⬜      |
-| 4.2     | Requirement Analysis — use cases, functional/non-functional  | ⬜      |
-| 4.3     | Project Design — VPC architecture, 3-tier diagram            | ⬜      |
-| 4.4     | Database Design — ER diagram, schema                         | ⬜      |
-| 4.5     | Interface Design — wireframes for Doctor/Admin/Patient views | ⬜      |
-| 4.6     | Chapter Summary                                              | ⬜      |
+| 4.1     | Introduction                                                 | ✅      |
+| 4.2     | Requirement Analysis — use cases, functional/non-functional  | ✅      |
+| 4.3     | Project Design — VPC architecture, 3-tier diagram            | ✅      |
+| 4.4     | Database Design — ER diagram, schema                         | ✅      |
+| 4.5     | Interface Design — wireframes for Doctor/Admin/Patient views | ✅      |
+| 4.6     | Chapter Summary                                              | ✅      |
 
 **Blog post:** [[2026-xx-xx-system-design]]  
 **Design ref:** [[docs/design/architecture/README]] · [[docs/design/security/README]]
@@ -132,7 +132,7 @@ Each phase produces one blog post published after the chapter is complete.
 |-------|-----------|--------|
 | 0 + 1 | Project Kickoff — what and why | ✅ Drafted |
 | 2 | Literature Review — existing systems and Alamin Clinic deep dive | ⬜ |
-| 3 | Methodology — why Agile + DevSecOps | ⬜ |
+| 3 | Methodology — why Agile + DevSecOps | ✅ Drafted |
 | 4 | System Design — architecture walkthrough | ⬜ |
 | 5+6 | Wrap-up — PSM1 complete, what's next in PSM2 | ⬜ |
 
