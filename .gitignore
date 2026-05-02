@@ -29,3 +29,8 @@ __pycache__/
 .idea/
 blog
 linkedin
+Proposal PSM1
+
+# Local reference files — keep off remote
+docs/references/Final Report Ammar yasser.pdf
+.claude/
