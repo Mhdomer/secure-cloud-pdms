@@ -131,9 +131,8 @@ Each phase produces one blog post published after the chapter is complete.
 | Phase | Blog Post | Status |
 |-------|-----------|--------|
 | 0 + 1 | Project Kickoff — what and why | ✅ Drafted |
-| 2 | Literature Review — existing systems and Alamin Clinic deep dive | ⬜ |
-| 3 | Methodology — why Agile + DevSecOps | ✅ Drafted |
-| 4 | System Design — architecture walkthrough | ⬜ |
+| 2 | Literature Review — existing systems and Alamin Clinic deep dive | ✅ Drafted |
+| 3 + 4 | Methodology and Design — Agile + DevSecOps, VPC, DB schema, wireframes | ✅ Drafted |
 | 5+6 | Wrap-up — PSM1 complete, what's next in PSM2 | ⬜ |
 
 ---
