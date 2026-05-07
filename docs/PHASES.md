@@ -26,15 +26,15 @@ This is the master progress tracker for the PSM1 FYP report. Each phase maps to 
 **Status:** ✅ Complete  
 **File:** [[chapter-1-introduction]]
 
-| Section | Description | Status |
-|---------|-------------|--------|
-| 1.1 | Introduction — cloud health context | ✅ |
-| 1.2 | Problem Background — Alamin Clinic ransomware attack | ✅ |
-| 1.3 | Project Aim — one sentence | ✅ |
-| 1.4 | Project Objectives — (a)(b)(c) | ✅ |
-| 1.5 | Project Scope — in/out of scope | ✅ |
-| 1.6 | Project Importance — clinical, technical, academic | ✅ |
-| 1.7 | Report Organisation — chapter previews | ✅ |
+| Section | Description                                          | Status |
+| ------- | ---------------------------------------------------- | ------ |
+| 1.1     | Introduction — cloud health context                  | ✅      |
+| 1.2     | Problem Background — Alamin Clinic ransomware attack | ✅      |
+| 1.3     | Project Aim — one sentence                           | ✅      |
+| 1.4     | Project Objectives — (a)(b)(c)                       | ✅      |
+| 1.5     | Project Scope — in/out of scope                      | ✅      |
+| 1.6     | Project Importance — clinical, technical, academic   | ✅      |
+| 1.7     | Report Organisation — chapter previews               | ✅      |
 
 **Blog post:** [[2026-04-25-project-kickoff]]  
 **LinkedIn:** `linkedin/posts/2026-04-25-project-kickoff.md`
@@ -103,8 +103,8 @@ This is the master progress tracker for the PSM1 FYP report. Each phase maps to 
 
 | Item | Status |
 |------|--------|
-| Abstract (English) | ⬜ |
-| Abstrak (Bahasa Melayu) | ⬜ |
+| Abstract (English) | ✅ |
+| Abstrak (Bahasa Melayu) | ✅ |
 | List of Abbreviations | ⬜ |
 | List of Figures | ⬜ |
 | List of Tables | ⬜ |
