@@ -31,6 +31,56 @@ Hierarchical org chart with three levels:
 
 ---
 
+### Figure 2.2 — Current System Workflow Flowchart ⭐ HIGH PRIORITY
+**Status:** ⬜ Not produced  
+**Inserted into report:** ⬜  
+**Type:** Flowchart  
+**Tool suggestion:** draw.io
+
+**What to draw:**  
+Top-to-bottom flowchart of the manual clinic workflow:
+
+START → Patient Arrives → (Diamond) Patient registered? → NO: Admin manually types patient details into desktop app → YES: Admin searches for record → Doctor called → Doctor opens desktop application → (Diamond) Record accessible? → YES: Doctor retrieves record → Doctor writes consultation notes on paper → Admin types notes into system → Data saved to local server → (Diamond) Backup performed? → NO (→ "Data at risk — no backup") → END
+
+Mark these steps in RED to highlight risk points:
+- "Single server — no isolation between web/app/DB"
+- "Manual note entry — error prone, no validation"
+- "No backup policy — data permanently at risk"
+- "FTP/USB deployment — no security gate"
+
+Use standard flowchart symbols: rounded rectangles for Start/End, rectangles for process steps, diamonds for decisions.
+
+**Why it matters:** The supervisor specifically asked for current workflow flowchart. Side-by-side with Figure 2.3 it makes the before/after comparison visual and concrete.
+
+---
+
+### Figure 2.3 — Proposed System Workflow Flowchart ⭐ HIGH PRIORITY
+**Status:** ⬜ Not produced  
+**Inserted into report:** ⬜  
+**Type:** Flowchart  
+**Tool suggestion:** draw.io
+
+**What to draw:**  
+Top-to-bottom flowchart of the proposed secure workflow:
+
+START → User opens browser (HTTPS) → Login page → (Diamond) Credentials valid? → NO: Log failed attempt → (Diamond) 3 failed attempts? → YES: Lock account + notify Admin → NO: Return to login → YES (credentials valid): Issue JWT token with role → (Diamond) Role? →
+
+ADMIN branch: Admin Dashboard → Register patient / Schedule appointment → Encrypted RDS write → Audit log entry → END
+
+DOCTOR branch: Doctor Dashboard → Select assigned patient → (Diamond) RLS check: doctor owns patient? → YES: View/Create medical record → Encrypted RDS write → Audit log entry → END → NO: Access denied
+
+PATIENT branch: Patient Portal → View own records (read-only) → RLS filters to own records → END
+
+Add annotation boxes in GREEN:
+- "KMS — AES-256 encryption at rest"
+- "TLS 1.2+ — encryption in transit"  
+- "CloudTrail — logs all API calls"
+- "GitHub Actions — security scan before every deploy"
+
+**Why it matters:** Shows the examiner exactly how each security problem in the current workflow is fixed. The before/after pair (Figures 2.2 + 2.3) is the visual core of the supervisor's requirement.
+
+---
+
 ## Chapter 3 — System Development Methodology
 
 ### Figure 3.1 — Agile + DevSecOps Sprint Cycle
@@ -284,6 +334,8 @@ Critically: NO edit button, NO delete button, NO create button anywhere on the s
 | Figure | Chapter | Type | Status |
 |--------|---------|------|--------|
 | Figure 2.1 | Ch2 | Org chart | ⬜ |
+| Figure 2.2 | Ch2 | Current workflow flowchart ⭐ | ⬜ |
+| Figure 2.3 | Ch2 | Proposed workflow flowchart ⭐ | ⬜ |
 | Figure 3.1 | Ch3 | Process cycle | ⬜ |
 | Figure 3.2 | Ch3 | Gantt chart | ⬜ |
 | Figure 3.3 | Ch3 | Stack diagram | ⬜ |
@@ -297,4 +349,4 @@ Critically: NO edit button, NO delete button, NO create button anywhere on the s
 | Figure 4.7 | Ch4 | Admin wireframe | ⬜ |
 | Figure 4.8 | Ch4 | Patient wireframe | ⬜ |
 
-**Priority order:** Figure 4.2 → Figure 4.4 → Figure 4.1 → Figure 3.3 → rest
+**Priority order for Progress 1 submission:** Figure 2.2 → Figure 2.3 → Figure 2.1 → Figure 4.2 → Figure 4.4 → rest

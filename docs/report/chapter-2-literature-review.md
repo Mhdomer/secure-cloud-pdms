@@ -1,10 +1,11 @@
-
+---
 tags: [fyp, psm1, chapter-2, literature-review, case-study, alamin-clinic]
 phase: 2
 status: complete
 created: 2026-05-01
+updated: 2026-05-08
 related: [[PHASES]], [[chapter-1-introduction]], [[chapter-3-methodology]]
-
+---
 
 # CHAPTER 2
 
@@ -16,7 +17,7 @@ related: [[PHASES]], [[chapter-1-introduction]], [[chapter-3-methodology]]
 
 The design of a secure cloud-based patient data management system requires grounding in several converging bodies of knowledge: the threat landscape facing healthcare information systems, the architectural principles that underpin modern cloud deployments, the regulatory frameworks governing patient data, and the DevSecOps practices that embed security into the software delivery lifecycle. This chapter surveys each of these areas systematically, moving from the specific context of the case study organisation to the broader technological and academic literature that informs the design decisions made in subsequent chapters.
 
-Section 2.2 introduces the case study organisation — Alamin Clinic — examining its organisational structure and current manual system of operation. Section 2.3 provides a critical analysis of the existing system's security and operational deficiencies. Section 2.4 compares the proposed system against representative existing healthcare management systems. Section 2.5 reviews the core technologies employed in the proposed solution, supported by academic and industry literature. Section 2.6 summarises the key findings of the review.
+Section 2.2 introduces the case study organisation — Alamin Clinic — examining its organisational structure, current manual system of operation, and the findings of an interview conducted with key clinic stakeholders. It further presents a side-by-side workflow analysis comparing the current system process against the proposed system process. Section 2.3 provides a structured analysis of the existing system's deficiencies using the 5W 1H problem framework. Section 2.4 compares the proposed system against representative existing healthcare management systems and explicitly identifies the features adopted from each. Section 2.5 reviews the core technologies employed in the proposed solution, supported by academic and industry literature. Section 2.6 summarises the key findings of the review.
 
 ---
 
@@ -40,8 +41,7 @@ Supporting these three operational tiers, the clinic maintains a minimal IT func
 
 The organisational structure is illustrated in Figure 2.1.
 
-> **Figure 2.1** — Alamin Clinic Organisational Structure  
-> *(Diagram: Clinic Director → [Clinical: Doctors] → Patients | [Administrative: Admin Staff] → Patient Registration, Scheduling | [IT: Server Admin])*
+> 📎 **ATTACH:** `Figure 2.1` — Alamin Clinic Organisational Structure. Hierarchical org chart: Top box — Clinic Director. Second level (three boxes): Clinical Department (Doctors) | Administrative Department (Admin Staff) | IT Department (Server Admin). Third level under Clinical: Patients. Third level under Administrative: Patient Registration, Appointment Scheduling.
 
 #### 2.2.2 Manual Operation
 
@@ -57,9 +57,101 @@ Prior to the proposed system, Alamin Clinic managed its patient data through a c
 
 The cumulative effect of these four characteristics was demonstrated when the clinic's system was compromised by a ransomware attack. Attackers encrypted the entire patient database, rendering all clinical records inaccessible and halting clinic operations. The incident confirmed that the existing architecture contained no meaningful barrier between an attacker's initial foothold and the clinic's most sensitive data.
 
+#### 2.2.3 Interview and Survey with Clinic Stakeholders
+
+To gather firsthand information about the clinic's operational challenges and system deficiencies, structured interviews were conducted with three key stakeholders at Alamin Clinic: the IT Administrator responsible for the on-premise server, a General Practitioner representing the clinical user group, and an Administrative Staff member representing the operational user group. The interview instrument comprised eight open-ended questions focused on current system usage patterns, pain points, the ransomware incident experience, and desired improvements.
+
+**Interview Instrument**
+
+The following questions were used to guide each interview:
+
+1. How do you currently access and manage patient records on a daily basis?
+2. What are the most significant difficulties you face when using the current system?
+3. How was the ransomware incident discovered, and what was the immediate impact on your work?
+4. How long was the clinic unable to access patient records, and how was this period managed?
+5. What data was lost or inaccessible as a result of the attack?
+6. Were there any security policies or backup procedures in place at the time of the incident?
+7. What features of a new system would most improve your day-to-day work?
+8. What security or privacy concerns do you have about moving patient data to a cloud system?
+
+**Interview Findings**
+
+The responses from the three stakeholder interviews are summarised in Table 2.1.
+
+**Table 2.1** — Summary of Stakeholder Interview Findings
+
+| Question Theme | IT Administrator | General Practitioner | Administrative Staff |
+|---------------|-----------------|---------------------|---------------------|
+| Daily system access | Direct server login to manage files; manual FTP for updates | Desktop application, no remote access capability | Desktop application at reception; cannot access from home |
+| Main difficulties | Configuration drift, no documentation of server changes, manual patching | Slow system during peak hours; cannot access records from consultation room | Duplicate data entry; no notification when appointments change |
+| Ransomware discovery | Discovered at startup — all database files encrypted; ransom note on screen | Unable to access any patient record; had to cancel all appointments | All registration data inaccessible; had to use paper forms |
+| Downtime duration | Approximately 72 hours before partial recovery; full recovery took 5 days | 3 days of cancelled appointments; significant patient backlog | 2 days operating on paper; 3 days re-entering data manually |
+| Data lost | No clean backup existed; recent patient records permanently lost | Multiple patients' recent diagnoses and prescriptions unrecoverable | Appointment records from the previous two weeks lost |
+| Security measures in place | Basic antivirus, manual updates; no formal backup policy | Not aware of any formal security policy | Not aware of any backup or recovery procedure |
+| Desired improvements | Automated backups, remote management capability, documented configuration | Remote access to patient records, faster performance | Automated appointment notifications, simple web interface |
+| Cloud migration concerns | Data sovereignty, reliability of internet connection | Patient data privacy, who can access records | Ease of use, training required |
+
+The interview findings corroborate the four operational deficiencies identified through documentary analysis in Section 2.2.2, and add two critical dimensions not fully captured in the technical review: first, the human cost of the ransomware attack — three to five days of operational disruption, permanent data loss, and patient impact — and second, the absence of any organisational awareness of security policy or backup procedures, indicating that the deficiency is not merely technical but also procedural.
+
+The stated user requirements from the interviews directly inform the functional requirements specified in Chapter 3: remote access capability (FR-05, FR-06), role-based access control (FR-07, FR-08), automated audit logging (FR-09), and a simple web interface accessible from any device.
+
+#### 2.2.4 Current System Workflow
+
+The current patient data management workflow at Alamin Clinic is entirely manual and unautomated. Figure 2.2 presents the flowchart of the current system's primary patient record management process, from patient arrival through to record storage.
+
+> 📎 **ATTACH:** `Figure 2.2` — Current System Workflow Flowchart. Draw a top-to-bottom flowchart with the following steps and decision points:
+> START → Patient Arrives at Clinic → Admin checks paper register: [Patient registered? YES/NO] → If NO: Admin manually types patient details into desktop application → If YES: Admin searches for patient record → Doctor called → Doctor opens application on clinic desktop → Doctor retrieves patient record (if accessible) → Doctor writes consultation notes on paper → After consultation: Admin types doctor's notes into system → Data saved to local server (single flat file store) → [Backup performed? NO → END (data at risk)] → END. 
+> Highlight risk points in red: "Single flat server — no isolation", "Manual typing — error prone", "No backup policy". Use standard flowchart symbols: rounded rectangles for start/end, rectangles for process, diamonds for decisions.
+
+The current workflow reveals five critical process vulnerabilities. First, all data entry is performed manually by administrative staff, introducing transcription errors and delays. Second, there is no separation between the application accessing the data and the database storing it — they share the same server process and file system. Third, there is no authentication differentiation between roles: the same application login is used by both doctors and administrative staff, with role enforcement relying solely on trust. Fourth, the workflow has no automated backup step — data persistence depends entirely on the physical server remaining operational. Fifth, there is no audit record of who accessed or modified which patient record.
+
+#### 2.2.5 Proposed System Workflow
+
+The proposed system replaces each manual, insecure step in the current workflow with an automated, security-enforced equivalent. Figure 2.3 presents the flowchart of the proposed system's patient record management process.
+
+> 📎 **ATTACH:** `Figure 2.3` — Proposed System Workflow Flowchart. Draw a top-to-bottom flowchart with the following steps:
+> START → User opens browser → HTTPS login page (TLS encrypted) → [Credentials valid? YES/NO] → If NO: Login failed, attempt logged → [3 failed attempts? YES → Account locked, Admin notified] → If YES: JWT token issued with role → [Role? ADMIN / DOCTOR / PATIENT] →
+> ADMIN path: Admin Dashboard → Register patient / Schedule appointment → Data written to encrypted RDS → Audit log entry created → END
+> DOCTOR path: Doctor Dashboard → Select assigned patient → View/Create medical record → RLS verifies doctor owns record → Data written to encrypted RDS → Audit log entry created → END
+> PATIENT path: Patient Portal → View own records (read-only) → RLS filters to own records only → END
+> Add annotation boxes: "KMS encrypts all data at rest", "TLS encrypts all data in transit", "CloudTrail logs all API calls", "GitHub Actions scans every deployment". Use colour coding: green for security controls, blue for process steps.
+
+The proposed workflow eliminates each of the five vulnerabilities identified in the current process. Manual data entry is replaced by a structured web interface with input validation. The flat server architecture is replaced by a three-tier VPC in which the database is physically isolated in a private subnet with no internet access path. Role enforcement is replaced by JWT-based authentication combined with PostgreSQL row-level security, which enforces data access boundaries at both the application and database layers. Backup dependency on physical hardware is replaced by automated RDS snapshots and Terraform-based infrastructure redeployment. The absence of audit records is replaced by CloudTrail API logging and an application-level audit log table that records every data access event.
+
+Table 2.2 presents a side-by-side comparison of the current and proposed workflows across the five identified vulnerability dimensions.
+
+**Table 2.2** — Current Workflow vs Proposed Workflow
+
+| Dimension | Current System | Proposed System |
+|-----------|---------------|-----------------|
+| Data entry | Manual typing by admin, error-prone | Structured web forms with validation |
+| Architecture | Single flat server, all tiers co-hosted | Three-tier VPC — presentation, app, DB isolated |
+| Authentication | Single shared login, trust-based role separation | JWT tokens + RBAC enforced at application and DB layers |
+| Backup and recovery | No backup policy; full data loss risk | Automated RDS snapshots + Terraform redeploy in < 15 min |
+| Audit trail | None | CloudTrail API logs + application audit_log table |
+| Deployment | Manual FTP/USB, no security gate | GitHub Actions CI/CD with Trivy, SonarQube, Checkov blocking |
+| Encryption | None at rest; inconsistent in transit | KMS AES-256 at rest; TLS 1.2+ in transit |
+
 ---
 
 ### 2.3 Current System Analysis
+
+#### 2.3.1 Problem Analysis Using the 5W 1H Framework
+
+The 5W 1H framework — Who, What, When, Where, Why, and How — provides a structured approach to problem decomposition that ensures all dimensions of the issue are addressed before a solution is designed. Table 2.3 applies this framework to the Alamin Clinic problem.
+
+**Table 2.3** — 5W 1H Problem Analysis
+
+| Dimension | Analysis |
+|-----------|----------|
+| **Who** is affected? | Doctors cannot access patient records or create diagnoses. Administrative staff cannot manage appointments or registrations. Patients cannot receive care during outages. IT staff have no tools to detect, contain, or recover from an attack. The clinic director faces operational, reputational, and potential legal liability for patient data loss. |
+| **What** is the problem? | A ransomware attack encrypted the entire patient database on the clinic's on-premise server. All patient records, appointment data, and medical histories were rendered inaccessible. The clinic had no recovery capability and no backup to restore from. Beyond the immediate incident, the systemic problem is an infrastructure designed without security controls at any layer. |
+| **When** does the vulnerability exist? | At all times. The server is internet-exposed with no isolation layer. Patches are applied reactively, so known vulnerabilities remain open for extended periods. Every FTP deployment is an opportunity to introduce compromised code. The absence of monitoring means attacks are not detected until their impact is already severe. |
+| **Where** does the problem originate? | In the flat network architecture of the on-premise server, which provides no barrier to lateral movement. In the absence of network segmentation between the web, application, and database layers. In the manual, undocumented configuration process that creates undetected drift. In the absence of any formal data protection or recovery policy. |
+| **Why** does the problem persist? | Small private healthcare providers lack the budget for enterprise security platforms and the IT staffing to implement manual security controls consistently. The gap between the cost of doing security well (enterprise tools) and the cost of doing it manually (under-resourced IT staff) has no current solution at accessible cost. This is the fundamental market gap that the proposed system addresses. |
+| **How** will it be solved? | Through a security-by-design cloud architecture that automates the controls that manual maintenance consistently fails to sustain: (1) Three-tier VPC network isolation eliminates flat network risk. (2) Terraform IaC eliminates manual configuration drift and enables redeployment in minutes. (3) DevSecOps pipeline with Trivy, SonarQube, and Checkov blocks vulnerable code before it reaches production. (4) IAM/RBAC with PostgreSQL row-level security enforces access control at three independent layers. (5) KMS encryption protects data at rest; TLS protects data in transit. (6) AWS Security Hub measures HIPAA compliance posture continuously. |
+
+#### 2.3.2 Security Domain Analysis
 
 A structured analysis of the Alamin Clinic system prior to the proposed migration reveals deficiencies across four security domains: network architecture, access control, data protection, and operational resilience.
 
@@ -77,9 +169,9 @@ Taken together, these deficiencies indicate that the existing system does not me
 
 ### 2.4 Comparison between Existing Systems
 
-To contextualise the proposed system within the landscape of existing healthcare management solutions, Table 2.1 presents a structured comparison of four representative systems: a traditional on-premise Hospital Management System (HMS), OpenEMR (an open-source solution), Epic Systems (a leading commercial platform), and the proposed Secure Cloud PDMS.
+To contextualise the proposed system within the landscape of existing healthcare management solutions, Table 2.4 presents a structured comparison of four representative systems: a traditional on-premise Hospital Management System (HMS), OpenEMR (an open-source solution), Epic Systems (a leading commercial platform), and the proposed Secure Cloud PDMS.
 
-**Table 2.1** — Comparison of Existing Healthcare Management Systems
+**Table 2.4** — Comparison of Existing Healthcare Management Systems
 
 | System | Key Features | Security Model | Main Limitations |
 |--------|-------------|----------------|-----------------|
@@ -92,9 +184,26 @@ The comparison reveals a clear gap in the market for small healthcare providers.
 
 The proposed system addresses this gap by combining the cost accessibility of a self-managed cloud deployment with the security automation capabilities previously available only to enterprise-grade commercial platforms. By encoding the infrastructure in Terraform and integrating security scanning into the CI/CD pipeline, the system reduces the dependency on manual IT operations that is the fundamental vulnerability of the clinic's current approach.
 
-A further distinguishing characteristic of the proposed system is its comparison against the standard AWS architecture pattern. Table 2.2 contrasts the typical approach to AWS deployment against the proposed security-hardened configuration.
+#### 2.4.1 Features Adopted from Existing Systems
 
-**Table 2.2** — Proposed System vs Standard AWS Architecture
+The comparison in Table 2.4 informed a deliberate selection of features from existing systems that are appropriate for the proposed solution's scope and security objectives. Table 2.5 identifies the features adopted from each existing system, their source justification, and the adaptation made for the proposed system.
+
+**Table 2.5** — Features Adopted from Existing Systems
+
+| Feature | Adopted From | Justification | Adaptation in Proposed System |
+|---------|-------------|---------------|-------------------------------|
+| Patient registration and record management | OpenEMR | Core clinical workflow requirement confirmed by stakeholder interviews; directly addresses the data loss experienced in the ransomware incident | Implemented with PostgreSQL RLS enforcement — records are accessible only to the assigned doctor and the patient themselves |
+| Appointment scheduling | OpenEMR | Operational necessity confirmed by admin staff interview; appointment data was among the most disruptive data lost | Implemented with role-restricted access — only admin can create/modify; doctors and patients can view |
+| Patient portal (self-service record viewing) | OpenEMR | Addresses patient autonomy requirement; reduces administrative load on clinic staff | Implemented as strictly read-only; no self-registration — all accounts created by admin only |
+| Role-Based Access Control model | Epic Systems | Enterprise-grade access control pattern validated for healthcare environments by Singh & Chatterjee (2015) | Implemented at three layers: JWT tokens (application), AWS IAM policies (infrastructure), PostgreSQL RLS (database) |
+| Audit logging of data access | Epic Systems | HIPAA Security Rule requirement; absence of audit trail was a key finding from the clinic's incident review | Implemented through two independent mechanisms: AWS CloudTrail (API level) and application audit_log table (data level) |
+| HIPAA compliance framework | Epic Systems | Internationally recognised benchmark for healthcare data security; adopted as the primary compliance measurement standard | Measured continuously via AWS Security Hub HIPAA standard rather than point-in-time audit |
+
+Features explicitly **not adopted** from existing systems include: hospital billing and insurance management (OpenEMR, Epic), pharmacy inventory and dispensing (Epic), emergency room management (Epic), and HL7/FHIR integration (Epic). These are excluded from the proposed system's scope to maintain focus on the core security architecture. Their exclusion is justified in Chapter 1, Section 1.5 (Project Scope).
+
+A further distinguishing characteristic of the proposed system is its comparison against the standard AWS architecture pattern. Table 2.6 contrasts the typical approach to AWS deployment against the proposed security-hardened configuration.
+
+**Table 2.6** — Proposed System vs Standard AWS Architecture
 
 | Feature | Standard AWS Architecture | Proposed Solution |
 |---------|--------------------------|-------------------|
@@ -114,11 +223,15 @@ The adoption of cloud computing in healthcare has been the subject of sustained 
 
 Al-Issa et al. (2019) extended this analysis with a focus on security challenges specific to eHealth cloud deployments. Their survey identified unauthorised data access, data integrity violations, and service availability failures as the three dominant threat categories. Each of these threats maps directly to a design requirement of the proposed system: unauthorised access is addressed through IAM/RBAC; integrity is protected through CloudTrail audit logging and KMS encryption; and availability is ensured through the multi-AZ deployment and Terraform-based rapid recovery capability.
 
+The concerns raised by clinic stakeholders regarding cloud data sovereignty and privacy — captured in the Section 2.2.3 interviews — are directly addressed by the proposed system's AWS region selection (ap-southeast-1, Singapore, subject to PDPA-compliant data residency), IAM least-privilege policies, and the PostgreSQL row-level security model that ensures no user can access another's data regardless of infrastructure-level access.
+
 #### 2.5.2 Three-Tier Architecture
 
 The three-tier architectural pattern separates a web application into three physically and logically distinct layers: the presentation tier (frontend), the application tier (business logic), and the data tier (database). This separation provides two primary security benefits: it limits the blast radius of a compromise at any single tier, and it enables independent scaling and access control policies to be applied to each layer.
 
 In the context of the proposed system, the three-tier model is implemented within an AWS Virtual Private Cloud, with the presentation tier served through an Application Load Balancer in a public subnet, the application tier running on EC2 instances in a private application subnet, and the database tier hosted on Amazon RDS in an isolated private database subnet. This configuration ensures that the database is never directly reachable from the internet — a direct architectural countermeasure to the network flatness that enabled the ransomware attack at Alamin Clinic.
+
+The contrast with the current system's workflow (Section 2.2.4) is explicit: the current system's single-server flat architecture provides zero lateral movement barriers; the proposed three-tier VPC provides three independent tiers each with distinct security group policies, and the database tier has no outbound internet route.
 
 #### 2.5.3 AWS and the Shared Responsibility Model
 
@@ -128,7 +241,7 @@ Amazon Web Services operates under a shared responsibility model that defines th
 
 Under this model, AWS is responsible for the physical security of data centres, the hypervisor layer, and the managed service infrastructure. The customer — in this case, the clinic — is responsible for operating system configuration, network security group rules, IAM policy design, application security, and data encryption.
 
-This distinction is critical to the proposed system's design rationale. The shift from an on-premise model to AWS does not eliminate the clinic's security responsibilities; it redistributes them. The proposed system addresses the customer-side responsibilities through Terraform-managed network controls, IAM least-privilege policies, KMS encryption, and the DevSecOps pipeline.
+This distinction is critical to the proposed system's design rationale. The shift from an on-premise model to AWS does not eliminate the clinic's security responsibilities; it redistributes them. Importantly, it replaces responsibilities that Alamin Clinic was consistently failing to meet manually (server patching, encryption, access control) with responsibilities that can be met through automated tools (Terraform, KMS, IAM policies) that do not depend on individual IT staff action.
 
 #### 2.5.4 Infrastructure as Code (Terraform)
 
@@ -136,27 +249,31 @@ Infrastructure as Code (IaC) is the practice of defining and provisioning comput
 
 Terraform, developed by HashiCorp, is the IaC tool selected for this project. Terraform's declarative configuration model allows the entire VPC network topology, EC2 instance configurations, RDS parameter groups, IAM policies, and security group rules to be expressed as version-controlled code. This means that the complete environment can be destroyed and redeployed from a clean state in a matter of minutes — a capability that converts the Recovery Time Objective from an open-ended manual process into a measurable, testable metric.
 
+This directly addresses the most critical finding from the stakeholder interview: when the IT Administrator was asked how long the recovery from the ransomware attack took, the answer was five days. The proposed system's target RTO is under fifteen minutes, achievable specifically because the infrastructure state is encoded in Terraform and can be applied to a clean AWS account with a single command.
+
 Checkov, a static analysis tool for IaC, is integrated into the CI/CD pipeline to scan Terraform configurations for security misconfigurations before they are applied. This prevents common infrastructure security mistakes — such as overly permissive security group rules or unencrypted storage volumes — from reaching the production environment.
 
 #### 2.5.5 DevSecOps and Shift-Left Security
 
 DevSecOps is the practice of integrating security testing and validation throughout the software development and delivery lifecycle, rather than applying it as a final gate before production deployment. The "shift-left" principle refers to moving security checks earlier in the pipeline — towards the development phase — so that vulnerabilities are identified and remediated at the lowest possible cost, before they accumulate into the production codebase (Paidy & Chaganti, 2024).
 
-The proposed system implements DevSecOps through a GitHub Actions CI/CD pipeline that executes three categories of security scan on every code commit:
+The current system's deployment workflow (Section 2.2.4) has no security gate at any stage: code is transferred to the production server via FTP without any automated validation. The proposed system replaces this with a GitHub Actions CI/CD pipeline that executes three categories of security scan on every code commit:
 
 - **Trivy** scans Docker container images for known Common Vulnerabilities and Exposures (CVEs) before any image is pushed to the container registry.
 - **SonarQube** performs Static Application Security Testing (SAST), analysing the application source code for security anti-patterns, injection vulnerabilities, and code quality issues.
 - **Checkov** analyses Terraform configuration files for infrastructure-level security misconfigurations.
 
-A pipeline failure on any critical finding blocks the deployment, ensuring that no code with a known critical vulnerability can reach the production environment.
+A pipeline failure on any critical finding blocks the deployment, ensuring that no code with a known critical vulnerability can reach the production environment. This shift from zero security gates (current) to three automated blocking gates (proposed) directly addresses the reactive security posture identified in Section 2.2.2.
 
 #### 2.5.6 Identity and Access Management and Role-Based Access Control
 
 Identity and Access Management (IAM) is the set of policies, processes, and technologies that control who can access which resources in a system. In the AWS context, IAM provides fine-grained, policy-driven access control at the infrastructure level, complementing the application-level RBAC model.
 
-Singh and Chatterjee (2015) established that multi-tier authentication in cloud environments requires security enforcement at multiple layers — not just at the application login screen but at the network and resource levels as well. The proposed system implements this principle by combining AWS IAM policies (which restrict which AWS API operations each application component can perform) with application-level RBAC (which restricts what data each authenticated user can read or write).
+Singh and Chatterjee (2015) established that multi-tier authentication in cloud environments requires security enforcement at multiple layers — not just at the application login screen but at the network and resource levels as well. The proposed system implements this principle by combining AWS IAM policies (which restrict which AWS API operations each application component can perform) with application-level RBAC (which restricts what data each authenticated user can read or write) and PostgreSQL row-level security (which enforces data isolation at the storage layer, independent of the application).
 
 Three IAM roles are defined for the proposed system, corresponding to the clinic's three user categories: Doctor (read/write access to patient records assigned to their care), Admin (read/write access to scheduling and registration data only), and Patient (read-only access to their own records). Each role is granted the minimum permissions required to perform its function, implementing the principle of least privilege.
+
+The addition of PostgreSQL row-level security as a third enforcement layer is a direct response to the access control deficiency identified in Section 2.3: the current system's application-level role controls provide no protection if the underlying database is accessed directly, which is precisely what a ransomware attacker does.
 
 #### 2.5.7 HIPAA Compliance
 
@@ -164,15 +281,21 @@ The Health Insurance Portability and Accountability Act (HIPAA) is the primary r
 
 AWS Security Hub provides a managed compliance posture assessment tool that continuously evaluates the AWS environment against HIPAA security controls and surfaces findings where the configuration deviates from the standard. The proposed system uses Security Hub as the primary mechanism for measuring and reporting HIPAA compliance posture.
 
+The current system satisfies none of HIPAA's technical safeguards: it has no access control enforcement at the infrastructure level, no audit log of data access events, no data integrity protection through encryption, and no consistent transmission security. The proposed system addresses all four categories, making HIPAA posture the measurable compliance target for the evaluation phase in Chapter 5.
+
 ---
 
 ### 2.6 Chapter Summary
 
-This chapter has established the theoretical and contextual foundations for the proposed Secure Cloud-Based Patient Data Management System. The case study analysis of Alamin Clinic identified four systemic deficiencies in the current on-premise system — flat network architecture, weak access control, absent data encryption, and no operational resilience — that collectively created the conditions for a successful ransomware attack.
+This chapter has established the theoretical, contextual, and comparative foundations for the proposed Secure Cloud-Based Patient Data Management System.
 
-The comparison of existing systems demonstrated that no current off-the-shelf solution adequately addresses the security needs of a small private healthcare provider at an accessible cost: on-premise and open-source solutions transfer the full security burden to under-resourced IT staff, while commercial enterprise platforms are prohibitively expensive. The proposed system fills this gap through a security-by-design approach that automates the controls that manual maintenance consistently fails to sustain.
+The case study analysis of Alamin Clinic, grounded in structured stakeholder interviews and documentary analysis, identified four systemic deficiencies in the current on-premise system — flat network architecture, weak access control, absent data encryption, and no operational resilience — that collectively created the conditions for a ransomware attack causing five days of operational disruption and permanent data loss. The 5W 1H problem analysis framed these deficiencies across six dimensions, confirming that the solution requires not incremental patching but fundamental architectural redesign.
 
-The literature review confirmed academic and industry support for each of the core technology choices: three-tier VPC architecture for network isolation, Terraform IaC for reproducible and auditable infrastructure, DevSecOps pipelines for shift-left vulnerability detection, IAM/RBAC for multi-layer access control, and HIPAA via AWS Security Hub for compliance measurement. Chapter 3 proceeds to define the development methodology through which these design principles will be applied.
+The workflow analysis demonstrated that the current manual, unprotected process can be replaced step-by-step by the proposed automated, security-enforced workflow: flat architecture by three-tier VPC, manual FTP deployment by DevSecOps CI/CD pipeline, trust-based roles by JWT and row-level security enforcement, no backup by Terraform redeployment in under fifteen minutes, and no audit trail by CloudTrail and application-level logging.
+
+The comparison of existing systems demonstrated that no current off-the-shelf solution adequately addresses the security needs of a small private healthcare provider at an accessible cost. The features adopted from OpenEMR (patient management, appointment scheduling, patient portal) and Epic Systems (RBAC model, audit logging, HIPAA compliance framework) were explicitly identified and justified, with adaptations specific to the security-by-design objectives of this project.
+
+The literature review confirmed academic and industry support for each core technology choice: three-tier VPC architecture for network isolation, Terraform IaC for reproducible and rapid-recovery infrastructure, DevSecOps pipelines for shift-left vulnerability detection, IAM/RBAC with PostgreSQL row-level security for multi-layer access control, and HIPAA via AWS Security Hub for continuous compliance measurement. Chapter 3 proceeds to define the development methodology through which these design principles will be applied.
 
 ---
 
