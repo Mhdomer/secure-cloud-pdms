@@ -85,7 +85,7 @@ The project is organised into five sprints. Each sprint has a defined scope, a s
 
 #### Sprint 3 — Application Layer and Authentication (PSM2)
 
-**Scope:** Deploy the Docker-containerised application — React frontend and Flask backend — to EC2 instances in the private application subnet. Implement the RBAC authentication system with three roles (Doctor, Admin, Patient). Configure the Application Load Balancer with HTTPS termination and TLS certificate.
+**Scope:** Deploy the Docker-containerised application — React frontend and Node.js/Express backend — to EC2 instances in the private application subnet. Implement the RBAC authentication system with three roles (Doctor, Admin, Patient). Configure the Application Load Balancer with HTTPS termination and TLS certificate.
 
 **Deliverables:** Dockerfiles for frontend and backend, application deployment Terraform modules, IAM role definitions, Trivy scan report for container images.
 
@@ -167,11 +167,11 @@ A failure at any scan stage with a critical or high-severity finding terminates 
 
 **React** is the JavaScript framework used for the system's web frontend, providing the patient portal, appointment scheduling interface, and administrative dashboards. The React application is served as a static bundle through the Application Load Balancer.
 
-**Flask** (Python) is the web framework used for the application backend, providing the RESTful API layer that handles authentication, role enforcement, and data access logic. Flask was selected for its lightweight footprint, compatibility with Docker containerisation, and extensive library support for JWT-based authentication and database ORM integration.
+**Node.js with Express** is the JavaScript runtime and web framework used for the application backend, providing the RESTful API layer that handles authentication, role enforcement, and data access logic. Node.js/Express is selected over alternatives for three reasons: the development team has direct prior experience with this stack, eliminating framework learning overhead during the project; the same JWT authentication, bcrypt password hashing, and cookie-based session patterns validated in prior development work carry over directly; and a single language (JavaScript) across both the React frontend and the Express backend reduces context switching and simplifies the Docker containerisation setup.
 
 **PostgreSQL** is the relational database management system deployed on Amazon RDS. PostgreSQL was selected for its robust support for row-level security policies, which complement the RBAC model by allowing database-level access restrictions to be defined per user role.
 
-> 📎 **ATTACH:** `Figure 3.3` — Technology stack diagram. Show the full stack in one visual: React → ALB → Flask on EC2 → PostgreSQL on RDS, all within the VPC, with the CI/CD pipeline (GitHub Actions + scanners) feeding into it from the left. This gives the examiner a single diagram that ties all the technologies in section 3.4 together.
+> 📎 **ATTACH:** `Figure 3.3` — Technology stack diagram. Show the full stack in one visual: React → ALB → Node.js/Express on EC2 → PostgreSQL on RDS, all within the VPC, with the CI/CD pipeline (GitHub Actions + scanners) feeding into it from the left. This gives the examiner a single diagram that ties all the technologies in section 3.4 together.
 
 ---
 
@@ -230,7 +230,7 @@ This chapter defined the Agile with DevSecOps methodology adopted for the projec
 
 The project is structured into five sprints. Sprint 1 covers requirements and architecture design (PSM1). Sprints 2 through 5 cover network infrastructure, application layer, pipeline integration, and security evaluation respectively (PSM2). Each sprint is bounded by a security gate that must be cleared before the next sprint proceeds.
 
-The technology stack was described across six categories: AWS cloud services (VPC, EC2, RDS, ALB, KMS, CloudWatch, CloudTrail, Security Hub), Terraform IaC, Docker containerisation, GitHub Actions CI/CD, security scanning tools (Trivy, SonarQube, Checkov), and the application stack (React, Flask, PostgreSQL). Each technology selection was grounded in the security and operational requirements established in the literature review.
+The technology stack was described across six categories: AWS cloud services (VPC, EC2, RDS, ALB, KMS, CloudWatch, CloudTrail, Security Hub), Terraform IaC, Docker containerisation, GitHub Actions CI/CD, security scanning tools (Trivy, SonarQube, Checkov), and the application stack (React, Node.js/Express, PostgreSQL). Each technology selection was grounded in the security and operational requirements established in the literature review.
 
 The system requirement analysis produced twelve functional requirements and eleven non-functional requirements, each with a defined verification method. The non-functional requirements establish the measurable security, availability, recovery, and compliance targets against which the system will be evaluated in Chapter 5. Chapter 4 proceeds to translate these requirements into the complete system design.
 

@@ -176,7 +176,7 @@ Figure 4.3 shows the pipeline flow diagram.
 
 **Stage 2 — SonarQube SAST Scan:** The application source code is analysed by SonarQube for security vulnerabilities, injection risks, and code quality issues. A Quality Gate configured for zero critical or blocker-severity security issues must pass before the pipeline advances.
 
-**Stage 3 — Docker Build:** The React frontend and Flask backend are built as Docker container images and tagged with the commit SHA.
+**Stage 3 — Docker Build:** The React frontend and Node.js/Express backend are built as Docker container images and tagged with the commit SHA.
 
 **Stage 4 — Trivy Image Scan:** Trivy scans both container images against the NVD vulnerability database. The pipeline is configured to fail on any `CRITICAL` severity CVE finding. Images that pass are pushed to Amazon Elastic Container Registry (ECR).
 
@@ -300,7 +300,7 @@ PostgreSQL row-level security (RLS) is enabled on the `medical_records` and `pat
 
 **Policy 3 — Admin exclusion from medical content:** Admin database sessions are granted access to the `patients` and `appointments` tables only. Row-level security on `medical_records` denies all access to sessions authenticated with the admin role, ensuring that administrative staff cannot view clinical record content even with direct database access.
 
-These policies provide a second enforcement layer: even if the Flask application layer were bypassed through a vulnerability, the database itself would reject any data access that violates the role boundary.
+These policies provide a second enforcement layer: even if the Node.js/Express application layer were bypassed through a vulnerability, the database itself would reject any data access that violates the role boundary.
 
 ---
 

@@ -66,7 +66,7 @@ The following areas are within the scope of this project:
 
 (b) Design of a Virtual Private Cloud (VPC) with public subnets for internet-facing components and private subnets for the application and database layers.
 
-(c) Three-tier architecture comprising a React frontend layer, a Flask or Node.js backend layer on EC2, and a MySQL or PostgreSQL database layer on Amazon RDS.
+(c) Three-tier architecture comprising a React frontend layer, a Node.js/Express backend layer on EC2, and a PostgreSQL database layer on Amazon RDS.
 
 (d) AWS services including VPC, EC2, RDS, Application Load Balancer (ALB), NAT Gateway, and Internet Gateway.
 
