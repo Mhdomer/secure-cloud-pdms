@@ -71,7 +71,8 @@ This is the master progress tracker for the PSM1 FYP report. Each phase maps to 
 | 3.2 | Methodology Choice and Justification — Agile + DevSecOps | ✅ |
 | 3.3 | Phases of the Chosen Methodology | ✅ |
 | 3.4 | Technology Used Description | ✅ |
-| 3.5 | System Requirement Analysis — functional + non-functional | ✅ |
+| 3.5 | System Requirement Analysis — FR + NFR tables | ✅ |
+| 3.5.3 | Minimum User Hardware/Software Requirements (Tables 3.4 + 3.5) | ✅ Added 2026-05-09 |
 | 3.6 | Chapter Summary | ✅ |
 
 **Blog post:** [[2026-xx-xx-methodology]]  
@@ -80,20 +81,38 @@ This is the master progress tracker for the PSM1 FYP report. Each phase maps to 
 ---
 
 ## Phase 4 — Chapter 4: Requirement Analysis and Design
-**Status:** ✅ Complete  
+**Status:** ✅ Complete (content) — ⬜ Needs 3 new diagram sections added to chapter file  
 **File:** [[chapter-4-requirement-design]]
 
 | Section | Description                                                  | Status |
 | ------- | ------------------------------------------------------------ | ------ |
 | 4.1     | Introduction                                                 | ✅      |
-| 4.2     | Requirement Analysis — use cases, functional/non-functional  | ✅      |
-| 4.3     | Project Design — VPC architecture, 3-tier diagram            | ✅      |
-| 4.4     | Database Design — ER diagram, schema                         | ✅      |
-| 4.5     | Interface Design — wireframes for Doctor/Admin/Patient views | ✅      |
-| 4.6     | Chapter Summary                                              | ✅      |
+| 4.2     | Requirement Analysis — 4 UCs + UC diagram                   | ✅      |
+| 4.3     | Project Design — VPC, security groups, IAM, pipeline        | ✅      |
+| 4.4     | Database Design — 6 tables, RLS policies                    | ✅      |
+| 4.5     | Interface Design — 4 wireframes                             | ✅      |
+| 4.6     | Chapter Summary                                             | ✅      |
+| —       | Activity Diagram (Figure 4.9) — **NEEDED by coordinator**   | ⬜ Draw + add section to chapter |
+| —       | Class Diagram (Figure 4.10) — **NEEDED by coordinator**     | ⬜ Draw + add section to chapter |
+| —       | Sequence Diagrams 4.11–4.14 — **NEEDED by coordinator**     | ⬜ Draw + add section to chapter |
+
+**Use-cases folder:** `docs/design/use-cases/` — 18 UCs across 4 modules ✅ Created 2026-05-09  
+- Each UC has: description table, sequence diagram draw instructions, FR table, NFR table
 
 **Blog post:** [[2026-xx-xx-system-design]]  
 **Design ref:** [[docs/design/architecture/README]] · [[docs/design/security/README]]
+
+---
+
+## Phase 4.5 — Chapter 5: Conclusion (PSM1)
+**Status:** ✅ Complete
+**File:** [[chapter-5-conclusion]]
+
+| Section | Description | Status |
+|---------|-------------|--------|
+| 5.1 | Introduction — project significance + objectives restated | ✅ |
+| 5.2 | Achievements — literature findings + objective status | ✅ |
+| 5.3 | Suggested plan for PSM2 implementation (Sprints 2–5) | ✅ |
 
 ---
 
