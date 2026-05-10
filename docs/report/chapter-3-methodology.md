@@ -30,7 +30,7 @@ Three development methodologies were considered for this project: the Waterfall 
 
 **Scrum** is an Agile framework that organises development into fixed-duration sprints, each producing a potentially shippable increment. Scrum's iterative structure is well-matched to complex system development projects but does not, in its standard form, prescribe when or how security validation should occur within the sprint cycle. Without explicit integration of security practices, Scrum risks treating security as a separate concern to be addressed after functional development is complete — the reactive posture that this project is specifically designed to replace.
 
-**Agile with DevSecOps integration** extends the Scrum framework by embedding security testing, vulnerability scanning, and compliance checks directly into the sprint workflow and the CI/CD pipeline. This approach ensures that security is not a phase that follows development but a property of every increment produced. Bass et al. (2015) characterise this integration as the natural extension of Agile principles into the security domain: just as Agile eliminated the hard boundary between requirements and implementation, DevSecOps eliminates the hard boundary between development and security.
+**Agile with DevSecOps integration** extends the Scrum framework by embedding security testing, vulnerability scanning, and compliance checks directly into the sprint workflow and the CI/CD pipeline. This approach ensures that security is not a phase that follows development but a property of every increment produced. The integration of DevSecOps into the Agile lifecycle is characterised as the natural extension of Agile principles into the security domain: just as Agile eliminated the hard boundary between requirements and implementation, DevSecOps eliminates the hard boundary between development and security — a principle established in foundational DevSecOps literature (Bass et al., 2015) and corroborated by more recent multi-cloud deployment studies (Paidy & Chaganti, 2024).
 
 #### 3.2.2 Justification for Agile with DevSecOps
 
@@ -221,6 +221,37 @@ Non-functional requirements define the performance, security, reliability, and c
 | NFR-09 | Performance | The system shall respond to authenticated API requests within 3 seconds under normal load (up to 50 concurrent users). | Load test results |
 | NFR-10 | Scalability | The application tier shall support horizontal scaling through EC2 Auto Scaling to accommodate increased patient load. | Auto Scaling group configuration |
 | NFR-11 | Maintainability | All infrastructure shall be defined as version-controlled Terraform code, with no manually provisioned resources in the production environment. | Terraform state file audit |
+
+#### 3.5.3 Minimum System Requirements
+
+This section specifies the minimum hardware and software requirements for each category of user to access and operate the system, and the minimum server-side specifications required to deploy the system on AWS.
+
+**Table 3.4** — Minimum Client-Side Requirements (End User)
+
+| Requirement | Minimum Specification | Recommended |
+|------------|----------------------|-------------|
+| Device | Any internet-connected device (PC, laptop, tablet, or smartphone) | Desktop or laptop |
+| Processor | 1 GHz single-core | 2 GHz dual-core or higher |
+| RAM | 1 GB | 4 GB or higher |
+| Internet connection | 1 Mbps stable broadband | 10 Mbps or higher |
+| Web browser | Google Chrome 90+, Mozilla Firefox 88+, Microsoft Edge 90+, Safari 14+ (JavaScript must be enabled) | Latest version of Chrome or Firefox |
+| Screen resolution | 1280 × 720 pixels | 1920 × 1080 pixels |
+| Operating system | Windows 7 or later, macOS 10.14 or later, iOS 12 or later, Android 8.0 or later | Windows 10+, macOS 12+ |
+
+No software installation is required on the client device. The system is delivered as a browser-based web application accessible via HTTPS. All processing occurs on the server side; the client device is only required to render the web interface and transmit user input.
+
+**Table 3.5** — Minimum Server-Side Requirements (AWS Deployment)
+
+| Component | AWS Service | Minimum Instance/Tier | Purpose |
+|-----------|-------------|----------------------|---------|
+| Application server | Amazon EC2 | t3.small (2 vCPU, 2 GB RAM) | Node.js/Express backend |
+| Database server | Amazon RDS | db.t3.micro (2 vCPU, 1 GB RAM) | PostgreSQL patient data store |
+| Load balancer | Application Load Balancer | Standard (1 LCU) | HTTPS traffic distribution |
+| Storage | Amazon EBS | 20 GB GP3 SSD | EC2 root volume |
+| Database storage | Amazon RDS Storage | 20 GB GP2 SSD | Patient records and audit log |
+| Network | AWS VPC | /16 CIDR, 6 subnets across 2 AZs | Network isolation and segmentation |
+
+These specifications define the minimum configuration required to run the system in a pilot deployment supporting up to 50 concurrent users. Production scale-up is achieved through EC2 Auto Scaling and RDS instance class upgrades with no change to the application code or network architecture.
 
 ---
 
