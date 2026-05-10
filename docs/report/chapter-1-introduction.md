@@ -10,7 +10,7 @@ related: [[PHASES]], [[chapter-2-literature-review]]
 
 ## INTRODUCTION
 
----
+
 
 ### 1.1 Introduction
 
@@ -50,13 +50,13 @@ The objectives of this project are:
 
 (b) To design a secure Cloud-Based Patient Data Management System based on a three-tier architecture on AWS, covering Virtual Private Cloud networking, access control through IAM and Role-Based Access Control (RBAC), and a DevSecOps CI/CD pipeline with integrated security scanning.
 
-(c) To evaluate the security, performance, and scalability of the designed system using automated vulnerability scanning tools and Recovery Time Objective (RTO) stress testing simulating a ransomware wipe-and-redeploy scenario.
+(c) To test the developed system through operational testing — comprising automated vulnerability scanning (Trivy, SonarQube, Checkov), Recovery Time Objective (RTO) stress testing simulating a ransomware wipe-and-redeploy scenario, and HIPAA compliance posture assessment via AWS Security Hub — and User Acceptance Testing (UAT) conducted with representative users from each of the three defined roles (Doctor, Admin, Patient).
 
 ---
 
 ### 1.5 Project Scope
 
-This project focuses on the design and deployment of a Secure Patient Data Management System intended for use by doctors, administrative staff, and patients at Alamin Clinic. The system will be deployed on AWS as a functional prototype with security evaluation evidence provided through scan reports, CloudWatch logs, and recovery time test results.
+This project focuses on the design and deployment of a Secure Patient Data Management System for use by doctors, administrative staff, and patients at Alamin Clinic. The system will be deployed on AWS as a functional prototype, with security evaluation evidence provided through scan reports, CloudWatch logs, and recovery time test results.
 
 #### In-Scope
 
@@ -70,7 +70,7 @@ The following areas are within the scope of this project:
 
 (d) AWS services including VPC, EC2, RDS, Application Load Balancer (ALB), NAT Gateway, and Internet Gateway.
 
-(e) Network security controls including Security Groups and Network Access Control Lists (ACLs).
+(e) Network security controls including Security Groups and Network Access Control Lists (NACLs).
 
 (f) Identity and Access Management (IAM) with least-privilege policies and Role-Based Access Control (RBAC) enforced across all three user roles.
 
@@ -81,6 +81,10 @@ The following areas are within the scope of this project:
 (i) Monitoring and audit logging using Amazon CloudWatch and AWS CloudTrail, with defined alerting thresholds and log retention policies.
 
 (j) HIPAA compliance posture assessment using AWS Security Hub.
+
+#### Data and Subjects
+
+The system will be evaluated using a pilot dataset of simulated patient records generated for testing purposes. User Acceptance Testing will be conducted with a minimum of three representative participants, one per user role (Doctor, Admin, Patient). No real patient data will be used during development or testing.
 
 #### Out-of-Scope
 
@@ -108,6 +112,8 @@ At the academic level, this project contributes a practical, case-study-grounded
 ### 1.7 Report Organisation
 
 This report is organised as follows:
+
+**Chapter 1 — Introduction** presents the background to the project, the problem statement at Alamin Clinic, the project aim and objectives, scope, and the importance of the study.
 
 **Chapter 2 — Literature Review** examines the background literature relevant to the project. It presents an analysis of the current system at Alamin Clinic, a comparison of existing healthcare management systems, and a review of the technologies and methods employed in the proposed solution, including cloud security frameworks, three-tier architecture, Infrastructure as Code, and DevSecOps practices.
 
