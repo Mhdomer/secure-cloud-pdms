@@ -16,7 +16,7 @@ related: [[PHASES]], [[chapter-3-methodology]], [[docs/design/architecture/READM
 
 This chapter translates the requirements established in Chapter 3 into a complete system design. It presents the detailed use case analysis that governs the behaviour of each user role, followed by the full architectural design of the proposed system — covering the AWS network topology, security control configuration, IAM policy structure, and DevSecOps pipeline design. The database schema is then defined, including the PostgreSQL table structures and row-level security policies that enforce data isolation at the storage layer. The chapter concludes with the interface design, presenting the wireframe layouts for each user role's primary interaction screens.
 
-Section 4.2 presents the detailed requirement analysis through use case descriptions. Section 4.3 presents the complete project design covering the system architecture. Section 4.4 defines the database design including the entity-relationship model and schema. Section 4.5 presents the interface design for the three user roles. Section 4.6 summarises the chapter.
+Section 4.2 presents the detailed requirement analysis through user stories and use case descriptions. Section 4.3 presents the complete project design covering the system architecture. Section 4.4 defines the database design including the entity-relationship model and schema. Section 4.5 presents the interface design for the three user roles. Section 4.6 summarises the chapter.
 
 ---
 
@@ -28,7 +28,36 @@ The system serves three user roles — Doctor, Admin, and Patient — each with 
 
 > 📎 **ATTACH:** `Figure 4.1` — Use case diagram. Three actor stick figures on the left: Doctor, Admin, Patient. System boundary box in the centre containing labelled use case ovals. Doctor connects to: Login, View Assigned Patients, Create Medical Record, Update Medical Record, View Medical History, View Appointments. Admin connects to: Login, Register Patient, Schedule Appointment, Update Appointment, Deactivate User Account. Patient connects to: Login, View Own Medical Records, View Own Appointments. Draw clean connecting lines — no overlapping use cases between roles except Login, which all three share.
 
-#### 4.2.2 Use Case Descriptions
+#### 4.2.2 User Stories
+
+User stories capture the system's functional requirements from the perspective of each actor, following the Agile format: *"As a [role], I want to [action], so that [benefit]."* Table 4.1 presents all eighteen user stories, organised by module. These stories were derived directly from the stakeholder interviews conducted in Section 2.2.3 and informed the use case design in Section 4.2.3.
+
+**Table 4.1** — User Stories by Module
+
+| ID | Role | User Story | Module |
+|----|------|------------|--------|
+| US-01 | Doctor / Admin / Patient | As a user, I want to log in with my username and password, so that I can securely access my role-specific dashboard. | Auth |
+| US-02 | All roles | As a logged-in user, I want to log out, so that my session is terminated and my account is protected on shared devices. | Auth |
+| US-03 | System | As a user, I want the system to lock my account after three consecutive failed login attempts, so that brute-force attacks are prevented and the admin is alerted. | Auth |
+| US-04 | Admin | As an Admin, I want to create user accounts with assigned roles, so that doctors, staff, and patients can access the system with the correct permissions. | Auth |
+| US-05 | Admin | As an Admin, I want to deactivate user accounts, so that former staff or inactive patients can no longer access the system. | Auth |
+| US-06 | Admin | As an Admin, I want to register new patients and assign them a treating doctor, so that their records can be managed securely from the point of registration. | Patient Mgmt |
+| US-07 | Doctor / Admin | As a Doctor or Admin, I want to view a patient's profile, so that I can review their details before providing care or scheduling an appointment. | Patient Mgmt |
+| US-08 | Admin | As an Admin, I want to update patient demographic information, so that the system holds accurate and current patient details. | Patient Mgmt |
+| US-09 | Admin | As an Admin, I want to assign or reassign a treating doctor to a patient, so that the correct doctor has access to that patient's records. | Patient Mgmt |
+| US-10 | Doctor | As a Doctor, I want to create medical records for my assigned patients, so that I can document diagnoses and prescriptions in a secure, auditable system. | Medical Records |
+| US-11 | Doctor / Patient | As a Doctor, I want to view records of my assigned patients; as a Patient, I want to view my own records in read-only mode, so that clinical data is accessible only to authorised parties. | Medical Records |
+| US-12 | Doctor | As a Doctor, I want to update a record I created, so that I can correct or supplement clinical documentation after the initial consultation. | Medical Records |
+| US-13 | Doctor | As a Doctor, I want to view the complete chronological medical history of my assigned patients, so that I can make informed clinical decisions. | Medical Records |
+| US-14 | Admin | As an Admin, I want to schedule appointments linking a patient to a doctor at a specific date and time, so that consultations are organised and conflict-free. | Appointments |
+| US-15 | Doctor | As a Doctor, I want to view my appointment schedule, so that I know which patients I will be seeing and can prepare for each consultation. | Appointments |
+| US-16 | Patient | As a Patient, I want to view my upcoming appointments in read-only mode, so that I am informed of when and with whom my consultations are scheduled. | Appointments |
+| US-17 | Admin | As an Admin, I want to update appointment details, so that changes in scheduling requirements are reflected accurately in the system. | Appointments |
+| US-18 | Admin | As an Admin, I want to cancel appointments, so that unavailable time slots are freed and appointment records remain accurate for audit purposes. | Appointments |
+
+---
+
+#### 4.2.3 Use Case Descriptions
 
 The following tables describe the primary use cases in detail, specifying the actor, preconditions, main flow, and exception handling for each.
 
