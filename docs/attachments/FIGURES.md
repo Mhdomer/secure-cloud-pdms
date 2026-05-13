@@ -14,7 +14,7 @@ Recommended tools: **draw.io** (free, exports PNG/SVG), **Lucidchart**, or **Mic
 
 ## Chapter 2 — Literature Review
 
-### Figure 2.1 — Alamin Clinic Organisational Structure
+### Figure 2.1 — Alamin Clinic Organizational Structure
 **Status:** ⬜ Not produced  
 **Inserted into report:** ⬜  
 **Type:** Org chart  
@@ -137,7 +137,7 @@ Two zones side by side:
 GitHub repo → GitHub Actions → (three parallel scanners: SonarQube, Trivy, Checkov) → Amazon ECR
 
 **Right zone — Deployed Stack (inside VPC boundary box):**  
-Top to bottom: React (browser) → ALB (public subnet) → Flask on EC2 (private app subnet) → PostgreSQL on RDS (private DB subnet)
+Top to bottom: React (browser) → ALB (public subnet) → Node.js/Express on EC2 (private app subnet) → PostgreSQL on RDS (private DB subnet)
 
 Connect ECR to EC2 with a dashed "pull image" arrow. Label each component with the AWS service name or technology name.
 
@@ -329,6 +329,168 @@ Critically: NO edit button, NO delete button, NO create button anywhere on the s
 
 ---
 
+### Figure 4.9 — Activity Diagram ⭐ REQUIRED BY COORDINATOR
+**Status:** ⬜ Not produced  
+**Inserted into report:** ⬜  
+**Type:** UML Activity Diagram  
+**Tool suggestion:** draw.io, Lucidchart, or StarUML
+
+**What to draw:**  
+A top-to-bottom UML activity diagram showing the full system workflow (bird's-eye view).
+
+Start → User opens browser → [HTTPS enforced — TLS redirect] → Login Page → (Fork: valid credentials? YES/NO)
+
+**NO path:** Log failed attempt → (Diamond: 3 attempts?) → YES: Lock account + CloudWatch alert → END  
+**NO path continued:** NO: Return to login page
+
+**YES path (fork into 3 swim lanes by role):**
+
+**Admin swim lane:** Admin Dashboard → (choice: Register Patient / Schedule Appointment / Manage Users) → Write to RDS → Write to audit_log → END
+
+**Doctor swim lane:** Doctor Dashboard → Select assigned patient → (Diamond: RLS passes?) → YES: View/Create/Update medical record → Write to RDS → Write to audit_log → END → NO: Access denied → END
+
+**Patient swim lane:** Patient Portal → View own records (read-only) → RLS filter applied → Display records → END
+
+**Shared bottom:** All paths merge at → CloudTrail logs API call → END
+
+Use swim lanes (vertical partitions) for the three roles. Add a note box: "Every database write is KMS-encrypted at rest". Use standard UML activity notation: rounded rectangles for actions, diamonds for decisions, thick bars for forks/merges, filled circle for Start, circle-in-circle for End.
+
+**Why it matters:** Coordinator explicitly required an Activity Diagram. This is currently missing from Chapter 4 and must be added before final submission.
+
+---
+
+### Figure 4.10 — Class Diagram ⭐ REQUIRED BY COORDINATOR
+**Status:** ⬜ Not produced  
+**Inserted into report:** ⬜  
+**Type:** UML Class Diagram  
+**Tool suggestion:** draw.io, Lucidchart, or StarUML
+
+**What to draw:**  
+Six class rectangles, each with three compartments (Class Name | Attributes | Methods). Show associations between classes.
+
+**Class: UserModel**
+- Attributes: `-userId: UUID`, `-username: String`, `-passwordHash: String`, `-role: Enum(doctor|admin|patient)`, `-isActive: Boolean`, `-failedAttempts: Integer`
+- Methods: `+findByUsername(username): UserModel`, `+create(data): UserModel`, `+deactivate(userId): void`, `+incrementFailedAttempts(userId): void`
+
+**Class: PatientModel**
+- Attributes: `-patientId: UUID`, `-userId: UUID`, `-firstName: String`, `-lastName: String`, `-dateOfBirth: Date`, `-assignedDoctorId: UUID`
+- Methods: `+register(data): PatientModel`, `+findByDoctor(doctorId): PatientModel[]`, `+update(patientId, data): PatientModel`, `+assignDoctor(patientId, doctorId): void`
+
+**Class: DoctorModel**
+- Attributes: `-doctorId: UUID`, `-userId: UUID`, `-firstName: String`, `-lastName: String`, `-specialisation: String`
+- Methods: `+findById(doctorId): DoctorModel`, `+getAssignedPatients(doctorId): PatientModel[]`
+
+**Class: MedicalRecordModel**
+- Attributes: `-recordId: UUID`, `-patientId: UUID`, `-doctorId: UUID`, `-diagnosis: String`, `-prescription: String`, `-notes: String`, `-createdAt: DateTime`, `-updatedAt: DateTime`
+- Methods: `+create(data): MedicalRecordModel`, `+findByDoctor(doctorId): MedicalRecordModel[]`, `+findByPatient(patientId): MedicalRecordModel[]`, `+update(recordId, data): MedicalRecordModel`
+
+**Class: AppointmentModel**
+- Attributes: `-appointmentId: UUID`, `-patientId: UUID`, `-doctorId: UUID`, `-scheduledAt: DateTime`, `-status: Enum(scheduled|completed|cancelled)`, `-createdBy: UUID`
+- Methods: `+schedule(data): AppointmentModel`, `+cancel(appointmentId): void`, `+update(appointmentId, data): AppointmentModel`, `+findByDoctor(doctorId): AppointmentModel[]`, `+findByPatient(patientId): AppointmentModel[]`
+
+**Class: AuditLogModel**
+- Attributes: `-logId: UUID`, `-userId: UUID`, `-action: String`, `-tableName: String`, `-recordId: UUID`, `-ipAddress: String`, `-performedAt: DateTime`
+- Methods: `+log(data): void`
+
+**Associations (draw lines between classes):**
+- UserModel `1` — `0..1` PatientModel (composition)
+- UserModel `1` — `0..1` DoctorModel (composition)
+- DoctorModel `1` — `*` PatientModel (assigned patients)
+- PatientModel `1` — `*` MedicalRecordModel
+- DoctorModel `1` — `*` MedicalRecordModel
+- PatientModel `1` — `*` AppointmentModel
+- DoctorModel `1` — `*` AppointmentModel
+- UserModel `1` — `*` AuditLogModel
+
+Use standard UML class notation: `-` for private, `+` for public.
+
+**Why it matters:** Coordinator explicitly required a Class Diagram. Currently missing from Chapter 4.
+
+---
+
+### Figure 4.11 — Sequence Diagram: User Login ⭐ REQUIRED BY COORDINATOR
+**Status:** ⬜ Not produced  
+**Inserted into report:** ⬜  
+**Type:** UML Sequence Diagram  
+**Tool suggestion:** draw.io, Lucidchart, or SequenceDiagram.org (free)  
+**Source:** Full draw instructions in [docs/design/use-cases/module-1-auth/UC-01-login.md](../design/use-cases/module-1-auth/UC-01-login.md)
+
+---
+
+### Figure 4.12 — Sequence Diagram: Register New Patient ⭐ REQUIRED BY COORDINATOR
+**Status:** ⬜ Not produced  
+**Inserted into report:** ⬜  
+**Type:** UML Sequence Diagram  
+**Source:** Full draw instructions in [docs/design/use-cases/module-2-patient-management/UC-06-register-patient.md](../design/use-cases/module-2-patient-management/UC-06-register-patient.md)
+
+---
+
+### Figure 4.13 — Sequence Diagram: Create Medical Record ⭐ REQUIRED BY COORDINATOR
+**Status:** ⬜ Not produced  
+**Inserted into report:** ⬜  
+**Type:** UML Sequence Diagram  
+**Source:** Full draw instructions in [docs/design/use-cases/module-3-medical-records/UC-10-create-record.md](../design/use-cases/module-3-medical-records/UC-10-create-record.md)
+
+---
+
+### Figure 4.14 — Sequence Diagram: Schedule Appointment ⭐ REQUIRED BY COORDINATOR
+**Status:** ⬜ Not produced  
+**Inserted into report:** ⬜  
+**Type:** UML Sequence Diagram  
+**Source:** Full draw instructions in [docs/design/use-cases/module-4-appointments/UC-14-schedule-appointment.md](../design/use-cases/module-4-appointments/UC-14-schedule-appointment.md)
+
+---
+
+---
+
+## Appendix A — Project Activity Schedule (Gantt Chart) ⭐ MANDATORY
+**Status:** ⬜ Not produced  
+**Inserted into report:** ⬜  
+**Type:** Gantt chart  
+**Tool suggestion:** Excel, Google Sheets, or draw.io  
+**Location in report:** Appendix A (after References section)  
+**Page limit:** One page
+
+**What to draw:**  
+Horizontal Gantt chart. Rows = tasks grouped by semester. Columns = weeks.
+
+Use two colours: one for PSM1 weeks, one for PSM2 weeks (projected).
+
+**PSM1 rows (completed — shade as done):**
+
+| Task | Approx weeks |
+|------|-------------|
+| Proposal preparation and approval | Week 1–2 |
+| Chapter 1: Introduction | Week 3–4 |
+| Chapter 2: Literature Review | Week 4–6 |
+| Chapter 3: System Development Methodology | Week 6–7 |
+| Chapter 4: Requirement Analysis and Design | Week 7–8 |
+| Abstract (English + Bahasa Melayu) | Week 8 |
+| Diagram production (Figures 2.1–4.8) | Week 8–9 |
+| Progress 1 submission | Week 9 (9 May 2026) |
+| Final formatting and submission | Week 10–14 |
+
+**PSM2 rows (projected — shade differently):**
+
+| Task | Approx weeks |
+|------|-------------|
+| Sprint 2: Network infrastructure (VPC, RDS, EC2) | Week 1–3 |
+| Sprint 3: Application layer (React + Node.js, Auth) | Week 3–6 |
+| Sprint 4: DevSecOps pipeline (GitHub Actions, scanners) | Week 6–8 |
+| Sprint 5: Security evaluation and HIPAA testing | Week 8–10 |
+| Chapter 5: Implementation and Testing | Week 9–11 |
+| Chapter 6: Conclusion | Week 11–12 |
+| Final report compilation and submission | Week 12–14 |
+
+**Mark these milestones with a diamond or vertical line:**
+- Progress 1 submission: 9 May 2026
+- PSM2 start
+- Final submission date (check academic calendar)
+
+**Why it matters:** Mandatory per PSM coordinator guidelines. Shows the examiner the full project timeline across both semesters. One chart, one page.
+
+---
+
 ## Summary Checklist
 
 | Figure | Chapter | Type | Status |
@@ -348,5 +510,13 @@ Critically: NO edit button, NO delete button, NO create button anywhere on the s
 | Figure 4.6 | Ch4 | Doctor wireframe | ⬜ |
 | Figure 4.7 | Ch4 | Admin wireframe | ⬜ |
 | Figure 4.8 | Ch4 | Patient wireframe | ⬜ |
+| Figure 4.9 | Ch4 | Activity diagram ⭐ NEW | ⬜ |
+| Figure 4.10 | Ch4 | Class diagram ⭐ NEW | ⬜ |
+| Figure 4.11 | Ch4 | Sequence: Login ⭐ NEW | ⬜ |
+| Figure 4.12 | Ch4 | Sequence: Register Patient ⭐ NEW | ⬜ |
+| Figure 4.13 | Ch4 | Sequence: Create Medical Record ⭐ NEW | ⬜ |
+| Figure 4.14 | Ch4 | Sequence: Schedule Appointment ⭐ NEW | ⬜ |
+| Appendix A | Appendix | Gantt chart ⭐ MANDATORY | ⬜ |
 
-**Priority order for Progress 1 submission:** Figure 2.2 → Figure 2.3 → Figure 2.1 → Figure 4.2 → Figure 4.4 → rest
+**Priority order for Progress 1 submission:** Figure 2.2 → Figure 2.3 → Figure 2.1 → Figure 4.2 → Figure 4.4 → rest  
+**Priority order for final submission (PSM2):** Figure 4.9 (Activity) → Figure 4.10 (Class) → Figures 4.11–4.14 (Sequence) → Appendix A (Gantt) → all remaining figures
