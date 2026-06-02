@@ -3,7 +3,7 @@ tags: [fyp, psm1, chapter-3, methodology, agile, devsecops]
 phase: 3
 status: complete
 created: 2026-05-02
-related: [[PHASES]], [[chapter-2-literature-review]], [[chapter-4-requirement-design]]
+related: [[FYP/PSM 1 SECRH/docs/PHASES]], [[chapter-2-literature-review]], [[chapter-4-requirement-design]]
 
 
 # CHAPTER 3
@@ -48,14 +48,14 @@ Table 3.1 summarises the comparison of the three candidate methodologies against
 
 **Table 3.1** — Methodology Comparison
 
-| Criteria | Waterfall | Scrum (Agile) | Agile + DevSecOps |
-|----------|-----------|---------------|-------------------|
-| Iterative development | ✗ | ✓ | ✓ |
-| Security integrated at each stage | ✗ | ✗ | ✓ |
-| Supports IaC incremental build | Partial | ✓ | ✓ |
-| Automated pipeline compatibility | ✗ | Partial | ✓ |
-| Continuous compliance measurement | ✗ | ✗ | ✓ |
-| Suited for changing security requirements | ✗ | ✓ | ✓ |
+| Criteria                                  | Waterfall | Scrum (Agile) | Agile + DevSecOps |
+| ----------------------------------------- | --------- | ------------- | ----------------- |
+| Iterative development                     | ✗         | ✓             | ✓                 |
+| Security integrated at each stage         | ✗         | ✗             | ✓                 |
+| Supports IaC incremental build            | Partial   | ✓             | ✓                 |
+| Automated pipeline compatibility          | ✗         | Partial       | ✓                 |
+| Continuous compliance measurement         | ✗         | ✗             | ✓                 |
+| Suited for changing security requirements | ✗         | ✓             | ✓                 |
 
 > 📎 **ATTACH:** `Figure 3.1` — Agile + DevSecOps sprint cycle diagram. Show the standard Agile loop (Plan → Develop → Test → Review → Release) with DevSecOps security gates overlaid: SAST scan (SonarQube) during Develop, container scan (Trivy) and IaC scan (Checkov) during Test, Security Hub posture check during Release. This makes the methodology tangible rather than abstract.
 
@@ -63,11 +63,11 @@ Table 3.1 summarises the comparison of the three candidate methodologies against
 
 ### 3.3 Phases of the Chosen Methodology
 
-The project is organised into five sprints. Each sprint has a defined scope, a set of deliverables, and a security gate that must pass before the sprint is considered complete. The sprint structure covers both the PSM1 design phase and the PSM2 implementation phase, providing a continuous methodology across both semesters.
+The project is organized into five sprints. Each sprint has a defined scope, a set of deliverables, and a security gate that must pass before the sprint is considered complete.
 
-> 📎 **ATTACH:** `Figure 3.2` — Project Gantt chart or sprint timeline. Show all five sprints across the full project calendar (PSM1 months and PSM2 months), with each sprint's key deliverable labelled. This gives the examiner a clear view of the project timeline and confirms that the methodology phases map to real calendar milestones.
+The full project schedule spanning all five sprints is presented in Appendix A, Figure A.2.
 
-#### Sprint 1 — Requirements and Architecture Design (PSM1)
+#### Sprint 1 — Requirements and Architecture Design
 
 **Scope:** Elicit and document all functional and non-functional system requirements. Produce the complete system architecture design, including the three-tier VPC network diagram, IAM policy structure, and DevSecOps pipeline specification.
 
@@ -75,7 +75,7 @@ The project is organised into five sprints. Each sprint has a defined scope, a s
 
 **Security gate:** Architecture review against HIPAA Security Rule technical safeguard requirements. All identified control gaps must be documented and addressed in the design before Sprint 2 proceeds.
 
-#### Sprint 2 — Network Infrastructure and Database Layer (PSM2)
+#### Sprint 2 — Network Infrastructure and Database Layer
 
 **Scope:** Provision the AWS VPC using Terraform, including the public subnet (Application Load Balancer), private application subnet (EC2), and isolated database subnet (RDS). Configure Security Groups, Network ACLs, NAT Gateway, and Internet Gateway. Deploy and configure the Amazon RDS database instance with KMS encryption at rest.
 
@@ -83,15 +83,15 @@ The project is organised into five sprints. Each sprint has a defined scope, a s
 
 **Security gate:** Checkov scan must report zero critical misconfigurations. RDS instance must be confirmed as unreachable from the public internet. Encryption at rest must be verified in the AWS Console.
 
-#### Sprint 3 — Application Layer and Authentication (PSM2)
+#### Sprint 3 — Application Layer and Authentication
 
-**Scope:** Deploy the Docker-containerised application — React frontend and Node.js/Express backend — to EC2 instances in the private application subnet. Implement the RBAC authentication system with three roles (Doctor, Admin, Patient). Configure the Application Load Balancer with HTTPS termination and TLS certificate.
+**Scope:** Deploy the Node.js/Express backend as a Docker container to EC2 instances in the private application subnet. Build the React frontend as a static production artifact and deploy it to an Amazon S3 bucket served through Amazon CloudFront. Implement the RBAC authentication system with three roles (Doctor, Admin, Patient). Configure the Application Load Balancer with HTTPS termination and TLS certificate.
 
-**Deliverables:** Dockerfiles for frontend and backend, application deployment Terraform modules, IAM role definitions, Trivy scan report for container images.
+**Deliverables:** Dockerfile for the Node.js/Express backend, React production build deployed to S3, CloudFront distribution configuration, application deployment Terraform modules, IAM role definitions, Trivy scan report for the backend container image.
 
 **Security gate:** Trivy scan must report zero critical CVEs in deployed container images. TLS termination must be verified at the ALB. Application-level RBAC must be confirmed to enforce role boundaries through test cases covering each user role.
 
-#### Sprint 4 — DevSecOps Pipeline and Monitoring (PSM2)
+#### Sprint 4 — DevSecOps Pipeline and Monitoring
 
 **Scope:** Build and configure the complete GitHub Actions CI/CD pipeline, integrating Trivy, SonarQube, and Checkov as automated pipeline stages. Configure Amazon CloudWatch log groups and metric alarms. Configure AWS CloudTrail for audit logging of all API calls and data access events.
 
@@ -99,7 +99,7 @@ The project is organised into five sprints. Each sprint has a defined scope, a s
 
 **Security gate:** Pipeline must demonstrate that a commit containing a deliberate critical vulnerability (test CVE injection) is blocked before reaching the deployment stage. CloudTrail must be confirmed to capture patient data access events.
 
-#### Sprint 5 — Security Evaluation and Compliance Testing (PSM2)
+#### Sprint 5 — Security Evaluation and Compliance Testing
 
 **Scope:** Execute the full security evaluation framework: automated vulnerability scan reports from Trivy, SonarQube, and Checkov; black-box and white-box penetration testing of the application; Recovery Time Objective stress test simulating a ransomware wipe-and-redeploy scenario; and HIPAA compliance posture assessment via AWS Security Hub.
 
@@ -165,13 +165,13 @@ A failure at any scan stage with a critical or high-severity finding terminates 
 
 #### 3.4.6 Application Stack
 
-**React** is the JavaScript framework used for the system's web frontend, providing the patient portal, appointment scheduling interface, and administrative dashboards. The React application is served as a static bundle through the Application Load Balancer.
+**React** is the JavaScript framework used for the system's web frontend, providing the patient portal, appointment scheduling interface, and administrative dashboards. The React application is compiled to a static production build and deployed to an Amazon S3 bucket. Amazon CloudFront serves the static files globally from edge locations, providing low-latency delivery to end users while keeping the frontend entirely outside the VPC attack surface.
 
 **Node.js with Express** is the JavaScript runtime and web framework used for the application backend, providing the RESTful API layer that handles authentication, role enforcement, and data access logic. Node.js/Express is selected over alternatives for three reasons: the development team has direct prior experience with this stack, eliminating framework learning overhead during the project; the same JWT authentication, bcrypt password hashing, and cookie-based session patterns validated in prior development work carry over directly; and a single language (JavaScript) across both the React frontend and the Express backend reduces context switching and simplifies the Docker containerisation setup.
 
 **PostgreSQL** is the relational database management system deployed on Amazon RDS. PostgreSQL was selected for its robust support for row-level security policies, which complement the RBAC model by allowing database-level access restrictions to be defined per user role.
 
-> 📎 **ATTACH:** `Figure 3.3` — Technology stack diagram. Show the full stack in one visual: React → ALB → Node.js/Express on EC2 → PostgreSQL on RDS, all within the VPC, with the CI/CD pipeline (GitHub Actions + scanners) feeding into it from the left. This gives the examiner a single diagram that ties all the technologies in section 3.4 together.
+> 📎 **ATTACH:** `Figure 3.3` — Technology stack diagram. Show the full stack in one visual: S3+CloudFront (React) → ALB → Node.js/Express on EC2 → PostgreSQL on RDS, with the CI/CD pipeline (GitHub Actions + scanners) feeding into it from the left. This gives the examiner a single diagram that ties all the technologies in section 3.4 together.
 
 ---
 
@@ -181,46 +181,13 @@ System requirements are divided into two categories: functional requirements, wh
 
 #### 3.5.1 Functional Requirements
 
-Functional requirements specify the behaviours and operations the system must support. Table 3.2 lists the functional requirements for the proposed system.
+Functional requirements specify the behaviours and operations the system must support. The system has twelve functional requirements covering five domains: user authentication and account management (FR-07, FR-08, FR-10), patient registration and profile management (FR-01), medical records management (FR-02, FR-03, FR-06), appointment scheduling (FR-04, FR-05), and system-level security controls (FR-09, FR-11, FR-12). The complete requirements table is provided in Appendix B, Table B.19.
 
-**Table 3.2** — Functional Requirements
-
-| ID | Requirement | User Role | Priority |
-|----|------------|-----------|----------|
-| FR-01 | The system shall allow new patients to be registered with a unique identifier, personal details, and assigned doctor. | Admin | High |
-| FR-02 | The system shall allow authenticated doctors to create, read, and update medical records for patients assigned to their care. | Doctor | High |
-| FR-03 | The system shall allow authenticated doctors to read the medical history of their assigned patients. | Doctor | High |
-| FR-04 | The system shall allow authenticated administrators to create, update, and cancel patient appointments. | Admin | High |
-| FR-05 | The system shall allow authenticated patients to view their own upcoming and past appointments. | Patient | High |
-| FR-06 | The system shall allow authenticated patients to view their own medical records in read-only mode. | Patient | High |
-| FR-07 | The system shall authenticate all users with a unique username and password before granting access to any system function. | All | High |
-| FR-08 | The system shall enforce role-based access control, ensuring that each user role can only access the data and functions authorised for that role. | All | High |
-| FR-09 | The system shall log all patient data access events, including the user identity, timestamp, and action performed. | System | High |
-| FR-10 | The system shall allow administrators to create, deactivate, and reassign user accounts. | Admin | Medium |
-| FR-11 | The system shall transmit all data between the client browser and the server over HTTPS. | System | High |
-| FR-12 | The system shall store all patient records in an encrypted database with no direct internet access path. | System | High |
-
-> 📎 **ATTACH:** `Figure 3.4` — Use case diagram. Draw three actors (Doctor, Admin, Patient) each connected to their authorised use cases from the FR table above. This is standard UTM requirement — examiners expect a use case diagram in the requirements section. Keep it clean: one diagram, all three roles, all FRs represented as labelled ovals.
+> 📎 **ATTACH:** `Figure 3.4` — Use case diagram. Draw three actors (Doctor, Admin, Patient) each connected to their authorised use cases from the FR table in Appendix B. This is standard UTM requirement — examiners expect a use case diagram in the requirements section. Keep it clean: one diagram, all three roles, all FRs represented as labelled ovals.
 
 #### 3.5.2 Non-Functional Requirements
 
-Non-functional requirements define the performance, security, reliability, and compliance constraints that the system must satisfy. Table 3.3 lists the non-functional requirements.
-
-**Table 3.3** — Non-Functional Requirements
-
-| ID | Category | Requirement | Metric / Verification Method |
-|----|----------|-------------|------------------------------|
-| NFR-01 | Security | All data stored in the RDS database shall be encrypted at rest using AES-256 via AWS KMS. | AWS Console — RDS encryption status |
-| NFR-02 | Security | All data in transit between the client and ALB shall be encrypted using TLS 1.2 or higher. | SSL Labs scan / ALB listener configuration |
-| NFR-03 | Security | All IAM roles shall be configured with least-privilege policies, granting only the permissions required for the role's function. | IAM policy review / AWS IAM Access Analyzer |
-| NFR-04 | Security | The CI/CD pipeline shall block deployment on any critical or high-severity finding from Trivy, SonarQube, or Checkov. | GitHub Actions pipeline log |
-| NFR-05 | Availability | The system shall maintain 99.9% uptime through multi-AZ EC2 and RDS deployment. | CloudWatch availability metric |
-| NFR-06 | Recovery | The system shall be fully redeployable from a clean Terraform state within 15 minutes of a complete infrastructure wipe. | RTO stress test — measured recovery time |
-| NFR-07 | Compliance | The system shall achieve and maintain a passing HIPAA posture score as measured by AWS Security Hub. | Security Hub HIPAA standard findings report |
-| NFR-08 | Auditability | All AWS API calls and patient data access events shall be logged in CloudTrail with a minimum retention period of 90 days. | CloudTrail configuration / S3 log bucket |
-| NFR-09 | Performance | The system shall respond to authenticated API requests within 3 seconds under normal load (up to 50 concurrent users). | Load test results |
-| NFR-10 | Scalability | The application tier shall support horizontal scaling through EC2 Auto Scaling to accommodate increased patient load. | Auto Scaling group configuration |
-| NFR-11 | Maintainability | All infrastructure shall be defined as version-controlled Terraform code, with no manually provisioned resources in the production environment. | Terraform state file audit |
+Non-functional requirements define the performance, security, reliability, and compliance constraints the system must satisfy. The system has eleven non-functional requirements across five categories: security (NFR-01 through NFR-04: KMS encryption, TLS, least-privilege IAM, pipeline blocking), availability and recovery (NFR-05: 99.9% uptime; NFR-06: RTO ≤ 15 minutes), compliance and auditability (NFR-07: HIPAA Security Hub posture; NFR-08: CloudTrail 90-day retention), performance (NFR-09: API response ≤ 3 s under 50 concurrent users), scalability (NFR-10: EC2 Auto Scaling), and maintainability (NFR-11: all infrastructure in Terraform). The complete requirements table is provided in Appendix B, Table B.20.
 
 #### 3.5.3 Minimum System Requirements
 
@@ -228,28 +195,28 @@ This section specifies the minimum hardware and software requirements for each c
 
 **Table 3.4** — Minimum Client-Side Requirements (End User)
 
-| Requirement | Minimum Specification | Recommended |
-|------------|----------------------|-------------|
-| Device | Any internet-connected device (PC, laptop, tablet, or smartphone) | Desktop or laptop |
-| Processor | 1 GHz single-core | 2 GHz dual-core or higher |
-| RAM | 1 GB | 4 GB or higher |
-| Internet connection | 1 Mbps stable broadband | 10 Mbps or higher |
-| Web browser | Google Chrome 90+, Mozilla Firefox 88+, Microsoft Edge 90+, Safari 14+ (JavaScript must be enabled) | Latest version of Chrome or Firefox |
-| Screen resolution | 1280 × 720 pixels | 1920 × 1080 pixels |
-| Operating system | Windows 7 or later, macOS 10.14 or later, iOS 12 or later, Android 8.0 or later | Windows 10+, macOS 12+ |
+| Requirement         | Minimum Specification                                                                               | Recommended                         |
+| ------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Device              | Any internet-connected device (PC, laptop, tablet, or smartphone)                                   | Desktop or laptop                   |
+| Processor           | 1 GHz single-core                                                                                   | 2 GHz dual-core or higher           |
+| RAM                 | 1 GB                                                                                                | 4 GB or higher                      |
+| Internet connection | 1 Mbps stable broadband                                                                             | 10 Mbps or higher                   |
+| Web browser         | Google Chrome 90+, Mozilla Firefox 88+, Microsoft Edge 90+, Safari 14+ (JavaScript must be enabled) | Latest version of Chrome or Firefox |
+| Screen resolution   | 1280 × 720 pixels                                                                                   | 1920 × 1080 pixels                  |
+| Operating system    | Windows 7 or later, macOS 10.14 or later, iOS 12 or later, Android 8.0 or later                     | Windows 10+, macOS 12+              |
 
 No software installation is required on the client device. The system is delivered as a browser-based web application accessible via HTTPS. All processing occurs on the server side; the client device is only required to render the web interface and transmit user input.
 
 **Table 3.5** — Minimum Server-Side Requirements (AWS Deployment)
 
-| Component | AWS Service | Minimum Instance/Tier | Purpose |
-|-----------|-------------|----------------------|---------|
-| Application server | Amazon EC2 | t3.small (2 vCPU, 2 GB RAM) | Node.js/Express backend |
-| Database server | Amazon RDS | db.t3.micro (2 vCPU, 1 GB RAM) | PostgreSQL patient data store |
-| Load balancer | Application Load Balancer | Standard (1 LCU) | HTTPS traffic distribution |
-| Storage | Amazon EBS | 20 GB GP3 SSD | EC2 root volume |
-| Database storage | Amazon RDS Storage | 20 GB GP2 SSD | Patient records and audit log |
-| Network | AWS VPC | /16 CIDR, 6 subnets across 2 AZs | Network isolation and segmentation |
+| Component          | AWS Service               | Minimum Instance/Tier            | Purpose                            |
+| ------------------ | ------------------------- | -------------------------------- | ---------------------------------- |
+| Application server | Amazon EC2                | t3.small (2 vCPU, 2 GB RAM)      | Node.js/Express backend            |
+| Database server    | Amazon RDS                | db.t3.micro (2 vCPU, 1 GB RAM)   | PostgreSQL patient data store      |
+| Load balancer      | Application Load Balancer | Standard (1 LCU)                 | HTTPS traffic distribution         |
+| Storage            | Amazon EBS                | 20 GB GP3 SSD                    | EC2 root volume                    |
+| Database storage   | Amazon RDS Storage        | 20 GB GP2 SSD                    | Patient records and audit log      |
+| Network            | AWS VPC                   | /16 CIDR, 6 subnets across 2 AZs | Network isolation and segmentation |
 
 These specifications define the minimum configuration required to run the system in a pilot deployment supporting up to 50 concurrent users. Production scale-up is achieved through EC2 Auto Scaling and RDS instance class upgrades with no change to the application code or network architecture.
 
@@ -259,9 +226,9 @@ These specifications define the minimum configuration required to run the system
 
 This chapter defined the Agile with DevSecOps methodology adopted for the project and justified its selection over Waterfall and standard Scrum approaches on the basis of four criteria: iterative security validation, shift-left pipeline integration, Infrastructure as Code compatibility, and measurable compliance tracking.
 
-The project is structured into five sprints. Sprint 1 covers requirements and architecture design (PSM1). Sprints 2 through 5 cover network infrastructure, application layer, pipeline integration, and security evaluation respectively (PSM2). Each sprint is bounded by a security gate that must be cleared before the next sprint proceeds.
+The project is structured into five sprints. Sprint 1 covers requirements and architecture design. Sprints 2 through 5 cover network infrastructure, application layer, pipeline integration, and security evaluation respectively. Each sprint is bounded by a security gate that must be cleared before the next sprint proceeds.
 
-The technology stack was described across six categories: AWS cloud services (VPC, EC2, RDS, ALB, KMS, CloudWatch, CloudTrail, Security Hub), Terraform IaC, Docker containerisation, GitHub Actions CI/CD, security scanning tools (Trivy, SonarQube, Checkov), and the application stack (React, Node.js/Express, PostgreSQL). Each technology selection was grounded in the security and operational requirements established in the literature review.
+The technology stack was described across six categories: AWS cloud services (VPC, EC2, RDS, ALB, S3, CloudFront, KMS, CloudWatch, CloudTrail, Security Hub), Terraform IaC, Docker containerisation, GitHub Actions CI/CD, security scanning tools (Trivy, SonarQube, Checkov), and the application stack (React, Node.js/Express, PostgreSQL). Each technology selection was grounded in the security and operational requirements established in the literature review.
 
 The system requirement analysis produced twelve functional requirements and eleven non-functional requirements, each with a defined verification method. The non-functional requirements establish the measurable security, availability, recovery, and compliance targets against which the system will be evaluated in Chapter 5. Chapter 4 proceeds to translate these requirements into the complete system design.
 
