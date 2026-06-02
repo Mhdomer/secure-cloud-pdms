@@ -3,7 +3,7 @@ tags: [fyp, psm1, chapter-1, introduction]
 phase: 1
 status: complete
 created: 2026-04-25
-related: [[PHASES]], [[chapter-2-literature-review]]
+related: [[FYP/PSM 1 SECRH/docs/PHASES]], [[chapter-2-literature-review]]
 
 
 # CHAPTER 1
