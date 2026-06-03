@@ -3,7 +3,7 @@ tags: [fyp, psm1, chapter-5, conclusion]
 phase: 5
 status: complete
 created: 2026-05-09
-related: [[PHASES]], [[chapter-4-requirement-design]]
+related: [[FYP/PSM 1 SECRH/docs/PHASES]], [[chapter-4-requirement-design]]
 
 
 # CHAPTER 5
