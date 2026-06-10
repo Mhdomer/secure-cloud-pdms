@@ -1,0 +1,278 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6">
+  <diagram id="0imwj9k8PG1zY36X0WVV" name="Page-1">
+    <mxGraphModel dx="1830" dy="894" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=15;fontStyle=1;fontColor=#212121;" value="Figure 4.5 — UML Class Diagram: Patient Data Management System" vertex="1">
+          <mxGeometry height="34" width="1450" x="100" y="18" as="geometry" />
+        </mxCell>
+        <mxCell id="grp_models_bg" parent="1" style="swimlane;startSize=28;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=2;dashed=1;dashPattern=8 4;fontStyle=3;fontSize=11;fontColor=#1565C0;verticalAlign=top;align=center;spacingTop=4;" value=" Models — Data Layer " vertex="1">
+          <mxGeometry height="938" width="1170" x="40" y="62" as="geometry" />
+        </mxCell>
+        <mxCell id="doc_hdr" parent="grp_models_bg" style="swimlane;startSize=42;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#ffffff;fontSize=13;fontStyle=1;align=center;" value="&#xa;Doctor" vertex="1">
+          <mxGeometry height="42" width="280" x="860" y="58" as="geometry" />
+        </mxCell>
+        <mxCell id="al_hdr" parent="grp_models_bg" style="swimlane;startSize=42;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#ffffff;fontSize=13;fontStyle=1;align=center;" value="AuditLog" vertex="1">
+          <mxGeometry height="42" width="300" x="60" y="431" as="geometry" />
+        </mxCell>
+        <mxCell id="mr_hdr" parent="grp_models_bg" style="swimlane;startSize=42;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#ffffff;fontSize=13;fontStyle=1;align=center;" value="MedicalRecord" vertex="1">
+          <mxGeometry height="42" width="300" x="20" y="658" as="geometry" />
+        </mxCell>
+        <mxCell id="mr_attrs" parent="grp_models_bg" style="text;html=1;strokeColor=#0D47A1;fillColor=#E3F2FD;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="— recordId : Integer {PK}&#xa;— patientId : Integer {FK → Patient}&#xa;— doctorId : Integer {FK → Doctor}&#xa;— diagnosis : String&#xa;— prescription : String&#xa;— notes : Text&#xa;— createdAt : DateTime" vertex="1">
+          <mxGeometry height="120" width="300" x="20" y="690" as="geometry" />
+        </mxCell>
+        <mxCell id="mr_methods" parent="grp_models_bg" style="text;html=1;strokeColor=#0D47A1;fillColor=#BBDEFB;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="+ create(data) : MedicalRecord&#xa;+ findByPatient(pid) : MedicalRecord[]&#xa;+ update(id, data) : MedicalRecord" vertex="1">
+          <mxGeometry height="54" width="300" x="20" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="appt_hdr" parent="grp_models_bg" style="swimlane;startSize=42;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#ffffff;fontSize=13;fontStyle=1;align=center;" value="Appointment" vertex="1">
+          <mxGeometry height="42" width="300" x="570" y="458" as="geometry" />
+        </mxCell>
+        <mxCell id="appt_attrs" parent="grp_models_bg" style="text;html=1;strokeColor=#0D47A1;fillColor=#E3F2FD;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="— appointmentId : Integer {PK}&#xa;— patientId : Integer {FK → Patient}&#xa;— doctorId : Integer {FK → Doctor}&#xa;— dateTime : DateTime&#xa;— status : Enum {scheduled|completed|cancelled}" vertex="1">
+          <mxGeometry height="88" width="300" x="570" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="appt_methods" parent="grp_models_bg" style="text;html=1;strokeColor=#0D47A1;fillColor=#BBDEFB;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="+ schedule(data) : Appointment&#xa;+ findByDoctor(did) : Appointment[]&#xa;+ findByPatient(pid) : Appointment[]&#xa;+ update(id, data) : Appointment&#xa;+ cancel(id) : Boolean" vertex="1">
+          <mxGeometry height="86" width="300" x="570" y="588" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_doc_appt" edge="1" parent="grp_models_bg" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;strokeColor=#00695C;strokeWidth=2;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1020" y="521" />
+              <mxPoint x="870" y="521" />
+            </Array>
+            <mxPoint x="1019.96" y="210" as="sourcePoint" />
+            <mxPoint x="869.96" y="522" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_da_s" connectable="0" parent="rel_doc_appt" style="resizable=0;html=1;align=left;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#00695C;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_da_e" connectable="0" parent="rel_doc_appt" style="resizable=0;html=1;align=right;verticalAlign=bottom;labelBackgroundColor=none;fontSize=14;fontStyle=1;fontColor=#00695C;" value="*" vertex="1">
+          <mxGeometry relative="1" x="0.85" as="geometry">
+            <mxPoint x="-710" y="-27" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="al_attrs" parent="grp_models_bg" style="text;html=1;strokeColor=#0D47A1;fillColor=#E3F2FD;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="— logId : BigInt {PK}&#xa;— userId : Integer {FK → User}&#xa;— action : String&#xa;— resource : String&#xa;— ipAddress : String&#xa;— timestamp : DateTime" vertex="1">
+          <mxGeometry height="104" width="300" x="60" y="473" as="geometry" />
+        </mxCell>
+        <mxCell id="al_methods" parent="grp_models_bg" style="text;html=1;strokeColor=#0D47A1;fillColor=#BBDEFB;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="+ log(userId, action, resource, ip) : AuditLog" vertex="1">
+          <mxGeometry height="36" width="300" x="60" y="577" as="geometry" />
+        </mxCell>
+        <mxCell id="grp_svc_bg" parent="1" style="swimlane;startSize=28;fillColor=#EDE7F6;strokeColor=#6A1B9A;strokeWidth=2;dashed=1;dashPattern=8 4;fontStyle=3;fontSize=11;fontColor=#6A1B9A;verticalAlign=top;align=center;spacingTop=4;" value="Services — Middleware Layer " vertex="1">
+          <mxGeometry height="400" width="380" x="1230" y="62" as="geometry" />
+        </mxCell>
+        <mxCell id="user_hdr" parent="1" style="swimlane;startSize=42;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#ffffff;fontSize=13;fontStyle=1;horizontal=1;align=center;" value="User" vertex="1">
+          <mxGeometry height="42" width="280" x="60" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="user_attrs" parent="1" style="text;html=1;strokeColor=#0D47A1;fillColor=#E3F2FD;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="— userId : Integer {PK}&#xa;— username : String&#xa;— passwordHash : String&#xa;— role : Enum {admin|doctor|patient}&#xa;— isActive : Boolean&#xa;— createdAt : DateTime" vertex="1">
+          <mxGeometry height="104" width="280" x="60" y="152" as="geometry" />
+        </mxCell>
+        <mxCell id="user_methods" parent="1" style="text;html=1;strokeColor=#0D47A1;fillColor=#BBDEFB;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="+ findById(id) : User&#xa;+ findByUsername(u) : User&#xa;+ create(data) : User&#xa;+ deactivate(id) : Boolean" vertex="1">
+          <mxGeometry height="72" width="280" x="60" y="256" as="geometry" />
+        </mxCell>
+        <mxCell id="pat_hdr" parent="1" style="swimlane;startSize=42;fillColor=#1565C0;strokeColor=#0D47A1;fontColor=#ffffff;fontSize=13;fontStyle=1;align=center;" value="Patient" vertex="1">
+          <mxGeometry height="42" width="280" x="400" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="pat_attrs" parent="1" style="text;html=1;strokeColor=#0D47A1;fillColor=#E3F2FD;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="— patientId : Integer {PK}&#xa;— userId : Integer {FK → User}&#xa;— fullName : String&#xa;— dateOfBirth : Date&#xa;— contactNumber : String&#xa;— assignedDoctorId : Integer {FK}" vertex="1">
+          <mxGeometry height="104" width="280" x="400" y="152" as="geometry" />
+        </mxCell>
+        <mxCell id="pat_methods" parent="1" style="text;html=1;strokeColor=#0D47A1;fillColor=#BBDEFB;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="+ findById(id) : Patient&#xa;+ findByDoctor(docId) : Patient[]&#xa;+ register(data) : Patient&#xa;+ update(id, data) : Patient" vertex="1">
+          <mxGeometry height="72" width="280" x="400" y="256" as="geometry" />
+        </mxCell>
+        <mxCell id="doc_attrs" parent="1" style="text;html=1;strokeColor=#0D47A1;fillColor=#E3F2FD;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="— doctorId : Integer {PK}&#xa;— userId : Integer {FK → User}&#xa;— fullName : String&#xa;— specialisation : String" vertex="1">
+          <mxGeometry height="70" width="280" x="900" y="162" as="geometry" />
+        </mxCell>
+        <mxCell id="doc_methods" parent="1" style="text;html=1;strokeColor=#0D47A1;fillColor=#BBDEFB;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#0D47A1;" value="+ findById(id) : Doctor&#xa;+ getPatients() : Patient[]" vertex="1">
+          <mxGeometry height="40" width="280" x="900" y="232" as="geometry" />
+        </mxCell>
+        <mxCell id="auth_hdr" parent="1" style="swimlane;startSize=42;fillColor=#6A1B9A;strokeColor=#4A148C;fontColor=#ffffff;fontSize=13;fontStyle=1;align=center;" value="«controller»&#xa;AuthController" vertex="1">
+          <mxGeometry height="42" width="300" x="1270" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="auth_attrs" parent="1" style="text;html=1;strokeColor=#4A148C;fillColor=#EDE7F6;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#6A1B9A;fontStyle=2;" value="(stateless — no stored fields)" vertex="1">
+          <mxGeometry height="30" width="300" x="1270" y="152" as="geometry" />
+        </mxCell>
+        <mxCell id="auth_methods" parent="1" style="text;html=1;strokeColor=#4A148C;fillColor=#D1C4E9;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#4A148C;" value="+ login(username, password) : JWT&#xa;+ logout(token) : Boolean&#xa;+ validateToken(token) : Payload" vertex="1">
+          <mxGeometry height="54" width="300" x="1270" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="rbac_hdr" parent="1" style="swimlane;startSize=42;fillColor=#6A1B9A;strokeColor=#4A148C;fontColor=#ffffff;fontSize=13;fontStyle=1;align=center;" value="«middleware»&#xa;RBACMiddleware" vertex="1">
+          <mxGeometry height="42" width="300" x="1270" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="rbac_attrs" parent="1" style="text;html=1;strokeColor=#4A148C;fillColor=#EDE7F6;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#6A1B9A;fontStyle=2;" value="(stateless — no stored fields)" vertex="1">
+          <mxGeometry height="30" width="300" x="1270" y="382" as="geometry" />
+        </mxCell>
+        <mxCell id="rbac_methods" parent="1" style="text;html=1;strokeColor=#4A148C;fillColor=#D1C4E9;align=left;verticalAlign=top;spacingLeft=8;fontSize=9;fontColor=#4A148C;" value="+ checkRole(token, requiredRole) : Boolean&#xa;+ authorise(req, res, next) : void" vertex="1">
+          <mxGeometry height="40" width="300" x="1270" y="412" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_u_pat" edge="1" parent="1" source="user_attrs" style="html=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;startArrow=ERmandOne;startFill=1;endArrow=open;endFill=0;strokeColor=#0D47A1;strokeWidth=2;" target="pat_attrs" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_u_pat_s" connectable="0" parent="rel_u_pat" style="resizable=0;html=1;align=left;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#0D47A1;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_u_pat_e" connectable="0" parent="rel_u_pat" style="resizable=0;html=1;align=right;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#0D47A1;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_u_pat_role" connectable="0" parent="rel_u_pat" style="resizable=0;html=1;align=center;verticalAlign=bottom;labelBackgroundColor=none;fontSize=8;fontStyle=3;fontColor=#546E7A;" value="«composition»&#xa;role = patient" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-61" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_u_doc" edge="1" parent="1" source="user_methods" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;startArrow=ERmandOne;startFill=1;endArrow=open;endFill=0;strokeColor=#0D47A1;strokeWidth=2;" target="doc_methods" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="270" y="400" />
+              <mxPoint x="970" y="400" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_u_doc_s" connectable="0" parent="rel_u_doc" style="resizable=0;html=1;align=left;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#0D47A1;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_u_doc_e" connectable="0" parent="rel_u_doc" style="resizable=0;html=1;align=right;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#0D47A1;" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_u_doc_role" connectable="0" parent="rel_u_doc" style="resizable=0;html=1;align=center;verticalAlign=bottom;labelBackgroundColor=none;fontSize=8;fontStyle=3;fontColor=#546E7A;" value="«composition»&#xa;role = doctor" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="20" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_doc_pat" edge="1" parent="1" source="doc_attrs" style="html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;strokeColor=#2E7D32;strokeWidth=2;exitX=-0.002;exitY=0.632;exitDx=0;exitDy=0;exitPerimeter=0;" target="pat_attrs" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="890" y="204" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_dp_s" connectable="0" parent="rel_doc_pat" style="resizable=0;html=1;align=left;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#2E7D32;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_dp_e" connectable="0" parent="rel_doc_pat" style="resizable=0;html=1;align=right;verticalAlign=bottom;labelBackgroundColor=none;fontSize=14;fontStyle=1;fontColor=#2E7D32;" value="*" vertex="1">
+          <mxGeometry relative="1" x="0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_dp_fk" connectable="0" parent="rel_doc_pat" style="resizable=0;html=1;align=center;verticalAlign=bottom;labelBackgroundColor=none;fontSize=8;fontStyle=3;fontColor=#2E7D32;" value="assignedDoctorId" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-60" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_doc_mr" edge="1" parent="1" source="doc_methods" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;strokeColor=#B71C1C;strokeWidth=2;exitX=0.811;exitY=0.978;exitDx=0;exitDy=0;exitPerimeter=0;" target="mr_attrs" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1127" y="280" />
+              <mxPoint x="1130" y="280" />
+              <mxPoint x="1130" y="812" />
+            </Array>
+            <mxPoint x="1110" y="280" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_dm_s" connectable="0" parent="rel_doc_mr" style="resizable=0;html=1;align=left;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#B71C1C;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.85" as="geometry">
+            <mxPoint x="10" y="-47" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_dm_e" connectable="0" parent="rel_doc_mr" style="resizable=0;html=1;align=right;verticalAlign=bottom;labelBackgroundColor=none;fontSize=14;fontStyle=1;fontColor=#B71C1C;" value="*" vertex="1">
+          <mxGeometry relative="1" x="0.85" as="geometry">
+            <mxPoint x="-70" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_dm_creates" connectable="0" parent="rel_doc_mr" style="resizable=0;html=1;align=center;verticalAlign=bottom;labelBackgroundColor=none;fontSize=8;fontStyle=3;fontColor=#B71C1C;" value="creates" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="20" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_u_al" edge="1" parent="1" source="user_methods" style="html=1;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;strokeColor=#37474F;strokeWidth=2;entryX=0.25;entryY=0;entryDx=0;entryDy=0;exitX=0.408;exitY=1.01;exitDx=0;exitDy=0;exitPerimeter=0;" target="al_hdr" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="155" y="330" as="sourcePoint" />
+            <mxPoint x="160" y="460" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_ua_s" connectable="0" parent="rel_u_al" style="resizable=0;html=1;align=left;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#37474F;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.85" as="geometry">
+            <mxPoint x="5" y="7" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_ua_e" connectable="0" parent="rel_u_al" style="resizable=0;html=1;align=right;verticalAlign=bottom;labelBackgroundColor=none;fontSize=14;fontStyle=1;fontColor=#37474F;" value="*" vertex="1">
+          <mxGeometry relative="1" x="0.85" as="geometry">
+            <mxPoint x="-5" y="9" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_ua_gen" connectable="0" parent="rel_u_al" style="resizable=0;html=1;align=center;verticalAlign=bottom;labelBackgroundColor=none;fontSize=8;fontStyle=3;fontColor=#37474F;" value="generates" vertex="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="20" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_auth_rbac" edge="1" parent="1" source="auth_methods" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;dashPattern=8 4;endArrow=open;endFill=0;strokeColor=#4A148C;strokeWidth=2;fontSize=10;fontStyle=3;fontColor=#4A148C;" target="rbac_hdr" value="«uses»">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="DyzfahDlYRdIxPblmypM-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="26" width="680" x="40" y="1030" as="geometry" />
+        </mxCell>
+        <mxCell id="DyzfahDlYRdIxPblmypM-2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontStyle=1;" value="Notation:" vertex="1">
+          <mxGeometry height="18" width="60" x="50" y="1034" as="geometry" />
+        </mxCell>
+        <mxCell id="DyzfahDlYRdIxPblmypM-3" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#0D47A1;" value="◆── composition" vertex="1">
+          <mxGeometry height="18" width="130" x="114" y="1034" as="geometry" />
+        </mxCell>
+        <mxCell id="DyzfahDlYRdIxPblmypM-4" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#2E7D32;" value="──▷ association (1..*)" vertex="1">
+          <mxGeometry height="18" width="160" x="210" y="1034" as="geometry" />
+        </mxCell>
+        <mxCell id="DyzfahDlYRdIxPblmypM-5" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#4A148C;" value="- - ▷ dependency («uses»)" vertex="1">
+          <mxGeometry height="18" width="190" x="330" y="1034" as="geometry" />
+        </mxCell>
+        <mxCell id="DyzfahDlYRdIxPblmypM-6" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=9;fontColor=#37474F;" value="PK = underlined  |  FK = FK label  |  crow&#39;s foot = many end" vertex="1">
+          <mxGeometry height="18" width="253" x="457" y="1034" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_pat_appt" edge="1" parent="1" source="pat_methods" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;strokeColor=#00695C;strokeWidth=2;exitX=1;exitY=0;exitDx=0;exitDy=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="760" y="256" />
+              <mxPoint x="760" y="518" />
+            </Array>
+            <mxPoint x="580" y="330" as="sourcePoint" />
+            <mxPoint x="760" y="518" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_pa_s" connectable="0" parent="rel_pat_appt" style="resizable=0;html=1;align=left;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#00695C;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_pa_e" connectable="0" parent="rel_pat_appt" style="resizable=0;html=1;align=right;verticalAlign=bottom;labelBackgroundColor=none;fontSize=14;fontStyle=1;fontColor=#00695C;" value="*" vertex="1">
+          <mxGeometry relative="1" x="0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_pat_mr" edge="1" parent="1" source="pat_methods" style="edgeStyle=orthogonalEdgeStyle;html=1;entryX=1;entryY=0.25;entryDx=0;entryDy=0;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;strokeColor=#B71C1C;strokeWidth=2;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" target="mr_attrs" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="470" y="782" />
+            </Array>
+            <mxPoint x="528.5" y="360" as="sourcePoint" />
+            <mxPoint x="350" y="793.76" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_pm_s" connectable="0" parent="rel_pat_mr" style="resizable=0;html=1;align=left;verticalAlign=bottom;labelBackgroundColor=none;fontSize=11;fontStyle=1;fontColor=#B71C1C;" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lbl_pm_e" connectable="0" parent="rel_pat_mr" style="resizable=0;html=1;align=right;verticalAlign=bottom;labelBackgroundColor=none;fontSize=14;fontStyle=1;fontColor=#B71C1C;" value="*" vertex="1">
+          <mxGeometry relative="1" x="0.85" as="geometry">
+            <mxPoint x="-14" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
