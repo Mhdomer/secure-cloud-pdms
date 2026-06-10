@@ -1,0 +1,252 @@
+<mxfile host="app.diagrams.net" modified="2026-05-30" version="21.0.0" type="device">
+  <diagram id="cicd-pipeline" name="CI/CD Pipeline">
+    <mxGraphModel dx="1400" dy="700" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1750" pageHeight="620" math="0" shadow="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="2" value="Figure 4.3 — CI/CD Pipeline Flow Diagram"
+          style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#212121;"
+          vertex="1" parent="1">
+          <mxGeometry x="175" y="12" width="1400" height="38" as="geometry" />
+        </mxCell>
+
+        <!-- Subtitle -->
+        <mxCell id="3" value="Shift-Left Security — critical finding at any scan stage blocks the deployment"
+          style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=2;fontColor=#546E7A;"
+          vertex="1" parent="1">
+          <mxGeometry x="175" y="50" width="1400" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- Pipeline background zone -->
+        <mxCell id="4" value=""
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8F8F8;strokeColor=#BDBDBD;strokeWidth=1;dashed=1;arcSize=3;pointerEvents=0;"
+          vertex="1" parent="1">
+          <mxGeometry x="32" y="80" width="1500" height="172" as="geometry" />
+        </mxCell>
+
+        <!-- ── GitHub Trigger ── -->
+        <mxCell id="10" value="&lt;b style='font-size:12px;color:#4A148C;'&gt;GitHub&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:9px;color:#6A1B9A;'&gt;push to main&lt;br/&gt;triggers pipeline&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE7F6;strokeColor=#6A1B9A;strokeWidth=2;arcSize=10;verticalAlign=bottom;spacingBottom=12;"
+          vertex="1" parent="1">
+          <mxGeometry x="42" y="96" width="118" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="11" value=""
+          style="shape=mxgraph.logos.github;fillColor=#6A1B9A;strokeColor=none;aspect=fixed;"
+          vertex="1" parent="1">
+          <mxGeometry x="86" y="106" width="32" height="32" as="geometry" />
+        </mxCell>
+
+        <!-- ── Stage 1: Code Checkout ── -->
+        <mxCell id="20" value="&lt;b style='font-size:11px;color:#37474F;'&gt;Code Checkout&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:9px;color:#546E7A;'&gt;Repo clone&lt;br/&gt;Install dependencies&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;strokeWidth=2;arcSize=10;verticalAlign=bottom;spacingBottom=12;"
+          vertex="1" parent="1">
+          <mxGeometry x="200" y="96" width="160" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="21" value="&lt;b&gt;1&lt;/b&gt;"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#546E7A;strokeColor=none;fontColor=white;fontSize=11;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="206" y="102" width="26" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ── Stage 2: SonarQube SAST ── -->
+        <mxCell id="30" value="&lt;b style='font-size:11px;color:#BF360C;'&gt;SonarQube&lt;br/&gt;SAST Scan&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:9px;color:#E65100;'&gt;Source code analysis&lt;br/&gt;0-critical quality gate&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;strokeWidth=2;arcSize=10;verticalAlign=bottom;spacingBottom=12;"
+          vertex="1" parent="1">
+          <mxGeometry x="400" y="96" width="160" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="31" value="&lt;b&gt;2&lt;/b&gt;"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=none;fontColor=white;fontSize=11;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="406" y="102" width="26" height="26" as="geometry" />
+        </mxCell>
+        <!-- SonarQube badge -->
+        <mxCell id="32" value="SQ"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=none;fontColor=white;fontSize=9;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="462" y="104" width="32" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ── Stage 3: Docker Build ── -->
+        <mxCell id="40" value="&lt;b style='font-size:11px;color:#0D47A1;'&gt;Docker Build&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:9px;color:#1565C0;'&gt;Node.js container image&lt;br/&gt;React static build&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;strokeWidth=2;arcSize=10;verticalAlign=bottom;spacingBottom=12;"
+          vertex="1" parent="1">
+          <mxGeometry x="600" y="96" width="160" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="41" value="&lt;b&gt;3&lt;/b&gt;"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#1565C0;strokeColor=none;fontColor=white;fontSize=11;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="606" y="102" width="26" height="26" as="geometry" />
+        </mxCell>
+        <!-- Docker logo -->
+        <mxCell id="42" value=""
+          style="shape=mxgraph.logos.docker;aspect=fixed;"
+          vertex="1" parent="1">
+          <mxGeometry x="662" y="104" width="34" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ── Stage 4: Trivy Image Scan ── -->
+        <mxCell id="50" value="&lt;b style='font-size:11px;color:#BF360C;'&gt;Trivy Image Scan&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:9px;color:#E65100;'&gt;CVE scan — NVD database&lt;br/&gt;Fail on CRITICAL CVE&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;strokeWidth=2;arcSize=10;verticalAlign=bottom;spacingBottom=12;"
+          vertex="1" parent="1">
+          <mxGeometry x="800" y="96" width="160" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="51" value="&lt;b&gt;4&lt;/b&gt;"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=none;fontColor=white;fontSize=11;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="806" y="102" width="26" height="26" as="geometry" />
+        </mxCell>
+        <!-- Trivy badge -->
+        <mxCell id="52" value="TV"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=none;fontColor=white;fontSize=9;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="862" y="104" width="32" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ── Stage 5: Checkov IaC Scan ── -->
+        <mxCell id="60" value="&lt;b style='font-size:11px;color:#BF360C;'&gt;Checkov IaC Scan&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:9px;color:#E65100;'&gt;Terraform policy checks&lt;br/&gt;Fail on HIGH / CRITICAL&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;strokeWidth=2;arcSize=10;verticalAlign=bottom;spacingBottom=12;"
+          vertex="1" parent="1">
+          <mxGeometry x="1000" y="96" width="160" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="61" value="&lt;b&gt;5&lt;/b&gt;"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=none;fontColor=white;fontSize=11;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="1006" y="102" width="26" height="26" as="geometry" />
+        </mxCell>
+        <!-- Checkov badge -->
+        <mxCell id="62" value="CK"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E65100;strokeColor=none;fontColor=white;fontSize=9;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="1062" y="104" width="32" height="22" as="geometry" />
+        </mxCell>
+
+        <!-- ── Stage 6: Terraform Apply ── -->
+        <mxCell id="70" value="&lt;b style='font-size:11px;color:#1B5E20;'&gt;Terraform Apply&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:9px;color:#2E7D32;'&gt;Provision AWS infrastructure&lt;br/&gt;Only if all scans pass&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;arcSize=10;verticalAlign=bottom;spacingBottom=12;"
+          vertex="1" parent="1">
+          <mxGeometry x="1200" y="96" width="160" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="71" value="&lt;b&gt;6&lt;/b&gt;"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#2E7D32;strokeColor=none;fontColor=white;fontSize=11;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="1206" y="102" width="26" height="26" as="geometry" />
+        </mxCell>
+        <!-- Terraform logo -->
+        <mxCell id="72" value=""
+          style="shape=mxgraph.logos.terraform;aspect=fixed;"
+          vertex="1" parent="1">
+          <mxGeometry x="1262" y="104" width="36" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ── DEPLOY box ── -->
+        <mxCell id="80" value="&lt;b style='font-size:15px;color:#1B5E20;'&gt;✓ DEPLOY&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:10px;color:#2E7D32;'&gt;EC2 (Node.js API)&lt;br/&gt;S3 + CloudFront (React)&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=3;arcSize=10;verticalAlign=bottom;spacingBottom=10;shadow=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="1418" y="106" width="154" height="120" as="geometry" />
+        </mxCell>
+        <!-- EC2 icon -->
+        <mxCell id="81" value=""
+          style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#ED7100;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ec2;"
+          vertex="1" parent="1">
+          <mxGeometry x="1424" y="114" width="28" height="28" as="geometry" />
+        </mxCell>
+        <!-- S3 icon -->
+        <mxCell id="82" value=""
+          style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#3F8624;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;"
+          vertex="1" parent="1">
+          <mxGeometry x="1460" y="114" width="28" height="28" as="geometry" />
+        </mxCell>
+        <!-- CloudFront icon -->
+        <mxCell id="83" value=""
+          style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#8C4FFF;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudfront;"
+          vertex="1" parent="1">
+          <mxGeometry x="1496" y="114" width="28" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- ── BLOCK boxes ── -->
+        <mxCell id="90" value="&lt;b style='font-size:13px;color:#C62828;'&gt;✗  BLOCK&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:8px;color:#B71C1C;'&gt;Critical finding — pipeline fails, no deploy&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;strokeWidth=2;arcSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="368" y="390" width="224" height="66" as="geometry" />
+        </mxCell>
+
+        <mxCell id="91" value="&lt;b style='font-size:13px;color:#C62828;'&gt;✗  BLOCK&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:8px;color:#B71C1C;'&gt;Critical finding — pipeline fails, no deploy&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;strokeWidth=2;arcSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="768" y="390" width="224" height="66" as="geometry" />
+        </mxCell>
+
+        <mxCell id="92" value="&lt;b style='font-size:13px;color:#C62828;'&gt;✗  BLOCK&lt;/b&gt;&lt;br/&gt;&lt;span style='font-size:8px;color:#B71C1C;'&gt;Critical finding — pipeline fails, no deploy&lt;/span&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;strokeWidth=2;arcSize=10;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="968" y="390" width="224" height="66" as="geometry" />
+        </mxCell>
+
+        <!-- ── Pipeline horizontal arrows ── -->
+        <mxCell id="100" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6A1B9A;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="10" target="20" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="101" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#37474F;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="20" target="30" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="102" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#37474F;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="30" target="40" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="103" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#37474F;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="40" target="50" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="104" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#37474F;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="50" target="60" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="105" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#37474F;strokeWidth=2;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="60" target="70" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="106" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#2E7D32;strokeWidth=3;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="70" target="80" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ── BLOCK dashed arrows ── -->
+        <mxCell id="110" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C62828;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" source="30" target="90" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="111" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C62828;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" source="50" target="91" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="112" value=""
+          style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#C62828;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=8 4;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" source="60" target="92" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
