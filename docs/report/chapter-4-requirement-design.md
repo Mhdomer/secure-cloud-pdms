@@ -22,6 +22,8 @@ Section 4.2 presents the detailed requirement analysis through user stories and 
 
 ### 4.2 Requirement Analysis
 
+This section documents the functional requirements of the proposed system as derived from the stakeholder discussions conducted at Alamin Clinic, described in Section 2.2.3. The requirements are presented through three complementary representations: a use case diagram that maps the relationships between each actor and the operations they are authorised to perform, a set of user stories that express requirements from each actor's perspective in Agile format, and detailed use case specifications that define the precise interaction behaviour expected at each system entry point.
+
 #### 4.2.1 Use Case Overview
 
 The system serves three user roles — Doctor, Admin, and Patient — each with a distinct set of permitted operations. Figure 4.1 presents the use case diagram showing all actors and their authorised interactions with the system.
@@ -159,6 +161,8 @@ This sequence demonstrates the read-path security model for the Patient role. Th
 
 ### 4.3 Project Design
 
+This section presents the complete design of the proposed Secure Cloud-Based Patient Data Management System. The design is organised across five components: the overall three-tier system architecture deployed within an AWS Virtual Private Cloud, the VPC network topology and subnet configuration, the security controls applied at the network and identity layers, the six-stage DevSecOps CI/CD pipeline, and the user interface wireframes for each of the three user roles. Together, these components constitute the full technical blueprint that will guide implementation in PSM2.
+
 #### 4.3.1 System Architecture Overview
 
 The proposed system is deployed as a three-tier web application within an AWS Virtual Private Cloud. The three tiers — presentation, application, and data — are hosted in physically separated subnet layers with distinct access policies. No direct communication path exists between the presentation tier and the database tier; all data access is mediated through the application tier.
@@ -294,6 +298,8 @@ Every CRUD operation on patient data writes to the `audit_log` table, recording 
 ---
 
 ### 4.4 Database Design
+
+This section presents the relational database schema designed for the proposed system. The design specifies the entity relationships, table structures, column definitions, and row-level security policies that enforce the access control requirements defined in Section 4.2. The schema comprises six tables — `users`, `patients`, `doctors`, `medical_records`, `appointments`, and `audit_log` — each documented with its purpose, inter-table relationships, and the PostgreSQL row-level security policies that restrict data access to authorised users only.
 
 #### 4.4.1 Entity-Relationship Model
 

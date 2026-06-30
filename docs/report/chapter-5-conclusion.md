@@ -24,6 +24,8 @@ The significance of the project operates at three levels. At the clinical level,
 
 ### 5.2 Achievements
 
+This section summarises the outcomes achieved at the conclusion of PSM1 across three workstreams: the key findings established through the literature review, the status of each project objective defined in Chapter 1, and the limitations of the current phase of work alongside notes on how each will be addressed during PSM2 implementation.
+
 #### 5.2.1 Findings from Literature Review
 
 The literature review conducted in Chapter 2 confirmed three findings that directly shape the design of the proposed system.

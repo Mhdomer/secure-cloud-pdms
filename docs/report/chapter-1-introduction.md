@@ -109,7 +109,23 @@ At the academic level, this project contributes a practical, case-study-grounded
 
 ---
 
-### 1.7 Report Organisation
+### 1.7 Project Stakeholders
+
+The key stakeholders for this project are the individuals and groups whose operational needs, security concerns, and data are directly addressed by the proposed system.
+
+**Al Amin Polyclinic (Primary Stakeholder)** is the real-world case study organisation whose operational challenges and ransomware incident motivate the system design. The clinic's management, administrative staff, doctors, and patients constitute the primary user base of the proposed system. Their requirements — gathered through structured interviews conducted with clinic management and nursing staff, and formally confirmed through written correspondence — directly shape the functional and security requirements defined in Chapter 3. The clinic's Head Manager, Ibrahim Shaheel Al Quad, provided written confirmation of these requirements (see Appendix C).
+
+**Doctors** are the clinical users of the system. They require secure, role-restricted access to medical records and appointments for patients assigned to their care. Their primary concern is the availability and integrity of patient records during and after clinical consultations.
+
+**Administrative Staff** manage patient registration and appointment scheduling. They require access to administrative data only and must be explicitly prevented from accessing clinical record content, in accordance with the principle of least privilege and the clinic's internal data governance requirements.
+
+**Patients** are the end users of the patient-facing portal. They require read-only access to their own medical records and appointments, with no visibility into other patients' data or any administrative information.
+
+**Universiti Teknologi Malaysia — Faculty of Computing (Academic Stakeholder)** supervises the project through the PSM1/PSM2 Final Year Project framework. The project supervisor, Dr. Johan Mohamad Sharif, provides academic guidance and ensures that the system design meets the requirements of both the university's academic evaluation criteria and the real-world operational context of the clinic.
+
+---
+
+### 1.8 Report Organisation
 
 This report is organised as follows:
 

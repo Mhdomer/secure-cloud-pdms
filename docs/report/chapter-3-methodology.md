@@ -22,6 +22,8 @@ Section 3.2 presents the chosen methodology — Agile development integrated wit
 
 ### 3.2 Methodology Choice and Justification
 
+This section presents the development methodology selected for this project and provides a structured justification for that choice. Three candidate methodologies were evaluated — Waterfall, Scrum, and Agile with DevSecOps integration — against the specific requirements of a cloud security system development project. The most appropriate approach was selected on the basis of four alignment criteria derived from the project's security objectives and iterative design requirements.
+
 #### 3.2.1 Overview of Candidate Methodologies
 
 Three development methodologies were considered for this project: the Waterfall model, Scrum (Agile), and a DevSecOps-integrated Agile approach.
@@ -57,15 +59,15 @@ Table 3.1 summarises the comparison of the three candidate methodologies against
 | Continuous compliance measurement         | ✗         | ✗             | ✓                 |
 | Suited for changing security requirements | ✗         | ✓             | ✓                 |
 
+Figure 3.1 illustrates the sprint cycle of the selected Agile with DevSecOps methodology, showing the integration of automated security gates at each phase of the iterative development process.
+
 > 📎 **ATTACH:** `Figure 3.1` — Agile + DevSecOps sprint cycle diagram. Show the standard Agile loop (Plan → Develop → Test → Review → Release) with DevSecOps security gates overlaid: SAST scan (SonarQube) during Develop, container scan (Trivy) and IaC scan (Checkov) during Test, Security Hub posture check during Release. This makes the methodology tangible rather than abstract.
 
 ---
 
 ### 3.3 Phases of the Chosen Methodology
 
-The project is organized into five sprints. Each sprint has a defined scope, a set of deliverables, and a security gate that must pass before the sprint is considered complete.
-
-The full project schedule spanning all five sprints is presented in Appendix A, Figure A.2.
+The project is organized into five sprints. Each sprint has a defined scope, a set of deliverables, and a security gate that must pass before the sprint is considered complete. Figure 3.2 presents the project timeline across all five sprints. A full-page reproduction is provided in Appendix A.
 
 #### Sprint 1 — Requirements and Architecture Design
 

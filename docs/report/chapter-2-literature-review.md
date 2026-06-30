@@ -82,7 +82,7 @@ The responses from the two stakeholder interviews are summarised in Table 2.1.
 
 The interview findings corroborate the four operational deficiencies identified in Section 2.2.2, and surface three additional dimensions not captured by technical analysis alone. First, the human cost of the attack: five days of complete operational disruption, permanent data loss, and a clinical standstill that affected every department simultaneously. Second, a procedural gap: no security policy or backup procedure had been communicated to operational staff, meaning the deficiency extends beyond the technical architecture into organisational practice. Third, a data quality problem: the absence of unique patient identifiers causes duplicate records to accumulate over time, which compounds the recovery challenge — when records cannot be reliably attributed to a single patient, data restoration becomes an additional problem on top of the infrastructure failure.
 
-These findings collectively inform the system requirements and design decisions developed in the chapters that follow.
+These findings collectively inform the system requirements and design decisions developed in the chapters that follow. A formal written confirmation of the requirements gathered was subsequently obtained from the clinic management (see Appendix C).
 
 #### 2.2.4 Current System Workflow
 
@@ -124,6 +124,8 @@ Table 2.2 presents a side-by-side comparison of the current and proposed workflo
 ---
 
 ### 2.3 Current System Analysis
+
+This section analyses the existing patient data management system at Alamin Clinic to identify the root causes of its security vulnerabilities. The analysis is structured across two dimensions: a 5W 1H problem decomposition to establish the full scope of the problem, and a domain-specific security assessment to identify technical deficiencies across the network, access control, data protection, and operational resilience layers.
 
 #### 2.3.1 Problem Analysis Using the 5W 1H Framework
 
@@ -205,6 +207,8 @@ A further distinguishing characteristic of the proposed system is its comparison
 ---
 
 ### 2.5 Literature Review of Technology Used
+
+This section reviews the academic and industry literature underpinning the key technologies adopted in the proposed system. Seven technology domains are examined: cloud computing in healthcare, three-tier web architecture, the AWS shared responsibility model, Infrastructure as Code with Terraform, DevSecOps and shift-left security, Identity and Access Management with Role-Based Access Control, and HIPAA compliance frameworks. For each domain, the review establishes the academic basis for the technology choice and identifies how existing findings inform specific design decisions in the proposed system.
 
 #### 2.5.1 Cloud Computing in Healthcare
 
