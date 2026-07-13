@@ -122,6 +122,45 @@ RBAC enforced at two layers: JWT middleware (application) + PostgreSQL row-level
 
 ---
 
+## Autonomous Sprint Orchestration
+
+To start any sprint, run `/sprint-start` — it will ask which sprint and spawn the `orchestrator` agent.
+
+The orchestrator handles everything autonomously in this order for each sprint:
+- Reads CLAUDE.md + design specs
+- Plans tasks with TodoWrite
+- Spawns the correct sub-agents (see below)
+- Runs security gates between steps
+- Commits only when all gates pass
+
+**Do not manually direct sub-agents — let the orchestrator do it.**
+
+### Agent Roster
+
+| Agent | Role | Auto-used in |
+|---|---|---|
+| `orchestrator` | Master sprint driver — spawns all others | Every sprint via `/sprint-start` |
+| `frontend-designer` | React UI, RTL, Thmanyah font, Arabic/English toggle | Sprint 3b |
+| `cloud-fortress` | AWS VPC audits, IAM, pipeline YAML security | Sprint 2, 4 |
+| `code-griller` | Brutal code review — bugs, race conditions, edge cases | Sprint 3a, 3b, 4, 5 |
+| `terraform-reviewer` | HIPAA-specific Terraform checks | Sprint 2 |
+| `api-designer` | Full route spec from design docs before coding | Sprint 3a |
+| `psm2-checker` | Coverage check — code vs design requirements | Sprint 3a, 5 |
+
+### Skill Roster
+
+| Skill | Auto-used in |
+|---|---|
+| `/security-gate` | Every sprint before commit |
+| `/rtl-check` | Sprint 3b after each component |
+| `/i18n-check` | Sprint 3b after all pages |
+| `/font-audit` | Sprint 3b after font setup |
+| `/ui-review` | Sprint 3b after each page |
+| `/grill-me` | Sprint 5 final check |
+| `/sprint-end` | Every sprint after gates pass |
+
+---
+
 ## Git Commit Rules
 
 - Max 3 commits per day
