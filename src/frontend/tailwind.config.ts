@@ -53,6 +53,24 @@ const config: Config = {
           500: '#ef4444',
           600: '#dc2626',
         },
+        // Brand — pulled from the actual Alamin PolyClinic logo (gold +
+        // dark brown/charcoal). Scoped to auth/marketing surfaces only —
+        // the rest of the app uses the `primary` teal above. Reconciling
+        // the two into one site-wide palette is a separate design decision.
+        brand: {
+          gold: {
+            300: '#e6c98a',
+            400: '#d9a54b',
+            DEFAULT: '#c08a3e',
+            600: '#a8722e',
+            700: '#8a5c25',
+          },
+          charcoal: {
+            DEFAULT: '#2b2118',
+            700: '#3a2c1f',
+            900: '#1c150f',
+          },
+        },
         // shadcn/ui CSS variable aliases
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',

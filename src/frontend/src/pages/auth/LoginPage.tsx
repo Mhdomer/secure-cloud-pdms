@@ -8,7 +8,6 @@ import { z } from 'zod'
 
 import { LanguageToggle } from '@/components/shared/LanguageToggle'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Form,
   FormControl,
@@ -89,64 +88,129 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-neutral-50 px-4 py-10">
-      <div className="absolute end-4 top-4">
-        <LanguageToggle />
+    <div className="relative flex min-h-screen flex-col lg:flex-row">
+      {/* Form panel — flexbox's row axis already mirrors under dir="rtl",
+          so DOM order alone (no manual order-N) puts this at the correct
+          "start" side in both languages. */}
+      <div className="relative flex w-full flex-col justify-center bg-brand-charcoal px-6 py-12 sm:px-10 lg:w-1/2 lg:px-16">
+        <div className="absolute end-6 top-6">
+          <LanguageToggle />
+        </div>
+
+        <div className="mx-auto w-full max-w-sm">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="mb-4 rounded-2xl bg-white p-3 shadow-modal">
+              <img
+                src="/images/logo-clinic.jpg"
+                alt={tCommon('appName')}
+                className="h-16 w-16 rounded-xl object-cover"
+              />
+            </div>
+            {/* No tracking-wide here — letter-spacing is banned on Arabic
+                text per the design system's non-negotiable typography rule,
+                and this label renders in both languages. */}
+            <span className="text-xs font-semibold uppercase text-brand-gold-300">
+              {t('sinceYear')}
+            </span>
+            <h1 className="mt-1 text-2xl font-semibold text-white">{tCommon('appName')}</h1>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm sm:p-8">
+            <div className="mb-6 text-center">
+              <h2 className="text-xl font-semibold text-white">{t('welcomeBack')}</h2>
+              <p className="mt-1 text-sm text-brand-gold-300">{t('subtitle')}</p>
+            </div>
+
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                noValidate
+                className="flex flex-col gap-4"
+              >
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white/90">{t('username')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          autoComplete="username"
+                          autoFocus
+                          className="focus-visible:ring-brand-gold-400"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white/90">{t('password')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          autoComplete="current-password"
+                          className="focus-visible:ring-brand-gold-400"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {formError && (
+                  <p role="alert" className="text-start text-sm font-medium text-danger-500">
+                    {formError}
+                  </p>
+                )}
+
+                <Button
+                  type="submit"
+                  className="mt-2 w-full bg-brand-gold text-white hover:bg-brand-gold-600 focus-visible:ring-brand-gold-400"
+                  disabled={form.formState.isSubmitting}
+                >
+                  {form.formState.isSubmitting ? t('loggingIn') : t('loginButton')}
+                </Button>
+              </form>
+            </Form>
+          </div>
+        </div>
       </div>
 
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center gap-2 text-center">
-          <span className="text-xl font-semibold text-primary-700">{tCommon('appName')}</span>
-          <CardTitle className="text-2xl">{t('welcomeBack')}</CardTitle>
-          <CardDescription>{t('subtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              noValidate
-              className="flex flex-col gap-4"
-            >
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('username')}</FormLabel>
-                    <FormControl>
-                      <Input autoComplete="username" autoFocus {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('password')}</FormLabel>
-                    <FormControl>
-                      <Input type="password" autoComplete="current-password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {formError && (
-                <p role="alert" className="text-start text-sm font-medium text-danger-600">
-                  {formError}
-                </p>
-              )}
-
-              <Button type="submit" className="mt-2 w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? t('loggingIn') : t('loginButton')}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+      {/* Hero panel — gradient + decorative glow/dot texture by default;
+          drop a photo at public/images/auth-hero.jpg and it layers on top
+          automatically (the texture stays underneath, invisible once the
+          photo loads). DOM order mirrors correctly under dir="rtl" with no
+          manual order-N needed, same as the form panel above. */}
+      <div className="relative hidden overflow-hidden lg:block lg:w-1/2">
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-charcoal via-brand-charcoal-700 to-brand-gold-700" />
+        <div className="absolute -top-24 end-[-6rem] h-[420px] w-[420px] rounded-full bg-brand-gold/25 blur-3xl" />
+        <div className="absolute -bottom-32 start-[-4rem] h-[380px] w-[380px] rounded-full bg-brand-gold-700/30 blur-3xl" />
+        <div
+          className="absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle, rgba(255,255,255,0.9) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+          }}
+        />
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/images/auth-hero.jpg')" }}
+        />
+        <div className="absolute inset-0 bg-black/55" />
+        <div className="absolute inset-x-0 bottom-0 p-10">
+          <p className="max-w-md text-lg font-medium leading-relaxed text-white/95">
+            {t('heroTagline')}
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
