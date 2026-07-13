@@ -1,0 +1,22 @@
+{
+  "title": "المرضى",
+  "addPatient": "إضافة مريض",
+  "searchPlaceholder": "البحث بالاسم أو رقم السجل…",
+  "mrn": "رقم السجل الطبي",
+  "name": "الاسم الكامل",
+  "dateOfBirth": "تاريخ الميلاد",
+  "gender": "الجنس",
+  "phone": "الجوال",
+  "lastVisit": "آخر زيارة",
+  "noPatients": "لا يوجد مرضى بعد",
+  "noPatientsHint": "أضف مريضاً للبدء.",
+  "profile": {
+    "medicalHistory": "التاريخ المرضي",
+    "allergies": "الحساسية",
+    "currentMedications": "الأدوية الحالية",
+    "appointments": "المواعيد",
+    "records": "السجلات الطبية",
+    "noAllergies": "لا توجد حساسية معروفة",
+    "noMedications": "لا توجد أدوية حالية"
+  }
+}

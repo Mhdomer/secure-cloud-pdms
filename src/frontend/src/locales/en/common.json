@@ -1,0 +1,30 @@
+{
+  "appName": "Alamin Clinic",
+  "loading": "Loading…",
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "view": "View",
+  "search": "Search",
+  "filter": "Filter",
+  "noResults": "No results found",
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "confirmed": "Confirmed",
+    "pending": "Pending",
+    "cancelled": "Cancelled",
+    "completed": "Completed"
+  },
+  "roles": {
+    "doctor": "Doctor",
+    "admin": "Admin",
+    "patient": "Patient"
+  },
+  "error": {
+    "generic": "Something went wrong. Please try again.",
+    "unauthorized": "You do not have permission to do this.",
+    "notFound": "Not found."
+  }
+}

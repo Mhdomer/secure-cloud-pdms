@@ -1,0 +1,30 @@
+{
+  "appName": "عيادة الأمين",
+  "loading": "جارٍ التحميل…",
+  "save": "حفظ",
+  "cancel": "إلغاء",
+  "delete": "حذف",
+  "edit": "تعديل",
+  "view": "عرض",
+  "search": "بحث",
+  "filter": "تصفية",
+  "noResults": "لا توجد نتائج",
+  "status": {
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "confirmed": "مؤكد",
+    "pending": "قيد الانتظار",
+    "cancelled": "ملغى",
+    "completed": "مكتمل"
+  },
+  "roles": {
+    "doctor": "طبيب",
+    "admin": "مدير",
+    "patient": "مريض"
+  },
+  "error": {
+    "generic": "حدث خطأ ما. الرجاء المحاولة مجدداً.",
+    "unauthorized": "ليس لديك صلاحية للقيام بهذا.",
+    "notFound": "غير موجود."
+  }
+}

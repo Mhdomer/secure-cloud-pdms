@@ -1,0 +1,22 @@
+{
+  "title": "Appointments",
+  "new": "New appointment",
+  "today": "Today",
+  "upcoming": "Upcoming",
+  "past": "Past",
+  "date": "Date",
+  "time": "Time",
+  "doctor": "Doctor",
+  "patient": "Patient",
+  "type": "Type",
+  "types": {
+    "consultation": "Consultation",
+    "followUp": "Follow-up",
+    "emergency": "Emergency",
+    "checkup": "Check-up"
+  },
+  "noAppointments": "No appointments",
+  "reschedule": "Reschedule",
+  "confirm": "Confirm",
+  "cancel": "Cancel appointment"
+}

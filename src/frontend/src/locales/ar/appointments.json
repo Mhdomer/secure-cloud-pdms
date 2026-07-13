@@ -1,0 +1,22 @@
+{
+  "title": "المواعيد",
+  "new": "موعد جديد",
+  "today": "اليوم",
+  "upcoming": "القادمة",
+  "past": "السابقة",
+  "date": "التاريخ",
+  "time": "الوقت",
+  "doctor": "الطبيب",
+  "patient": "المريض",
+  "type": "النوع",
+  "types": {
+    "consultation": "استشارة",
+    "followUp": "متابعة",
+    "emergency": "طوارئ",
+    "checkup": "فحص دوري"
+  },
+  "noAppointments": "لا توجد مواعيد",
+  "reschedule": "إعادة جدولة",
+  "confirm": "تأكيد",
+  "cancel": "إلغاء الموعد"
+}

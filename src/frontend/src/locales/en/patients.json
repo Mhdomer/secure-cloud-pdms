@@ -1,0 +1,22 @@
+{
+  "title": "Patients",
+  "addPatient": "Add patient",
+  "searchPlaceholder": "Search by name or MRN…",
+  "mrn": "MRN",
+  "name": "Full name",
+  "dateOfBirth": "Date of birth",
+  "gender": "Gender",
+  "phone": "Phone",
+  "lastVisit": "Last visit",
+  "noPatients": "No patients yet",
+  "noPatientsHint": "Add a patient to get started.",
+  "profile": {
+    "medicalHistory": "Medical history",
+    "allergies": "Allergies",
+    "currentMedications": "Current medications",
+    "appointments": "Appointments",
+    "records": "Medical records",
+    "noAllergies": "No known allergies",
+    "noMedications": "No current medications"
+  }
+}

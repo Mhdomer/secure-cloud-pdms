@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Thmanyah Arabic Font ──────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Thmanyah';
+  src: url('/fonts/thmanyah/thmanyahsans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah';
+  src: url('/fonts/thmanyah/thmanyahsans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Thmanyah';
+  src: url('/fonts/thmanyah/thmanyahsans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── CSS Variables (shadcn/ui + clinic palette) ────────────────────────── */
+@layer base {
+  :root {
+    --background: 40 20% 98%;
+    --foreground: 30 8% 23%;
+    --card: 0 0% 100%;
+    --card-foreground: 30 8% 23%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 8% 23%;
+    --primary: 180 83% 25%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 35 15% 95%;
+    --secondary-foreground: 30 8% 23%;
+    --muted: 35 15% 95%;
+    --muted-foreground: 30 6% 56%;
+    --accent: 35 15% 95%;
+    --accent-foreground: 30 8% 23%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 35 12% 88%;
+    --input: 35 12% 88%;
+    --ring: 180 83% 25%;
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 30 8% 10%;
+    --foreground: 40 15% 95%;
+    --card: 30 8% 13%;
+    --card-foreground: 40 15% 95%;
+    --popover: 30 8% 13%;
+    --popover-foreground: 40 15% 95%;
+    --primary: 180 60% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 8% 18%;
+    --secondary-foreground: 40 15% 85%;
+    --muted: 30 8% 18%;
+    --muted-foreground: 30 6% 60%;
+    --accent: 30 8% 18%;
+    --accent-foreground: 40 15% 85%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 8% 22%;
+    --input: 30 8% 22%;
+    --ring: 180 60% 45%;
+  }
+}
+
+/* ── Base styles ───────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Arabic language — font + size + line-height */
+  :root[lang='ar'] body,
+  [lang='ar'] {
+    font-family: 'Thmanyah', 'Noto Sans Arabic', system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.75;
+    letter-spacing: 0;
+  }
+
+  /* Arabic headings — slightly larger to match visual weight of Latin */
+  [lang='ar'] h1 { font-size: 1.65rem; }
+  [lang='ar'] h2 { font-size: 1.35rem; }
+  [lang='ar'] h3 { font-size: 1.15rem; }
+}
+
+/* ── Utility classes ───────────────────────────────────────────────────── */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Smooth page transitions */
+  .page-enter {
+    @apply animate-fade-in;
+  }
+}

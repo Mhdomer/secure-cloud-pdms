@@ -8,14 +8,18 @@ blog/.jekyll-cache/
 blog/.jekyll-metadata
 blog/vendor/
 
-# Node / npm (if used later in implementation)
+# Node / npm
 node_modules/
 npm-debug.log
 
 # Python
 __pycache__/
 *.pyc
+
+# Environment secrets
 .env
+.env.local
+.env.*.local
 
 # Terraform (PSM2 — don't commit state or secrets)
 **/.terraform/
@@ -33,6 +37,9 @@ docs/references/Final Report Ammar yasser.pdf
 docs/references/mindcraft refrence files/
 .claude/
 claude-sessions/
+
+# MCP config — contains GitHub token, never commit
+.mcp.json
 
 # PSM1 submission PDFs/DOCX — large binaries, tracked locally only
 // docs/psm1-submission/

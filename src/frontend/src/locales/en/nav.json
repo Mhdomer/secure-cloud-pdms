@@ -1,0 +1,8 @@
+{
+  "dashboard": "Dashboard",
+  "patients": "Patients",
+  "appointments": "Appointments",
+  "records": "Medical Records",
+  "settings": "Settings",
+  "logout": "Log out"
+}
