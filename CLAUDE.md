@@ -170,6 +170,26 @@ The orchestrator handles everything autonomously in this order for each sprint:
 
 ---
 
+## Arabic Font — Thmanyah
+
+Custom Arabic font for the polyclinic UI. Files go in:
+`src/frontend/public/fonts/thmanyah/` (self-hosted, not CDN — patient data privacy)
+
+Required weights: Regular (400), Medium (500), Bold (700) in .woff2 + .woff format.
+
+If files are not yet available, use **Noto Sans Arabic** from Google Fonts as placeholder.
+Claude should swap automatically to Thmanyah once files are present in the fonts directory.
+
+CSS rules when applied:
+- font-family: 'Thmanyah', 'Noto Sans Arabic', sans-serif — on [lang="ar"] selector only
+- line-height: 1.7 minimum for Arabic (Arabic script is taller than Latin)
+- letter-spacing: 0 always for Arabic — never use letter-spacing with Arabic script
+- font-size: bump Arabic body text to 17–18px (Arabic at 16px looks visually smaller than English)
+
+Apply font family switch as part of the same language toggle that sets dir="rtl" — both must change together.
+
+---
+
 ## References
 
 - Full design: `docs/report/chapter-4-requirement-design.md`
