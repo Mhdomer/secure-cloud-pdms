@@ -11,6 +11,8 @@ blog/vendor/
 # Node / npm
 node_modules/
 npm-debug.log
+dist/
+*.tsbuildinfo
 
 # Python
 __pycache__/

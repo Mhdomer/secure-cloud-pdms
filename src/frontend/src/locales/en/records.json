@@ -1,0 +1,71 @@
+{
+  "title": "Medical Records",
+  "newRecord": "New record",
+  "diagnosis": "Diagnosis",
+  "prescription": "Prescription",
+  "notes": "Notes",
+  "noRecords": "No medical records",
+  "noRecordsHint": "Records will appear here after a visit is documented.",
+  "viewDetails": "View",
+  "backToList": "Back to records",
+  "list": {
+    "columns": {
+      "date": "Date",
+      "diagnosis": "Diagnosis",
+      "lastUpdated": "Last updated",
+      "actions": "Actions"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "pageInfo": "Page {{page}} of {{totalPages}}",
+      "totalRecords": "{{count}} total records"
+    }
+  },
+  "errors": {
+    "forbiddenTitle": "Access denied",
+    "forbiddenDescription": "You do not have permission to view these records.",
+    "notFoundTitle": "No records found",
+    "notFoundDescription": "This patient does not exist, or you do not have access to their records."
+  },
+  "form": {
+    "optional": "Optional",
+    "createTitle": "New medical record",
+    "createDescription": "Document a diagnosis, prescription, and any notes from this visit.",
+    "patientIdLabel": "Patient ID",
+    "patientIdLocked": "Locked to the patient you opened this from.",
+    "patientIdNote": "There is no patient picker in this system yet — paste the patient's ID from their profile page.",
+    "submit": "Create record",
+    "submitting": "Creating…",
+    "success": "Medical record created.",
+    "error": "Could not create the medical record. Please try again.",
+    "validation": {
+      "patientIdRequired": "Patient ID is required",
+      "patientIdInvalid": "Enter a valid patient ID (UUID)",
+      "diagnosisRequired": "Diagnosis is required",
+      "diagnosisMax": "Diagnosis must be 2000 characters or fewer",
+      "prescriptionMax": "Prescription must be 2000 characters or fewer",
+      "notesMax": "Notes must be 2000 characters or fewer"
+    }
+  },
+  "detail": {
+    "title": "Medical record",
+    "createdOn": "Created",
+    "updatedOn": "Last updated",
+    "diagnosis": "Diagnosis",
+    "prescription": "Prescription",
+    "notes": "Notes",
+    "noPrescription": "No prescription recorded",
+    "noNotes": "No additional notes",
+    "editButton": "Edit record",
+    "cancelEdit": "Cancel",
+    "saveChanges": "Save changes",
+    "saving": "Saving…",
+    "updateSuccess": "Medical record updated.",
+    "updateError": "Could not update the medical record. Please try again.",
+    "notFoundTitle": "Record not found",
+    "notFoundDescription": "This record does not exist, or you do not have access to it.",
+    "forbiddenTitle": "Access denied",
+    "forbiddenDescription": "You do not have permission to view this record."
+  }
+}

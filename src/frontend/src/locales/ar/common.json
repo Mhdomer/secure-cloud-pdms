@@ -12,6 +12,7 @@
   "status": {
     "active": "نشط",
     "inactive": "غير نشط",
+    "scheduled": "مجدول",
     "confirmed": "مؤكد",
     "pending": "قيد الانتظار",
     "cancelled": "ملغى",

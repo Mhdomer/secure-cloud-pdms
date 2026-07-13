@@ -1,0 +1,86 @@
+{
+  "title": "Settings",
+  "profile": {
+    "title": "Profile",
+    "userId": "User ID",
+    "username": "Username",
+    "role": "Role"
+  },
+  "language": {
+    "title": "Language",
+    "description": "Choose the interface language.",
+    "english": "English",
+    "arabic": "Arabic"
+  },
+  "password": {
+    "title": "Change password",
+    "description": "Choose a new password for your own account.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Update password",
+    "submitting": "Updating…",
+    "success": "Password updated successfully.",
+    "mismatch": "Passwords do not match.",
+    "currentPasswordIncorrect": "Current password is incorrect.",
+    "error": "Could not update the password. Please try again.",
+    "validation": {
+      "currentPasswordRequired": "Current password is required",
+      "newPasswordMin": "New password must be at least 8 characters",
+      "newPasswordUpper": "New password must include at least one uppercase letter",
+      "newPasswordLower": "New password must include at least one lowercase letter",
+      "newPasswordNumber": "New password must include at least one number",
+      "confirmPasswordRequired": "Please confirm your new password"
+    }
+  },
+  "users": {
+    "title": "Manage staff accounts",
+    "description": "Create, deactivate, or reactivate doctor and admin accounts.",
+    "userIdNote": "There is no account directory in this system yet — obtain the user ID from the creation confirmation or from another administrator.",
+    "create": {
+      "title": "Create staff account",
+      "description": "Create a login for a new doctor or admin.",
+      "usernameLabel": "Username",
+      "tempPasswordLabel": "Temporary password",
+      "roleLabel": "Role",
+      "fullNameLabel": "Full name",
+      "fullNameHint": "Required for doctor accounts.",
+      "specialisationLabel": "Specialisation",
+      "specialisationOptional": "Optional, doctor accounts only",
+      "submit": "Create account",
+      "submitting": "Creating…",
+      "success": "Staff account created for {{username}}.",
+      "error": "Could not create the account. Please try again.",
+      "validation": {
+        "usernameRequired": "Username is required",
+        "tempPasswordMin": "Temporary password must be at least 8 characters",
+        "tempPasswordUpper": "Temporary password must include at least one uppercase letter",
+        "tempPasswordLower": "Temporary password must include at least one lowercase letter",
+        "tempPasswordNumber": "Temporary password must include at least one number",
+        "fullNameRequired": "Full name is required for doctor accounts"
+      }
+    },
+    "deactivate": {
+      "title": "Deactivate account",
+      "description": "Deactivate a staff account by its user ID.",
+      "userIdLabel": "User ID",
+      "submit": "Deactivate",
+      "submitting": "Deactivating…",
+      "success": "Account deactivated.",
+      "error": "Could not deactivate this account. Please try again."
+    },
+    "reactivate": {
+      "title": "Reactivate account",
+      "description": "Reactivate a previously deactivated staff account by its user ID.",
+      "userIdLabel": "User ID",
+      "submit": "Reactivate",
+      "submitting": "Reactivating…",
+      "success": "Account reactivated.",
+      "error": "Could not reactivate this account. Please try again."
+    },
+    "validation": {
+      "userIdRequired": "User ID is required",
+      "userIdInvalid": "Enter a valid user ID (UUID)"
+    }
+  }
+}

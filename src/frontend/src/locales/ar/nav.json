@@ -3,6 +3,9 @@
   "patients": "المرضى",
   "appointments": "المواعيد",
   "records": "السجلات الطبية",
+  "users": "المستخدمون",
   "settings": "الإعدادات",
-  "logout": "تسجيل الخروج"
+  "logout": "تسجيل الخروج",
+  "expandSidebar": "توسيع الشريط الجانبي",
+  "collapseSidebar": "طي الشريط الجانبي"
 }

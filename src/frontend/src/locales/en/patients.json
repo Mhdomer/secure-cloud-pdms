@@ -18,5 +18,106 @@
     "records": "Medical records",
     "noAllergies": "No known allergies",
     "noMedications": "No current medications"
+  },
+  "backToLookup": "Back to patient lookup",
+  "viewMedicalHistory": "View medical history",
+  "doctorIdNote": "Doctor IDs cannot be browsed in this system yet — obtain the doctor's ID from an administrator or a database lookup before entering it here.",
+  "card": {
+    "id": "Patient ID",
+    "dateOfBirth": "Date of birth",
+    "gender": "Gender",
+    "contactNumber": "Contact number",
+    "assignedDoctorId": "Assigned doctor ID",
+    "noAssignedDoctor": "No doctor assigned",
+    "registeredOn": "Registered on",
+    "notProvided": "Not provided",
+    "genderMale": "Male",
+    "genderFemale": "Female",
+    "genderUnknown": "Not specified"
+  },
+  "lookup": {
+    "title": "Find a patient",
+    "description": "Enter a known patient ID to view their profile.",
+    "idLabel": "Patient ID",
+    "idPlaceholder": "e.g. 8f14e45f-ceea-4c9c-...",
+    "submit": "Look up",
+    "viewProfile": "View full profile",
+    "notFoundTitle": "Patient not found",
+    "notFoundDescription": "No patient exists with this ID, or you do not have access to it. Double-check the ID and try again.",
+    "forbiddenTitle": "Access denied",
+    "forbiddenDescription": "You do not have permission to view this patient.",
+    "validation": {
+      "idRequired": "Patient ID is required",
+      "idInvalid": "Enter a valid patient ID (UUID)"
+    }
+  },
+  "register": {
+    "trigger": "Add patient",
+    "title": "Register new patient",
+    "description": "Create a new patient record and account.",
+    "fullNameLabel": "Full name",
+    "dateOfBirthLabel": "Date of birth",
+    "genderLabel": "Gender",
+    "genderPlaceholder": "Select gender (optional)",
+    "genderUnspecified": "Not specified",
+    "contactNumberLabel": "Contact number",
+    "contactNumberOptional": "Optional",
+    "assignedDoctorIdLabel": "Assigned doctor ID",
+    "submit": "Register patient",
+    "submitting": "Registering…",
+    "success": "Patient registered successfully.",
+    "error": "Could not register the patient. Please try again.",
+    "validation": {
+      "fullNameRequired": "Full name is required",
+      "dateOfBirthRequired": "Date of birth is required",
+      "doctorIdRequired": "Assigned doctor ID is required",
+      "doctorIdInvalid": "Enter a valid doctor ID (UUID)",
+      "contactNumberInvalid": "Enter a valid contact number"
+    }
+  },
+  "credentialsPanel": {
+    "title": "Patient account created",
+    "description": "Share these temporary credentials with the patient now — they will not be shown again.",
+    "username": "Temporary username",
+    "password": "Temporary password",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyUnavailable": "Copy not supported in this browser — copy manually.",
+    "warning": "These credentials are shown only once and cannot be retrieved later. Record them or relay them to the patient before closing this panel.",
+    "acknowledge": "I've recorded these credentials — close"
+  },
+  "recentlyTreated": {
+    "title": "Patients I've recently treated",
+    "description": "Derived from your recent medical records, not a complete patient roster — patients assigned to you with no records yet will not appear here.",
+    "lastRecord": "Last record",
+    "empty": "No recent records to derive a patient list from yet.",
+    "viewProfile": "View profile",
+    "loadError": "Could not load your recent records."
+  },
+  "editForm": {
+    "title": "Edit patient info",
+    "submit": "Save changes",
+    "submitting": "Saving…",
+    "success": "Patient information updated.",
+    "error": "Could not update patient information. Please try again."
+  },
+  "assignDoctor": {
+    "title": "Reassign doctor",
+    "description": "Assign a different doctor to this patient.",
+    "newDoctorIdLabel": "New doctor ID",
+    "submit": "Reassign",
+    "submitting": "Reassigning…",
+    "success": "Doctor reassigned successfully.",
+    "error": "Could not reassign the doctor. Please try again.",
+    "validation": {
+      "doctorIdRequired": "Doctor ID is required",
+      "doctorIdInvalid": "Enter a valid doctor ID (UUID)"
+    }
+  },
+  "profileErrors": {
+    "notFoundTitle": "Patient not found",
+    "notFoundDescription": "This patient does not exist, or you do not have access to their record.",
+    "forbiddenTitle": "Access denied",
+    "forbiddenDescription": "Your role does not have permission to view this page."
   }
 }

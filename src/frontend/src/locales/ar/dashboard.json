@@ -1,0 +1,30 @@
+{
+  "greeting": "مرحباً، {{name}}",
+  "today": "اليوم",
+  "doctor": {
+    "myPatients": "مرضاي",
+    "myPatientsUnavailable": "ستظهر قائمة مرضاك المعيّنين هنا بمجرد توفر هذه الميزة.",
+    "todaysAppointments": "مواعيد اليوم",
+    "upcomingAppointments": "المواعيد القادمة",
+    "recentRecords": "السجلات الأخيرة",
+    "quickActions": "إجراءات سريعة",
+    "newRecord": "سجل جديد"
+  },
+  "admin": {
+    "totalPatients": "إجمالي المرضى",
+    "totalAppointments": "إجمالي المواعيد",
+    "activeStaff": "الموظفون النشطون",
+    "todaysSchedule": "جدول اليوم",
+    "quickActions": "إجراءات سريعة",
+    "registerPatient": "تسجيل مريض",
+    "scheduleAppointment": "جدولة موعد",
+    "manageUsers": "إدارة المستخدمين"
+  },
+  "patient": {
+    "upcomingAppointments": "المواعيد القادمة",
+    "recentRecords": "السجلات الأخيرة",
+    "recordsLinkHint": "اطّلع على سجل زياراتك الكامل وملاحظاتك الطبية.",
+    "myDoctor": "طبيبي",
+    "noUpcomingAppointments": "لا توجد مواعيد قادمة"
+  }
+}

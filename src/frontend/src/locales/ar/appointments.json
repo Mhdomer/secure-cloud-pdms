@@ -1,22 +1,69 @@
 {
   "title": "المواعيد",
   "new": "موعد جديد",
-  "today": "اليوم",
-  "upcoming": "القادمة",
-  "past": "السابقة",
   "date": "التاريخ",
   "time": "الوقت",
   "doctor": "الطبيب",
   "patient": "المريض",
   "type": "النوع",
+  "status": "الحالة",
+  "actions": "الإجراءات",
+  "editButton": "تعديل",
+  "cancel": "إلغاء الموعد",
   "types": {
     "consultation": "استشارة",
-    "followUp": "متابعة",
+    "follow_up": "متابعة",
     "emergency": "طوارئ",
     "checkup": "فحص دوري"
   },
   "noAppointments": "لا توجد مواعيد",
-  "reschedule": "إعادة جدولة",
-  "confirm": "تأكيد",
-  "cancel": "إلغاء الموعد"
+  "noAppointmentsHint": "ستظهر المواعيد هنا بمجرد جدولتها.",
+  "pagination": {
+    "previous": "السابق",
+    "next": "التالي",
+    "pageInfo": "صفحة {{page}}"
+  },
+  "errors": {
+    "forbiddenTitle": "الوصول مرفوض",
+    "forbiddenDescription": "ليس لديك صلاحية لعرض المواعيد."
+  },
+  "cancelDialog": {
+    "title": "هل تريد إلغاء هذا الموعد؟",
+    "description": "سيتم تحديد الموعد كملغى. هذا الإجراء مسجّل ولا يمكن التراجع عنه.",
+    "cancelling": "جارٍ الإلغاء…",
+    "success": "تم إلغاء الموعد.",
+    "error": "تعذّر إلغاء الموعد. الرجاء المحاولة مجدداً."
+  },
+  "form": {
+    "optional": "اختياري",
+    "createTitle": "جدولة موعد",
+    "createDescription": "احجز موعداً جديداً لمريض مع طبيب.",
+    "editTitle": "تعديل الموعد",
+    "editDescription": "تحديث تفاصيل هذا الموعد.",
+    "patientIdLabel": "معرّف المريض",
+    "patientIdNote": "لا يوجد أداة اختيار مريض في هذا النظام حالياً — الصق معرّف المريض من صفحة ملفه الشخصي.",
+    "doctorIdLabel": "معرّف الطبيب",
+    "doctorIdNote": "لا يمكن تصفح معرّفات الأطباء في هذا النظام حالياً — احصل على معرّف الطبيب من أحد المسؤولين أو من قاعدة البيانات قبل إدخاله هنا.",
+    "dateTimeLabel": "التاريخ والوقت",
+    "typeLabel": "النوع",
+    "notesLabel": "ملاحظات",
+    "submit": "جدولة الموعد",
+    "submitting": "جارٍ الجدولة…",
+    "saveChanges": "حفظ التغييرات",
+    "saving": "جارٍ الحفظ…",
+    "success": "تم جدولة الموعد بنجاح.",
+    "updateSuccess": "تم تحديث الموعد بنجاح.",
+    "error": "تعذّر جدولة الموعد. الرجاء المحاولة مجدداً.",
+    "updateError": "تعذّر تحديث الموعد. الرجاء المحاولة مجدداً.",
+    "validation": {
+      "patientIdRequired": "معرّف المريض مطلوب",
+      "patientIdInvalid": "أدخل معرّف مريض صالح (UUID)",
+      "doctorIdRequired": "معرّف الطبيب مطلوب",
+      "doctorIdInvalid": "أدخل معرّف طبيب صالح (UUID)",
+      "dateTimeRequired": "التاريخ والوقت مطلوبان",
+      "dateTimeInvalid": "أدخل تاريخاً ووقتاً صالحين",
+      "dateTimePast": "يجب أن يكون التاريخ والوقت في المستقبل",
+      "notesMax": "يجب ألا تتجاوز الملاحظات 2000 حرف"
+    }
+  }
 }

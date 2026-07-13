@@ -1,22 +1,69 @@
 {
   "title": "Appointments",
   "new": "New appointment",
-  "today": "Today",
-  "upcoming": "Upcoming",
-  "past": "Past",
   "date": "Date",
   "time": "Time",
   "doctor": "Doctor",
   "patient": "Patient",
   "type": "Type",
+  "status": "Status",
+  "actions": "Actions",
+  "editButton": "Edit",
+  "cancel": "Cancel appointment",
   "types": {
     "consultation": "Consultation",
-    "followUp": "Follow-up",
+    "follow_up": "Follow-up",
     "emergency": "Emergency",
     "checkup": "Check-up"
   },
   "noAppointments": "No appointments",
-  "reschedule": "Reschedule",
-  "confirm": "Confirm",
-  "cancel": "Cancel appointment"
+  "noAppointmentsHint": "Appointments will appear here once they are scheduled.",
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "pageInfo": "Page {{page}}"
+  },
+  "errors": {
+    "forbiddenTitle": "Access denied",
+    "forbiddenDescription": "You do not have permission to view appointments."
+  },
+  "cancelDialog": {
+    "title": "Cancel this appointment?",
+    "description": "This marks the appointment as cancelled. This action is recorded and cannot be undone.",
+    "cancelling": "Cancelling…",
+    "success": "Appointment cancelled.",
+    "error": "Could not cancel the appointment. Please try again."
+  },
+  "form": {
+    "optional": "Optional",
+    "createTitle": "Schedule appointment",
+    "createDescription": "Book a new appointment for a patient with a doctor.",
+    "editTitle": "Edit appointment",
+    "editDescription": "Update this appointment's details.",
+    "patientIdLabel": "Patient ID",
+    "patientIdNote": "There is no patient picker in this system yet — paste the patient's ID from their profile page.",
+    "doctorIdLabel": "Doctor ID",
+    "doctorIdNote": "Doctor IDs cannot be browsed in this system yet — obtain the doctor's ID from an administrator or a database lookup before entering it here.",
+    "dateTimeLabel": "Date & time",
+    "typeLabel": "Type",
+    "notesLabel": "Notes",
+    "submit": "Schedule appointment",
+    "submitting": "Scheduling…",
+    "saveChanges": "Save changes",
+    "saving": "Saving…",
+    "success": "Appointment scheduled.",
+    "updateSuccess": "Appointment updated.",
+    "error": "Could not schedule the appointment. Please try again.",
+    "updateError": "Could not update the appointment. Please try again.",
+    "validation": {
+      "patientIdRequired": "Patient ID is required",
+      "patientIdInvalid": "Enter a valid patient ID (UUID)",
+      "doctorIdRequired": "Doctor ID is required",
+      "doctorIdInvalid": "Enter a valid doctor ID (UUID)",
+      "dateTimeRequired": "Date and time are required",
+      "dateTimeInvalid": "Enter a valid date and time",
+      "dateTimePast": "Date and time must be in the future",
+      "notesMax": "Notes must be 2000 characters or fewer"
+    }
+  }
 }

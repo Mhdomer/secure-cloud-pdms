@@ -3,6 +3,9 @@
   "patients": "Patients",
   "appointments": "Appointments",
   "records": "Medical Records",
+  "users": "Users",
   "settings": "Settings",
-  "logout": "Log out"
+  "logout": "Log out",
+  "expandSidebar": "Expand sidebar",
+  "collapseSidebar": "Collapse sidebar"
 }

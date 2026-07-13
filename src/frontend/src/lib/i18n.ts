@@ -6,12 +6,18 @@ import enNav from '../locales/en/nav.json'
 import enAuth from '../locales/en/auth.json'
 import enPatients from '../locales/en/patients.json'
 import enAppointments from '../locales/en/appointments.json'
+import enDashboard from '../locales/en/dashboard.json'
+import enRecords from '../locales/en/records.json'
+import enSettings from '../locales/en/settings.json'
 
 import arCommon from '../locales/ar/common.json'
 import arNav from '../locales/ar/nav.json'
 import arAuth from '../locales/ar/auth.json'
 import arPatients from '../locales/ar/patients.json'
 import arAppointments from '../locales/ar/appointments.json'
+import arDashboard from '../locales/ar/dashboard.json'
+import arRecords from '../locales/ar/records.json'
+import arSettings from '../locales/ar/settings.json'
 
 const savedLang = localStorage.getItem('pdms_lang') ?? 'ar'
 
@@ -26,6 +32,9 @@ i18n.use(initReactI18next).init({
       auth: enAuth,
       patients: enPatients,
       appointments: enAppointments,
+      dashboard: enDashboard,
+      records: enRecords,
+      settings: enSettings,
     },
     ar: {
       common: arCommon,
@@ -33,6 +42,9 @@ i18n.use(initReactI18next).init({
       auth: arAuth,
       patients: arPatients,
       appointments: arAppointments,
+      dashboard: arDashboard,
+      records: arRecords,
+      settings: arSettings,
     },
   },
   interpolation: { escapeValue: false },

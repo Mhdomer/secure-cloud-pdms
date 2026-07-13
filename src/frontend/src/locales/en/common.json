@@ -12,6 +12,7 @@
   "status": {
     "active": "Active",
     "inactive": "Inactive",
+    "scheduled": "Scheduled",
     "confirmed": "Confirmed",
     "pending": "Pending",
     "cancelled": "Cancelled",

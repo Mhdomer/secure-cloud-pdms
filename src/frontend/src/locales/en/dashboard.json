@@ -1,0 +1,30 @@
+{
+  "greeting": "Welcome, {{name}}",
+  "today": "Today",
+  "doctor": {
+    "myPatients": "My Patients",
+    "myPatientsUnavailable": "Your assigned patient list will appear here once this view is available.",
+    "todaysAppointments": "Today's Appointments",
+    "upcomingAppointments": "Upcoming Appointments",
+    "recentRecords": "Recent Records",
+    "quickActions": "Quick Actions",
+    "newRecord": "New Record"
+  },
+  "admin": {
+    "totalPatients": "Total Patients",
+    "totalAppointments": "Total Appointments",
+    "activeStaff": "Active Staff",
+    "todaysSchedule": "Today's Schedule",
+    "quickActions": "Quick Actions",
+    "registerPatient": "Register Patient",
+    "scheduleAppointment": "Schedule Appointment",
+    "manageUsers": "Manage Users"
+  },
+  "patient": {
+    "upcomingAppointments": "Upcoming Appointments",
+    "recentRecords": "Recent Records",
+    "recordsLinkHint": "View your full visit history and clinical notes.",
+    "myDoctor": "My Doctor",
+    "noUpcomingAppointments": "No upcoming appointments"
+  }
+}

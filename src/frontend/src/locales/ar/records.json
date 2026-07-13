@@ -1,0 +1,71 @@
+{
+  "title": "السجلات الطبية",
+  "newRecord": "سجل جديد",
+  "diagnosis": "التشخيص",
+  "prescription": "الوصفة الطبية",
+  "notes": "ملاحظات",
+  "noRecords": "لا توجد سجلات طبية",
+  "noRecordsHint": "ستظهر السجلات هنا بعد توثيق الزيارة.",
+  "viewDetails": "عرض",
+  "backToList": "العودة إلى السجلات",
+  "list": {
+    "columns": {
+      "date": "التاريخ",
+      "diagnosis": "التشخيص",
+      "lastUpdated": "آخر تحديث",
+      "actions": "الإجراءات"
+    },
+    "pagination": {
+      "previous": "السابق",
+      "next": "التالي",
+      "pageInfo": "صفحة {{page}} من {{totalPages}}",
+      "totalRecords": "{{count}} سجل إجمالاً"
+    }
+  },
+  "errors": {
+    "forbiddenTitle": "الوصول مرفوض",
+    "forbiddenDescription": "ليس لديك صلاحية لعرض هذه السجلات.",
+    "notFoundTitle": "لا توجد سجلات",
+    "notFoundDescription": "هذا المريض غير موجود، أو لا تملك صلاحية الوصول إلى سجلاته."
+  },
+  "form": {
+    "optional": "اختياري",
+    "createTitle": "سجل طبي جديد",
+    "createDescription": "وثّق التشخيص والوصفة الطبية وأي ملاحظات من هذه الزيارة.",
+    "patientIdLabel": "معرّف المريض",
+    "patientIdLocked": "مقفل على المريض الذي فتحت منه هذه الصفحة.",
+    "patientIdNote": "لا يوجد أداة اختيار مريض في هذا النظام حالياً — الصق معرّف المريض من صفحة ملفه الشخصي.",
+    "submit": "إنشاء السجل",
+    "submitting": "جارٍ الإنشاء…",
+    "success": "تم إنشاء السجل الطبي بنجاح.",
+    "error": "تعذّر إنشاء السجل الطبي. الرجاء المحاولة مجدداً.",
+    "validation": {
+      "patientIdRequired": "معرّف المريض مطلوب",
+      "patientIdInvalid": "أدخل معرّف مريض صالح (UUID)",
+      "diagnosisRequired": "التشخيص مطلوب",
+      "diagnosisMax": "يجب ألا يتجاوز التشخيص 2000 حرف",
+      "prescriptionMax": "يجب ألا تتجاوز الوصفة الطبية 2000 حرف",
+      "notesMax": "يجب ألا تتجاوز الملاحظات 2000 حرف"
+    }
+  },
+  "detail": {
+    "title": "سجل طبي",
+    "createdOn": "تاريخ الإنشاء",
+    "updatedOn": "آخر تحديث",
+    "diagnosis": "التشخيص",
+    "prescription": "الوصفة الطبية",
+    "notes": "ملاحظات",
+    "noPrescription": "لا توجد وصفة طبية مسجلة",
+    "noNotes": "لا توجد ملاحظات إضافية",
+    "editButton": "تعديل السجل",
+    "cancelEdit": "إلغاء",
+    "saveChanges": "حفظ التغييرات",
+    "saving": "جارٍ الحفظ…",
+    "updateSuccess": "تم تحديث السجل الطبي بنجاح.",
+    "updateError": "تعذّر تحديث السجل الطبي. الرجاء المحاولة مجدداً.",
+    "notFoundTitle": "السجل غير موجود",
+    "notFoundDescription": "هذا السجل غير موجود، أو لا تملك صلاحية الوصول إليه.",
+    "forbiddenTitle": "الوصول مرفوض",
+    "forbiddenDescription": "ليس لديك صلاحية لعرض هذا السجل."
+  }
+}
