@@ -1,0 +1,140 @@
+# CLAUDE.md — Secure Cloud PDMS (PSM2 Implementation)
+
+## Project Overview
+Secure Cloud-Based Patient Data Management System for Alamin Clinic (Saudi Arabia).
+Motivated by a real ransomware attack on the clinic's on-premise server.
+PSM1 (analysis & design) is complete and submitted. This repo is now in PSM2 — implementation.
+
+Student: Mohamed Omar Makhlouf | A23CS4014 | SECRH, UTM
+Supervisor: Dr. Johan Mohamad Sharif
+
+---
+
+## Architecture (3-Tier on AWS)
+
+```
+Internet → ALB (public subnet)
+         → EC2/Node.js (private app subnet)
+         → RDS/PostgreSQL (private DB subnet)
+
+All in a single VPC across 2 Availability Zones (6 subnets total)
+```
+
+Full design specs: `docs/report/chapter-4-requirement-design.md`
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React → built to static, deployed to S3 + CloudFront |
+| Backend | Node.js / Express on EC2 (Docker container) |
+| Database | PostgreSQL on Amazon RDS (row-level security enabled) |
+| IaC | Terraform (HashiCorp HCL) |
+| CI/CD | GitHub Actions (6-stage pipeline) |
+| Auth | JWT + RBAC (3 roles: Doctor, Admin, Patient) |
+| Scanning | Trivy (containers), SonarQube (SAST), Checkov (IaC) |
+| Monitoring | CloudWatch + CloudTrail |
+| Compliance | AWS Security Hub (HIPAA standard) |
+| Encryption | KMS (AES-256 at rest), TLS/HTTPS in transit |
+
+---
+
+## Repository Structure
+
+```
+src/
+  backend/          Node.js/Express API
+  frontend/         React app
+infrastructure/
+  terraform/        All AWS infrastructure as code
+.github/
+  workflows/        GitHub Actions CI/CD pipeline
+docs/
+  report/           Chapter files (PSM1 design — read-only reference)
+  psm1-submission/  Submitted PSM1 report and signed forms
+  references/       Research materials and stakeholder letters
+scripts/
+  figures/          Python scripts that generated report diagrams
+```
+
+---
+
+## Sprint Plan (PSM2)
+
+| Sprint | Scope | Status |
+|---|---|---|
+| Sprint 1 | Requirements & design | Complete (PSM1) |
+| Sprint 2 | Terraform: VPC, subnets, SGs, NACLs, RDS, KMS | Not started |
+| Sprint 3 | App: Node.js API + React frontend + RBAC + JWT | Not started |
+| Sprint 4 | DevSecOps: GitHub Actions pipeline + CloudWatch + CloudTrail | Not started |
+| Sprint 5 | Security evaluation: scans, RTO test, Security Hub, UAT | Not started |
+
+Each sprint has a security gate that must pass before the next sprint starts.
+Sprint details: `docs/report/chapter-5-conclusion.md` Section 5.3
+
+---
+
+## Security Gates (Non-Negotiable)
+
+Before committing any Terraform:
+```bash
+checkov -d infrastructure/terraform --framework terraform
+# Must report zero CRITICAL findings
+```
+
+Before pushing any Docker image:
+```bash
+trivy fs src/backend --severity CRITICAL
+# Must report zero CRITICAL CVEs
+```
+
+**Never commit:**
+- Hardcoded credentials or API keys
+- `.env` files
+- `*.tfvars` files
+- `*.tfstate` or `*.tfstate.backup`
+- AWS Access Key IDs or Secret Access Keys
+
+---
+
+## User Roles & Permissions
+
+| Role | Can Access |
+|---|---|
+| Doctor | Own patients' medical records + appointments |
+| Admin | Patient registration + appointment scheduling (no clinical data) |
+| Patient | Own records and appointments only (read-only) |
+
+RBAC enforced at two layers: JWT middleware (application) + PostgreSQL row-level security (database).
+
+---
+
+## Key Design Decisions (from PSM1)
+
+- VPC CIDR: 10.0.0.0/16, 6 subnets across 2 AZs
+- RDS: never publicly accessible, KMS-encrypted, automated backups on
+- ALB: only internet-facing entry point, HTTPS only
+- EC2: private subnet, no direct internet access (outbound via NAT Gateway)
+- CloudTrail: all API calls logged, 90-day retention
+- RTO target: ≤ 15 minutes (full Terraform redeployment from wipe)
+
+---
+
+## Git Commit Rules
+
+- Max 3 commits per day
+- Human-style messages — no AI attribution, no "Co-authored-by"
+- Never use `git add .` — stage specific files only
+- Commit message format: `verb + what changed` (e.g. `provision VPC and subnet configuration`)
+
+---
+
+## References
+
+- Full design: `docs/report/chapter-4-requirement-design.md`
+- Methodology & sprint plan: `docs/report/chapter-3-methodology.md`
+- NFRs (including RTO ≤15min, 99.9% uptime): Chapter 3 Section 3.5.2
+- Functional requirements: Chapter 3 Section 3.5.1
+- Workflow guide for Claude sessions: `claude-sessions/psm2-workflow.md`
