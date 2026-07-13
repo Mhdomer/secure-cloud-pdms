@@ -66,7 +66,7 @@ scripts/
 | Sprint | Scope | Status |
 |---|---|---|
 | Sprint 1 | Requirements & design | Complete (PSM1) |
-| Sprint 2 | Terraform: VPC, subnets, SGs, NACLs, RDS, KMS | Not started |
+| Sprint 2 | Terraform: VPC, subnets, SGs, NACLs, RDS, KMS | Complete |
 | Sprint 3 | App: Node.js API + React frontend + RBAC + JWT | Not started |
 | Sprint 4 | DevSecOps: GitHub Actions pipeline + CloudWatch + CloudTrail | Not started |
 | Sprint 5 | Security evaluation: scans, RTO test, Security Hub, UAT | Not started |
