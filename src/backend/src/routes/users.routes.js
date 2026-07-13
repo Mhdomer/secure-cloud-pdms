@@ -12,11 +12,12 @@ const { ROLES } = require('../config/constants');
 
 const router = Router();
 
-// UC-04 — Admin Creates User Account (Doctor/Admin only — see usersController for rationale)
+// UC-04 — Superadmin Creates Staff Account (doctor or admin).
+// Regular admin/staff cannot create other elevated accounts.
 router.post(
   '/',
   authenticateJWT,
-  authorizeRole(ROLES.ADMIN),
+  authorizeRole(ROLES.SUPERADMIN),
   [
     body('username').trim().isLength({ min: 3, max: 50 }).matches(/^[a-zA-Z0-9_]+$/),
     body('tempPassword')
@@ -38,18 +39,18 @@ router.post(
 router.patch(
   '/:userId/deactivate',
   authenticateJWT,
-  authorizeRole(ROLES.ADMIN),
+  authorizeRole(ROLES.SUPERADMIN),
   [param('userId').isUUID()],
   validateRequest,
   asyncHandler(usersController.deactivateUser)
 );
 
-// Admin unlock — counterpart to UC-03 Account Lockout / UC-05 deactivation.
+// Account unlock — counterpart to UC-03 Account Lockout / UC-05 deactivation.
 // Without this, a 3-strikes lockout is permanent and unrecoverable.
 router.patch(
   '/:userId/reactivate',
   authenticateJWT,
-  authorizeRole(ROLES.ADMIN),
+  authorizeRole(ROLES.SUPERADMIN),
   [param('userId').isUUID()],
   validateRequest,
   asyncHandler(usersController.reactivateUser)

@@ -85,7 +85,12 @@ class Appointment {
               notes = COALESCE($6, notes)
         WHERE appointment_id = $1 AND status = 'scheduled'
         RETURNING appointment_id, scheduled_at, status`,
-      [appointmentId, doctorId || null, patientId || null, scheduledAt || null, type || null, notes || null]
+      // notes uses `?? null`, not `|| null` — validation allows an explicit
+      // empty string to clear it (unlike doctorId/patientId/scheduledAt/type,
+      // which are always UUID/date/enum-shaped and never legitimately ''),
+      // and `|| null` would coerce that '' into NULL, which COALESCE then
+      // treats as "keep the old value", silently no-oping the clear.
+      [appointmentId, doctorId || null, patientId || null, scheduledAt || null, type || null, notes ?? null]
     );
     return result.rows[0] || null;
   }

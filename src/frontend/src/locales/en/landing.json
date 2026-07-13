@@ -1,0 +1,54 @@
+{
+  "nav": {
+    "login": "Staff Login"
+  },
+  "hero": {
+    "tagline": "Your Health, Our Priority",
+    "subtext": "Alamin Clinic has been serving Jeddah for over three decades — trusted care, modern records, your health in safe hands.",
+    "cta": "Book an Appointment",
+    "ctaSecondary": "Learn More"
+  },
+  "services": {
+    "heading": "What We Offer",
+    "sub": "Comprehensive care for every stage of life.",
+    "generalMedicine": {
+      "title": "General Medicine",
+      "desc": "Routine check-ups, preventive care, and management of chronic conditions by experienced physicians."
+    },
+    "specialist": {
+      "title": "Specialist Clinics",
+      "desc": "On-site specialist referrals across cardiology, dermatology, orthopedics, and more — no long waits."
+    },
+    "digitalRecords": {
+      "title": "Digital Health Records",
+      "desc": "Your medical history, prescriptions, and lab results — securely accessible whenever you need them."
+    }
+  },
+  "trust": {
+    "heading": "Trusted by Jeddah Families",
+    "since": { "value": "1986", "label": "Serving Since" },
+    "doctors": { "value": "20+", "label": "Qualified Doctors" },
+    "patients": { "value": "50,000+", "label": "Patients Served" },
+    "uptime": { "value": "99.9%", "label": "System Uptime" }
+  },
+  "howItWorks": {
+    "heading": "How It Works",
+    "steps": [
+      { "step": "1", "title": "Register", "desc": "Our front-desk staff registers you once — your information is secure from day one." },
+      { "step": "2", "title": "See a Doctor", "desc": "Your appointment, diagnosis, and prescriptions are recorded digitally in real time." },
+      { "step": "3", "title": "Access Your Records", "desc": "Log in to view your own records securely — anytime, from any device." }
+    ]
+  },
+  "contact": {
+    "heading": "Get in Touch",
+    "address": "Al Andalus District, Jeddah, Saudi Arabia",
+    "mapLabel": "Jeddah, Saudi Arabia",
+    "phone": "+966 12 XXX XXXX",
+    "hours": "Sat – Thu: 8 AM – 10 PM"
+  },
+  "footer": {
+    "rights": "© 2024 Alamin Clinic. All rights reserved.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use"
+  }
+}

@@ -9,6 +9,7 @@ import enAppointments from '../locales/en/appointments.json'
 import enDashboard from '../locales/en/dashboard.json'
 import enRecords from '../locales/en/records.json'
 import enSettings from '../locales/en/settings.json'
+import enLanding from '../locales/en/landing.json'
 
 import arCommon from '../locales/ar/common.json'
 import arNav from '../locales/ar/nav.json'
@@ -18,6 +19,7 @@ import arAppointments from '../locales/ar/appointments.json'
 import arDashboard from '../locales/ar/dashboard.json'
 import arRecords from '../locales/ar/records.json'
 import arSettings from '../locales/ar/settings.json'
+import arLanding from '../locales/ar/landing.json'
 
 const savedLang = localStorage.getItem('pdms_lang') ?? 'ar'
 
@@ -35,6 +37,7 @@ i18n.use(initReactI18next).init({
       dashboard: enDashboard,
       records: enRecords,
       settings: enSettings,
+      landing: enLanding,
     },
     ar: {
       common: arCommon,
@@ -45,6 +48,7 @@ i18n.use(initReactI18next).init({
       dashboard: arDashboard,
       records: arRecords,
       settings: arSettings,
+      landing: arLanding,
     },
   },
   interpolation: { escapeValue: false },

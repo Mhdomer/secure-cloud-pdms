@@ -7,6 +7,7 @@ import type { Role } from '@/types/auth'
  * this instead of each keeping their own copy.
  */
 export const ROLE_HOME: Record<Role, string> = {
+  superadmin: '/dashboard/superadmin',
   doctor: '/dashboard/doctor',
   admin: '/dashboard/admin',
   patient: '/dashboard/patient',

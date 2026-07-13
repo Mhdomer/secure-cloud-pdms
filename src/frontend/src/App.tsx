@@ -9,10 +9,12 @@ import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { useSessionWatcher } from '@/hooks/useSessionWatcher'
 import { ROLE_HOME } from '@/lib/roleHome'
+import LandingPage from '@/pages/landing/LandingPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import AdminDashboard from '@/pages/dashboard/AdminDashboard'
 import DoctorDashboard from '@/pages/dashboard/DoctorDashboard'
 import PatientDashboard from '@/pages/dashboard/PatientDashboard'
+import SuperAdminDashboard from '@/pages/dashboard/SuperAdminDashboard'
 import AppointmentsPage from '@/pages/appointments/AppointmentsPage'
 import PatientLookupPage from '@/pages/patients/PatientLookupPage'
 import PatientProfilePage from '@/pages/patients/PatientProfilePage'
@@ -21,7 +23,7 @@ import RecordDetailPage from '@/pages/records/RecordDetailPage'
 import SettingsPage from '@/pages/settings/SettingsPage'
 import UserManagementPage from '@/pages/settings/UserManagementPage'
 
-/** Root `/` and any unmatched path: authenticated users go to their own dashboard, everyone else to /login. */
+/** Root `/` and any unmatched path: authenticated users go to their own dashboard, everyone else see the public landing page. */
 function RoleAwareRedirect() {
   const { isAuthenticated, role } = useAuth()
 
@@ -29,7 +31,7 @@ function RoleAwareRedirect() {
     return <Navigate to={ROLE_HOME[role]} replace />
   }
 
-  return <Navigate to="/login" replace />
+  return <LandingPage />
 }
 
 function App() {
@@ -58,6 +60,16 @@ function App() {
             <Route path="/" element={<RoleAwareRedirect />} />
             <Route path="/login" element={<LoginPage />} />
 
+            <Route
+              path="/dashboard/superadmin"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin']}>
+                  <AppShell>
+                    <SuperAdminDashboard />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/dashboard/doctor"
               element={
@@ -145,7 +157,7 @@ function App() {
             <Route
               path="/settings"
               element={
-                <ProtectedRoute allowedRoles={['doctor', 'admin', 'patient']}>
+                <ProtectedRoute allowedRoles={['superadmin', 'doctor', 'admin', 'patient']}>
                   <AppShell>
                     <SettingsPage />
                   </AppShell>
@@ -155,7 +167,7 @@ function App() {
             <Route
               path="/users"
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['superadmin']}>
                   <AppShell>
                     <UserManagementPage />
                   </AppShell>

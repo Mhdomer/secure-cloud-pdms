@@ -89,7 +89,12 @@ class MedicalRecord {
               updated_at = NOW()
         WHERE record_id = $1
         RETURNING record_id, updated_at`,
-      [recordId, diagnosis || null, prescription || null, notes || null]
+      // `?? null`, not `|| null` — an explicit empty string (clearing
+      // prescription/notes, which validation allows unlike diagnosis) must
+      // reach COALESCE as '' so it actually clears the column, not get
+      // coerced into NULL, which COALESCE would then treat as "keep the old
+      // value" and silently no-op the clear.
+      [recordId, diagnosis ?? null, prescription ?? null, notes ?? null]
     );
     // rowCount is 0 both when the record doesn't exist AND when the RLS
     // UPDATE policy rejects it (doctor_id mismatch) — callers must treat

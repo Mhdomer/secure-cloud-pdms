@@ -26,5 +26,32 @@
     "recordsLinkHint": "View your full visit history and clinical notes.",
     "myDoctor": "My Doctor",
     "noUpcomingAppointments": "No upcoming appointments"
+  },
+  "superadmin": {
+    "subtitle": "System administration — manage staff accounts and system access.",
+    "infoBanner": "You are signed in as a System Administrator. Only this role can create or deactivate doctor and staff accounts. Clinical data is not accessible from this panel.",
+    "quickActions": "Quick Actions",
+    "manageUsers": "Manage Users",
+    "settings": "Settings",
+    "roleHierarchy": "Role Hierarchy",
+    "roleHierarchyDesc": "What each role can do in this system.",
+    "roles": {
+      "superadmin": {
+        "name": "System Admin",
+        "desc": "Create and deactivate all accounts. No access to clinical data."
+      },
+      "doctor": {
+        "name": "Doctor",
+        "desc": "Own patients' medical records and appointments."
+      },
+      "admin": {
+        "name": "Staff",
+        "desc": "Register patients and schedule appointments. No clinical data."
+      },
+      "patient": {
+        "name": "Patient",
+        "desc": "Read-only access to their own records and appointments."
+      }
+    }
   }
 }

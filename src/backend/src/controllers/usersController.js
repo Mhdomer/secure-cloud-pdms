@@ -10,9 +10,11 @@ const { AUDIT_ACTIONS, ROLES } = require('../config/constants');
 const BCRYPT_COST = 12;
 
 /**
- * UC-04 — Admin Creates User Account.
+ * UC-04 — Superadmin Creates Staff Account.
  *
- * Scoped to 'doctor' and 'admin' roles only. Patient accounts are always
+ * Gated to ROLES.SUPERADMIN only at the route layer (users.routes.js) — a
+ * plain 'admin'/staff account cannot call this. Scoped to 'doctor' and
+ * 'admin' roles only for the account being created; patient accounts are always
  * created through POST /api/patients (UC-06), which captures the full
  * demographic record required by the NOT NULL `patients.date_of_birth`
  * column atomically alongside the user row — creating a bare patient user

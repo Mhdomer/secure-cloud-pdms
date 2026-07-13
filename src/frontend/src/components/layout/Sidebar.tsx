@@ -24,6 +24,11 @@ interface NavItem {
 }
 
 const NAV_BY_ROLE: Record<Role, NavItem[]> = {
+  superadmin: [
+    { to: '/dashboard/superadmin', labelKey: 'dashboard', icon: LayoutDashboard },
+    { to: '/users', labelKey: 'users', icon: UserCog },
+    { to: '/settings', labelKey: 'settings', icon: Settings },
+  ],
   doctor: [
     { to: '/dashboard/doctor', labelKey: 'dashboard', icon: LayoutDashboard },
     { to: '/patients', labelKey: 'patients', icon: Users },
@@ -35,7 +40,6 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { to: '/dashboard/admin', labelKey: 'dashboard', icon: LayoutDashboard },
     { to: '/patients', labelKey: 'patients', icon: Users },
     { to: '/appointments', labelKey: 'appointments', icon: Calendar },
-    { to: '/users', labelKey: 'users', icon: UserCog },
     { to: '/settings', labelKey: 'settings', icon: Settings },
   ],
   patient: [

@@ -1,5 +1,5 @@
-/** The three roles supported by the system. Mirrors the backend RBAC model. */
-export type Role = 'doctor' | 'admin' | 'patient'
+/** All roles supported by the system. Mirrors the backend RBAC model. */
+export type Role = 'superadmin' | 'doctor' | 'admin' | 'patient'
 
 /**
  * Minimal, non-sensitive profile the frontend is allowed to know about the

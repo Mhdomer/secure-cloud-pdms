@@ -1,6 +1,7 @@
 'use strict';
 
 const ROLES = Object.freeze({
+  SUPERADMIN: 'superadmin',
   DOCTOR: 'doctor',
   ADMIN: 'admin',
   PATIENT: 'patient',

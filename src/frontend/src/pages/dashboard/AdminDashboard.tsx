@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { CalendarPlus, UserCog, UserPlus } from 'lucide-react'
+import { CalendarPlus, UserPlus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
@@ -22,10 +22,13 @@ interface QuickLink {
 // bounces back to this dashboard via the catch-all route until the next
 // agent builds them. Not a guessed/invented backend URL, purely frontend
 // routing to a documented future page.
+// "Manage Users" was removed from here — user-account management moved to
+// superadmin-only (/users is gated to ROLES.SUPERADMIN in App.tsx), so this
+// admin/staff dashboard would otherwise show a dead link that silently
+// bounces back via ProtectedRoute.
 const QUICK_LINKS: QuickLink[] = [
   { to: '/patients', labelKey: 'admin.registerPatient', icon: UserPlus },
   { to: '/appointments', labelKey: 'admin.scheduleAppointment', icon: CalendarPlus },
-  { to: '/users', labelKey: 'admin.manageUsers', icon: UserCog },
 ]
 
 /**

@@ -19,8 +19,9 @@
     "completed": "مكتمل"
   },
   "roles": {
+    "superadmin": "مدير النظام",
     "doctor": "طبيب",
-    "admin": "مدير",
+    "admin": "موظف",
     "patient": "مريض"
   },
   "error": {

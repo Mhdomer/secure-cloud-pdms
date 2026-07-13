@@ -19,8 +19,9 @@
     "completed": "Completed"
   },
   "roles": {
+    "superadmin": "System Admin",
     "doctor": "Doctor",
-    "admin": "Admin",
+    "admin": "Staff",
     "patient": "Patient"
   },
   "error": {

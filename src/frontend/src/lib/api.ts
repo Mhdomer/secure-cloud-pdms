@@ -123,24 +123,21 @@ export interface RecordsListParams {
   limit?: number
 }
 
+// Backend mounts medicalRecords.routes.js at the API root, not under a
+// `/medical-records` prefix (see src/backend/src/routes/index.js) — its
+// routes are `/records`, `/records/:recordId`, `/patients/:patientId/records`.
 export const recordsApi = {
   create: (payload: CreateMedicalRecordPayload) =>
-    api
-      .post<CreateMedicalRecordResponse>('/medical-records/records', payload)
-      .then((res) => res.data),
+    api.post<CreateMedicalRecordResponse>('/records', payload).then((res) => res.data),
   list: (params?: RecordsListParams) =>
-    api
-      .get<MedicalRecordsListResponse>('/medical-records/records', { params })
-      .then((res) => res.data),
+    api.get<MedicalRecordsListResponse>('/records', { params }).then((res) => res.data),
   get: (recordId: string) =>
-    api.get<MedicalRecord>(`/medical-records/records/${recordId}`).then((res) => res.data),
+    api.get<MedicalRecord>(`/records/${recordId}`).then((res) => res.data),
   update: (recordId: string, payload: UpdateMedicalRecordPayload) =>
-    api
-      .put<UpdateMedicalRecordResponse>(`/medical-records/records/${recordId}`, payload)
-      .then((res) => res.data),
+    api.put<UpdateMedicalRecordResponse>(`/records/${recordId}`, payload).then((res) => res.data),
   listForPatient: (patientId: string, params?: RecordsListParams) =>
     api
-      .get<MedicalRecordsListResponse>(`/medical-records/patients/${patientId}/records`, { params })
+      .get<MedicalRecordsListResponse>(`/patients/${patientId}/records`, { params })
       .then((res) => res.data),
 }
 
