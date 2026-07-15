@@ -1,35 +1,161 @@
 {
+  "carousel": {
+    "prev": "Previous",
+    "next": "Next"
+  },
   "nav": {
-    "login": "Staff Login"
+    "login": "Staff Login",
+    "about": "About",
+    "ourStory": "Our Story",
+    "ourStoryDesc": "Three decades caring for Riyadh families",
+    "howItWorks": "How It Works",
+    "howItWorksDesc": "Register once, see a doctor, access your records",
+    "ourDoctors": "Our Doctors",
+    "ourDoctorsDesc": "Meet the physicians who know you by name",
+    "services": "Services",
+    "facilities": "Medical Facilities",
+    "ourBranches": "Our Branches",
+    "ourBranchesDesc": "2 branches across Riyadh",
+    "pharmacy": "Pharmacy",
+    "pharmacyDesc": "In-house and dedicated pharmacy branches",
+    "patientVisitor": "Patient & Visitor",
+    "patientInfo": "Patient Rights & Insurance",
+    "patientInfoDesc": "Your rights, insurance, and payment",
+    "faq": "FAQ",
+    "faqDesc": "Answers to common questions",
+    "contactUs": "Contact Us",
+    "contactUsDesc": "Get in touch with our team",
+    "menu": "Menu"
   },
   "hero": {
     "tagline": "Your Health, Our Priority",
-    "subtext": "Alamin Clinic has been serving Jeddah for over three decades — trusted care, modern records, your health in safe hands.",
+    "subtext": "Alamin Clinic has been serving Riyadh for over three decades — trusted care, modern records, your health in safe hands.",
     "cta": "Book an Appointment",
-    "ctaSecondary": "Learn More"
+    "ctaSecondary": "Learn More",
+    "searchPlaceholder": "Search by doctor, department, or service…",
+    "searchToast": "Sign in to search the full directory"
+  },
+  "quickAccess": {
+    "book": { "title": "Book Appointment", "desc": "Schedule your next visit online" },
+    "findDoctor": { "title": "Find a Doctor", "desc": "Browse our physicians and specialties" },
+    "emergency": { "title": "Emergency", "desc": "Call us now — available 24/7" },
+    "departments": { "title": "Departments", "desc": "Explore our clinical services" }
   },
   "services": {
-    "heading": "What We Offer",
-    "sub": "Comprehensive care for every stage of life.",
+    "heading": "Your Needs Shape Our Services",
+    "sub": "We provide a wide range of services that cater to diverse patient needs, specifically designed to deliver a distinctive experience for them.",
+    "viewAll": "View All",
     "generalMedicine": {
       "title": "General Medicine",
       "desc": "Routine check-ups, preventive care, and management of chronic conditions by experienced physicians."
     },
-    "specialist": {
-      "title": "Specialist Clinics",
-      "desc": "On-site specialist referrals across cardiology, dermatology, orthopedics, and more — no long waits."
+    "pediatrics": {
+      "title": "Pediatrics",
+      "desc": "Gentle, attentive care for your children, from newborns through the teenage years."
+    },
+    "internalMedicine": {
+      "title": "Internal Medicine",
+      "desc": "Diagnosis and long-term management of adult illnesses, from diabetes to hypertension."
+    },
+    "dental": {
+      "title": "Dental Care",
+      "desc": "Check-ups, cleanings, and restorative treatments for the whole family."
+    },
+    "dermatology": {
+      "title": "Dermatology",
+      "desc": "Skin, hair, and nail care from routine concerns to more specialized treatment."
+    },
+    "laboratory": {
+      "title": "Laboratory",
+      "desc": "On-site testing with fast, accurate results shared directly to your digital record."
     },
     "digitalRecords": {
       "title": "Digital Health Records",
       "desc": "Your medical history, prescriptions, and lab results — securely accessible whenever you need them."
+    },
+    "preventiveCare": {
+      "title": "Preventive Care",
+      "desc": "Vaccinations, screenings, and wellness check-ups to catch concerns early."
     }
   },
   "trust": {
-    "heading": "Trusted by Jeddah Families",
-    "since": { "value": "1986", "label": "Serving Since" },
-    "doctors": { "value": "20+", "label": "Qualified Doctors" },
+    "heading": "The Most Trusted Healthcare Provider",
+    "description": "A family clinic built on three decades of trust, a dedicated medical team, and modern, secure record-keeping.",
+    "cta": "Learn More",
+    "physicians": { "value": "15+", "label": "Physicians" },
+    "experience": { "value": "30+", "label": "Years of Experience" },
     "patients": { "value": "50,000+", "label": "Patients Served" },
-    "uptime": { "value": "99.9%", "label": "System Uptime" }
+    "specialties": { "value": "8", "label": "Specialties" }
+  },
+  "offerings": {
+    "heading": "What We Offer",
+    "sub": "A quick look at everything Alamin Clinic provides.",
+    "services": { "title": "Our Services", "desc": "General medicine to dermatology, all under one roof.", "cta": "Browse Services" },
+    "facilities": { "title": "Medical Facilities", "desc": "2 branches and an on-site pharmacy across Riyadh.", "cta": "View Locations" },
+    "patientInfo": { "title": "Patient & Visitor", "desc": "Your rights, insurance, and answers to common questions.", "cta": "Learn More" }
+  },
+  "facilities": {
+    "heading": "Our Medical Facilities",
+    "sub": "Two branches across Riyadh, built to the same standard of care.",
+    "directions": "Get Directions",
+    "list": [
+      { "name": "Alamin Medical Complex — Namar", "address": "Dirab Branch Road, Namar, Riyadh 14961, Saudi Arabia" },
+      { "name": "Alamin Medical Complex 2 — Dirab", "address": "Dirab Branch Rd, Dirab, Riyadh 14969, Saudi Arabia" }
+    ]
+  },
+  "pharmacy": {
+    "heading": "Alamin Pharmacy",
+    "badge": "3 Branches",
+    "sub": "An in-house pharmacy at every Alamin location, plus dedicated pharmacy branches across Riyadh.",
+    "address": "Namar, Dirab Branch Road, Riyadh 11454, Saudi Arabia",
+    "note": "Additional Alamin Pharmacy branches are located across Riyadh — ask our staff for the nearest one."
+  },
+  "patientInfo": {
+    "heading": "For Our Patients",
+    "sub": "What to expect as a patient at Alamin Clinic.",
+    "rightsHeading": "Patient Rights",
+    "rights": [
+      "Respectful, quality care regardless of background",
+      "Privacy and confidentiality of your medical records",
+      "Clear information about your diagnosis, treatment options, and costs before treatment",
+      "The right to request a second opinion",
+      "Access to your own medical records on request",
+      "The right to raise a concern without fear of it affecting your care"
+    ],
+    "insuranceHeading": "Insurance & Payment",
+    "insurance": [
+      "We work with major Saudi insurance providers — contact us to confirm your coverage before your visit",
+      "Cash and card payments accepted at all branches and pharmacies",
+      "Itemized invoices provided for insurance claims and out-of-pocket payments",
+      "Payment plans available for select treatments — ask our front desk"
+    ]
+  },
+  "doctors": {
+    "heading": "Meet Our Doctors",
+    "sub": "A dedicated team of physicians who know their patients by name.",
+    "cta": "Book an Appointment",
+    "list": [
+      { "name": "Dr. Sarah Al-Fahad", "specialty": "General Medicine", "bio": "15 years caring for families across three generations." },
+      { "name": "Dr. Yousef Al-Amri", "specialty": "Pediatrics", "bio": "Believes a calm doctor makes for a calm child." },
+      { "name": "Dr. Noura Al-Zahrani", "specialty": "Internal Medicine", "bio": "Focused on long-term, whole-person chronic care." },
+      { "name": "Dr. Faisal Al-Ghamdi", "specialty": "Dermatology", "bio": "Treats skin concerns at every age, gently and thoroughly." }
+    ]
+  },
+  "testimonials": {
+    "heading": "What Our Patients Say",
+    "sub": "Real experiences from the families we've cared for.",
+    "list": [
+      { "name": "Huda M.", "quote": "The doctors here actually remember you. Booking online saved me a phone call every time.", "rating": 5 },
+      { "name": "Abdullah S.", "quote": "Digital records meant my son's specialist could see his full history immediately. No repeating ourselves.", "rating": 5 },
+      { "name": "Reem A.", "quote": "Been coming here since I was a child. Now I bring my own kids. It still feels like a family clinic.", "rating": 5 }
+    ]
+  },
+  "emergency": {
+    "heading": "Medical Emergency?",
+    "description": "Our emergency line is staffed around the clock. If it's urgent, call — don't wait for an appointment.",
+    "badge": "24/7",
+    "hotlineLabel": "Emergency Hotline",
+    "cta": "Call Now"
   },
   "howItWorks": {
     "heading": "How It Works",
@@ -39,14 +165,33 @@
       { "step": "3", "title": "Access Your Records", "desc": "Log in to view your own records securely — anytime, from any device." }
     ]
   },
+  "faq": {
+    "heading": "Frequently Asked Questions",
+    "list": [
+      { "q": "How do I book an appointment?", "a": "Call our clinic or ask our front-desk staff to register and schedule for you." },
+      { "q": "Is my medical data secure?", "a": "Yes. Records are stored on AWS with AES-256 encryption, accessible only by your doctor and yourself." },
+      { "q": "Can I access my records online?", "a": "Once registered, you receive login credentials to view your records securely from any device." },
+      { "q": "What insurance providers do you accept?", "a": "We work with major Saudi insurance providers. Contact us to confirm your coverage before your visit." },
+      { "q": "What are your clinic hours?", "a": "Saturday through Thursday, 8 AM to 10 PM. Emergency services are available 24/7." }
+    ]
+  },
   "contact": {
     "heading": "Get in Touch",
-    "address": "Al Andalus District, Jeddah, Saudi Arabia",
-    "mapLabel": "Jeddah, Saudi Arabia",
-    "phone": "+966 12 XXX XXXX",
+    "address": "Dirab Branch Road, Namar, Riyadh 14961, Saudi Arabia",
+    "mapLabel": "Riyadh, Saudi Arabia",
+    "phone": "+966 11 422 2000",
     "hours": "Sat – Thu: 8 AM – 10 PM"
   },
   "footer": {
+    "about": "A polyclinic in Riyadh serving the community since 1986 — trusted care, modern and secure digital records.",
+    "quickLinksHeading": "Quick Links",
+    "home": "Home",
+    "servicesLink": "Services",
+    "doctorsLink": "Our Doctors",
+    "locationsLink": "Our Locations",
+    "contactLink": "Contact",
+    "servicesHeading": "Services",
+    "contactHeading": "Contact",
     "rights": "© 2024 Alamin Clinic. All rights reserved.",
     "privacy": "Privacy Policy",
     "terms": "Terms of Use"
