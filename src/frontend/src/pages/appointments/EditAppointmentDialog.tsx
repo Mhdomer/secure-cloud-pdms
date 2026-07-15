@@ -7,6 +7,8 @@ import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
+import { DoctorAvailabilityHint } from '@/components/shared/DoctorAvailabilityHint'
+import { DoctorSelect } from '@/components/shared/DoctorSelect'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -71,11 +73,7 @@ export function EditAppointmentDialog({ appointment }: EditAppointmentDialogProp
           .trim()
           .min(1, t('form.validation.patientIdRequired'))
           .uuid(t('form.validation.patientIdInvalid')),
-        doctor_id: z
-          .string()
-          .trim()
-          .min(1, t('form.validation.doctorIdRequired'))
-          .uuid(t('form.validation.doctorIdInvalid')),
+        doctor_id: z.string().trim().min(1, t('form.validation.doctorRequired')),
         scheduled_at: z
           .string()
           .min(1, t('form.validation.dateTimeRequired'))
@@ -191,12 +189,17 @@ export function EditAppointmentDialog({ appointment }: EditAppointmentDialogProp
               name="doctor_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('form.doctorIdLabel')}</FormLabel>
-                  <FormControl>
-                    <Input dir="ltr" {...field} />
-                  </FormControl>
-                  <FormDescription>{t('form.doctorIdNote')}</FormDescription>
+                  <FormLabel>{t('form.doctorLabel')}</FormLabel>
+                  <DoctorSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder={t('form.doctorPlaceholder')}
+                    loadingLabel={t('form.doctorLoading')}
+                    emptyLabel={t('form.doctorEmpty')}
+                    loadErrorLabel={t('form.doctorLoadError')}
+                  />
                   <FormMessage />
+                  {field.value && <DoctorAvailabilityHint doctorId={field.value} />}
                 </FormItem>
               )}
             />

@@ -8,24 +8,75 @@
     "upcomingAppointments": "المواعيد القادمة",
     "recentRecords": "السجلات الأخيرة",
     "quickActions": "إجراءات سريعة",
-    "newRecord": "سجل جديد"
+    "newRecord": "سجل جديد",
+    "greetingMorning": "صباح الخير، د. {{name}}",
+    "greetingAfternoon": "مساء الخير، د. {{name}}",
+    "greetingEvening": "مساء الخير، د. {{name}}",
+    "stats": {
+      "today": "مواعيد اليوم",
+      "confirmed": "مؤكدة",
+      "awaitingConfirmation": "بانتظار التأكيد",
+      "nextAppointment": "الموعد القادم",
+      "noNextAppointment": "لا مواعيد أخرى اليوم",
+      "startingNow": "يبدأ الآن"
+    },
+    "timeline": {
+      "heading": "جدول اليوم",
+      "emptyTitle": "لا مواعيد مجدولة اليوم",
+      "emptyDescription": "ستظهر المواعيد الجديدة هنا فور حجزها.",
+      "lastDiagnosis": "آخر تشخيص",
+      "noDiagnosis": "لا يوجد تشخيص مسجّل بعد",
+      "diagnosisLoadError": "تعذّر التحميل",
+      "allergyLoadError": "تعذّر التحقق من الحساسية — افتح الملف الطبي للتأكد",
+      "viewChart": "عرض الملف الطبي"
+    },
+    "recentPatients": {
+      "heading": "المرضى الأخيرون",
+      "lastVisit": "آخر زيارة {{date}}",
+      "emptyTitle": "لا يوجد مرضى بعد",
+      "emptyDescription": "سيظهر هنا المرضى الذين كتبت لهم سجلاً طبياً."
+    }
   },
   "admin": {
-    "totalPatients": "إجمالي المرضى",
-    "totalAppointments": "إجمالي المواعيد",
-    "activeStaff": "الموظفون النشطون",
     "todaysSchedule": "جدول اليوم",
-    "quickActions": "إجراءات سريعة",
-    "registerPatient": "تسجيل مريض",
-    "scheduleAppointment": "جدولة موعد",
-    "manageUsers": "إدارة المستخدمين"
+    "actions": {
+      "registerPatient": "تسجيل مريض جديد",
+      "registerPatientHint": "أضف مريضاً جديداً وعيّن له طبيباً",
+      "bookAppointment": "حجز موعد",
+      "bookAppointmentHint": "جدولة زيارة لمريض مسجّل"
+    },
+    "timeline": {
+      "emptyTitle": "لا مواعيد مجدولة اليوم",
+      "emptyDescription": "ستظهر هنا المواعيد المحجوزة اليوم.",
+      "viewAll": "عرض الجدول الكامل"
+    },
+    "recentRegistrations": {
+      "heading": "المرضى المسجّلون حديثاً",
+      "emptyTitle": "لم يتم تسجيل أي مريض اليوم بعد",
+      "emptyDescription": "سيظهر هنا المرضى الذين تسجلهم اليوم.",
+      "registeredAt": "سُجّل الساعة {{time}}"
+    }
   },
   "patient": {
     "upcomingAppointments": "المواعيد القادمة",
     "recentRecords": "السجلات الأخيرة",
     "recordsLinkHint": "اطّلع على سجل زياراتك الكامل وملاحظاتك الطبية.",
     "myDoctor": "طبيبي",
-    "noUpcomingAppointments": "لا توجد مواعيد قادمة"
+    "noUpcomingAppointments": "لا توجد مواعيد قادمة",
+    "nextAppointmentCard": {
+      "emptyDescription": "احجز موعداً لتظهر تفاصيله هنا."
+    },
+    "prescriptions": {
+      "heading": "الوصفات الطبية الفعالة",
+      "emptyTitle": "لا توجد وصفات طبية فعالة",
+      "emptyDescription": "ستظهر هنا الوصفات الطبية من زياراتك."
+    },
+    "recentVisits": {
+      "heading": "الزيارات الأخيرة",
+      "emptyTitle": "لا توجد زيارات بعد",
+      "emptyDescription": "سيظهر سجل زياراتك هنا بعد أول موعد لك.",
+      "viewAll": "عرض جميع السجلات"
+    }
   },
   "superadmin": {
     "subtitle": "إدارة النظام — إدارة حسابات الموظفين وصلاحيات الوصول.",
@@ -50,7 +101,7 @@
       },
       "patient": {
         "name": "مريض",
-        "desc": "وصول للقراءة فقط لسجلاته ومواعيده الخاصة."
+        "desc": "حجز وإلغاء مواعيده الخاصة. وصول للقراءة فقط لسجلاته الخاصة."
       }
     }
   }

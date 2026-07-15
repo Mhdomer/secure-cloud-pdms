@@ -1,13 +1,23 @@
 import axios, { type AxiosError } from 'axios'
 
 import { useAuthStore } from '@/store/authStore'
-import type { LoginPayload, LoginResponse } from '@/types/auth'
+import type {
+  CompleteRegistrationPayload,
+  CompleteRegistrationResponse,
+  LoginPayload,
+  LoginResponse,
+  RequestOtpPayload,
+  RequestOtpResponse,
+  VerifyOtpPayload,
+  VerifyOtpResponse,
+} from '@/types/auth'
 import type {
   AssignDoctorPayload,
   AssignDoctorResponse,
   CreatePatientPayload,
   Patient,
   RegisterPatientResponse,
+  SearchPatientsResponse,
   UpdatePatientPayload,
   UpdatePatientResponse,
 } from '@/types/patient'
@@ -22,6 +32,9 @@ import type {
 import type {
   AppointmentMutationResponse,
   AppointmentsListResponse,
+  BookOwnAppointmentPayload,
+  BookOwnAppointmentResponse,
+  CancelAppointmentPayload,
   CreateAppointmentPayload,
   CreateAppointmentResponse,
   UpdateAppointmentPayload,
@@ -30,10 +43,18 @@ import type {
   ChangePasswordPayload,
   CreateUserPayload,
   CreateUserResponse,
+  ListUsersResponse,
   UserStatusResponse,
 } from '@/types/user'
+import type { DoctorAvailabilityResponse, ListActiveDoctorsResponse } from '@/types/doctor'
 
 const AUTH_LOGIN_PATH = '/auth/login'
+// UC-19 step 3 can 401 for "registration token expired/invalid" — a
+// pre-authentication failure, not a stale session. Must be excluded from
+// the interceptor below the same way login is, or a registration-token
+// error would wipe auth state and hard-redirect the user off the
+// registration page mid-flow.
+const AUTH_REGISTER_PATH = '/auth/register/'
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
@@ -62,9 +83,10 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     const status = error.response?.status
     const requestUrl = error.config?.url ?? ''
-    const isLoginRequest = requestUrl.includes(AUTH_LOGIN_PATH)
+    const isAuthFlowRequest =
+      requestUrl.includes(AUTH_LOGIN_PATH) || requestUrl.includes(AUTH_REGISTER_PATH)
 
-    if (status === 401 && !isLoginRequest) {
+    if (status === 401 && !isAuthFlowRequest) {
       useAuthStore.getState().clearAuth()
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
@@ -83,9 +105,22 @@ export const authApi = {
   logout: () => api.post<void>('/auth/logout').then((res) => res.data),
 }
 
+// UC-19 — Patient self-registration (public, no session cookie required for
+// steps 1–2; step 3 sets the session cookie on success, same as login).
+export const registerApi = {
+  requestOtp: (payload: RequestOtpPayload) =>
+    api.post<RequestOtpResponse>(`${AUTH_REGISTER_PATH}request-otp`, payload).then((res) => res.data),
+  verifyOtp: (payload: VerifyOtpPayload) =>
+    api.post<VerifyOtpResponse>(`${AUTH_REGISTER_PATH}verify-otp`, payload).then((res) => res.data),
+  complete: (payload: CompleteRegistrationPayload) =>
+    api.post<CompleteRegistrationResponse>(`${AUTH_REGISTER_PATH}complete`, payload).then((res) => res.data),
+}
+
 // ── Users (admin-managed staff accounts) ───────────────────────────────────
 
 export const usersApi = {
+  /** Superadmin only — staff/doctor account directory, never patients. */
+  list: () => api.get<ListUsersResponse>('/users').then((res) => res.data),
   create: (payload: CreateUserPayload) =>
     api.post<CreateUserResponse>('/users', payload).then((res) => res.data),
   deactivate: (userId: string) =>
@@ -96,14 +131,29 @@ export const usersApi = {
     api.patch<{ message: string }>('/users/me/password', payload).then((res) => res.data),
 }
 
+// ── Doctors ──────────────────────────────────────────────────────────────
+
+export const doctorsApi = {
+  listActive: () => api.get<ListActiveDoctorsResponse>('/doctors').then((res) => res.data),
+  /** Viewable by any authenticated role — backs the "what hours is this doctor available" hint on booking dialogs. */
+  getAvailability: (doctorId: string) =>
+    api.get<DoctorAvailabilityResponse>(`/doctors/${doctorId}/availability`).then((res) => res.data),
+}
+
 // ── Patients ─────────────────────────────────────────────────────────────
-// NOTE: there is no GET /api/patients (list) endpoint — only lookup by a
-// known patientId. Do not add a `list()` here; it would 404. See
-// sprint-3b-summary.md for the tracked backend gap.
+
+export interface SearchPatientsParams {
+  q: string
+  page?: number
+  limit?: number
+}
 
 export const patientsApi = {
   register: (payload: CreatePatientPayload) =>
     api.post<RegisterPatientResponse>('/patients', payload).then((res) => res.data),
+  /** Admin only — national_id exact match, full_name substring, contact_number prefix. */
+  search: (params: SearchPatientsParams) =>
+    api.get<SearchPatientsResponse>('/patients', { params }).then((res) => res.data),
   get: (patientId: string) => api.get<Patient>(`/patients/${patientId}`).then((res) => res.data),
   update: (patientId: string, payload: UpdatePatientPayload) =>
     api.put<UpdatePatientResponse>(`/patients/${patientId}`, payload).then((res) => res.data),
@@ -146,6 +196,9 @@ export const recordsApi = {
 export interface AppointmentsListParams {
   page?: number
   limit?: number
+  /** ISO 8601. Bounds on `scheduled_at`: `from` inclusive, `to` exclusive. */
+  from?: string
+  to?: string
 }
 
 export const appointmentsApi = {
@@ -156,7 +209,11 @@ export const appointmentsApi = {
    * server-side from the session role. Never add a user/patient filter
    * param here — the backend determines scope from the cookie, not the query.
    * Also note: there is no `status` filter param server-side (the list
-   * query only accepts `page`/`limit`) — filter client-side if needed.
+   * query only accepts `page`/`limit`/`from`/`to`) — filter by status
+   * client-side if needed. Always pass `from`/`to` when you only want a
+   * bounded window (e.g. "today") — without them, results are ordered
+   * oldest-first with no date bound, so a plain `limit` can return only
+   * stale historical rows once the table grows past that limit.
    */
   list: (params?: AppointmentsListParams) =>
     api.get<AppointmentsListResponse>('/appointments', { params }).then((res) => res.data),
@@ -164,8 +221,11 @@ export const appointmentsApi = {
     api
       .put<AppointmentMutationResponse>(`/appointments/${appointmentId}`, payload)
       .then((res) => res.data),
-  cancel: (appointmentId: string) =>
+  cancel: (appointmentId: string, payload?: CancelAppointmentPayload) =>
     api
-      .patch<AppointmentMutationResponse>(`/appointments/${appointmentId}/cancel`)
+      .patch<AppointmentMutationResponse>(`/appointments/${appointmentId}/cancel`, payload)
       .then((res) => res.data),
+  /** UC-20 — Patient books their own appointment; patient_id is never sent, it's derived server-side from the session. */
+  bookMine: (payload: BookOwnAppointmentPayload) =>
+    api.post<BookOwnAppointmentResponse>('/appointments/mine', payload).then((res) => res.data),
 }

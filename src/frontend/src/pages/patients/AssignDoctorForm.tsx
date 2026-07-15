@@ -5,18 +5,10 @@ import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
+import { DoctorSelect } from '@/components/shared/DoctorSelect'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import { Form, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { toast } from '@/components/ui/toaster'
 import { patientsApi } from '@/lib/api'
 import type { AssignDoctorPayload, Patient } from '@/types/patient'
@@ -25,7 +17,7 @@ interface AssignDoctorFormProps {
   patient: Patient
 }
 
-/** Admin-only. Same "no doctor directory" caveat as patient registration — plain UUID text field. */
+/** Admin-only. Doctor picked from GET /doctors (active directory) — never typed as a UUID. */
 export function AssignDoctorForm({ patient }: AssignDoctorFormProps) {
   const { t } = useTranslation('patients')
   const queryClient = useQueryClient()
@@ -33,11 +25,7 @@ export function AssignDoctorForm({ patient }: AssignDoctorFormProps) {
   const assignSchema = useMemo(
     () =>
       z.object({
-        doctor_id: z
-          .string()
-          .trim()
-          .min(1, t('assignDoctor.validation.doctorIdRequired'))
-          .uuid(t('assignDoctor.validation.doctorIdInvalid')),
+        doctor_id: z.string().trim().min(1, t('assignDoctor.validation.doctorRequired')),
       }),
     [t],
   )
@@ -84,11 +72,15 @@ export function AssignDoctorForm({ patient }: AssignDoctorFormProps) {
               name="doctor_id"
               render={({ field }) => (
                 <FormItem className="flex-1">
-                  <FormLabel>{t('assignDoctor.newDoctorIdLabel')}</FormLabel>
-                  <FormControl>
-                    <Input dir="ltr" {...field} />
-                  </FormControl>
-                  <FormDescription>{t('doctorIdNote')}</FormDescription>
+                  <FormLabel>{t('assignDoctor.newDoctorLabel')}</FormLabel>
+                  <DoctorSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder={t('assignDoctor.doctorPlaceholder')}
+                    loadingLabel={t('assignDoctor.doctorLoading')}
+                    emptyLabel={t('assignDoctor.doctorEmpty')}
+                    loadErrorLabel={t('assignDoctor.doctorLoadError')}
+                  />
                   <FormMessage />
                 </FormItem>
               )}

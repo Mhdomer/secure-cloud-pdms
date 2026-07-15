@@ -21,7 +21,6 @@
   },
   "backToLookup": "العودة إلى البحث عن مريض",
   "viewMedicalHistory": "عرض التاريخ الطبي",
-  "doctorIdNote": "لا يمكن تصفح معرّفات الأطباء في هذا النظام حالياً — احصل على معرّف الطبيب من أحد المسؤولين أو من قاعدة البيانات قبل إدخاله هنا.",
   "card": {
     "id": "معرّف المريض",
     "dateOfBirth": "تاريخ الميلاد",
@@ -35,21 +34,23 @@
     "genderFemale": "أنثى",
     "genderUnknown": "غير محدد"
   },
-  "lookup": {
+  "search": {
     "title": "البحث عن مريض",
-    "description": "أدخل معرّف مريض معروف لعرض ملفه الشخصي.",
-    "idLabel": "معرّف المريض",
-    "idPlaceholder": "مثال: 8f14e45f-ceea-4c9c-...",
-    "submit": "بحث",
-    "viewProfile": "عرض الملف الكامل",
-    "notFoundTitle": "المريض غير موجود",
-    "notFoundDescription": "لا يوجد مريض بهذا المعرّف، أو لا تملك صلاحية الوصول إليه. تحقق من المعرّف وحاول مجدداً.",
-    "forbiddenTitle": "الوصول مرفوض",
-    "forbiddenDescription": "ليس لديك صلاحية لعرض هذا المريض.",
-    "validation": {
-      "idRequired": "معرّف المريض مطلوب",
-      "idInvalid": "أدخل معرّف مريض صالح (UUID)"
-    }
+    "description": "ابحث بالهوية الوطنية أو الاسم أو رقم الجوال.",
+    "placeholder": "الهوية الوطنية أو الاسم أو الجوال…",
+    "hint": "ابدأ الكتابة للبحث — تظهر النتائج تلقائياً.",
+    "resultsCount_zero": "لا توجد نتائج",
+    "resultsCount_one": "نتيجة واحدة",
+    "resultsCount_two": "نتيجتان",
+    "resultsCount_few": "{{count}} نتائج",
+    "resultsCount_many": "{{count}} نتيجة",
+    "resultsCount_other": "{{count}} نتيجة",
+    "noResultsTitle": "لا يوجد مرضى مطابقون",
+    "noResultsDescription": "جرّب هوية وطنية أو اسماً أو رقم جوال مختلفاً.",
+    "startTypingTitle": "ابحث عن مريض",
+    "startTypingDescription": "تظهر النتائج هنا أثناء الكتابة — لا حاجة للضغط على إدخال.",
+    "loadError": "تعذّر البحث عن المرضى. الرجاء المحاولة مجدداً.",
+    "unassigned": "غير معيّن"
   },
   "register": {
     "trigger": "إضافة مريض",
@@ -62,7 +63,12 @@
     "genderUnspecified": "غير محدد",
     "contactNumberLabel": "رقم التواصل",
     "contactNumberOptional": "اختياري",
-    "assignedDoctorIdLabel": "معرّف الطبيب المعيّن",
+    "nationalIdLabel": "رقم الهوية الوطنية / الإقامة / جواز السفر",
+    "assignedDoctorLabel": "الطبيب المعيّن",
+    "assignedDoctorPlaceholder": "اختر طبيباً",
+    "assignedDoctorLoading": "جارٍ تحميل الأطباء…",
+    "assignedDoctorEmpty": "لا يوجد أطباء نشطون متاحون",
+    "assignedDoctorLoadError": "تعذّر تحميل قائمة الأطباء.",
     "submit": "تسجيل المريض",
     "submitting": "جارٍ التسجيل…",
     "success": "تم تسجيل المريض بنجاح.",
@@ -70,8 +76,8 @@
     "validation": {
       "fullNameRequired": "الاسم الكامل مطلوب",
       "dateOfBirthRequired": "تاريخ الميلاد مطلوب",
-      "doctorIdRequired": "معرّف الطبيب المعيّن مطلوب",
-      "doctorIdInvalid": "أدخل معرّف طبيب صالح (UUID)",
+      "nationalIdRequired": "رقم الهوية الوطنية / الإقامة / جواز السفر مطلوب",
+      "doctorRequired": "الطبيب المعيّن مطلوب",
       "contactNumberInvalid": "أدخل رقم تواصل صالح"
     }
   },
@@ -104,14 +110,17 @@
   "assignDoctor": {
     "title": "إعادة تعيين الطبيب",
     "description": "تعيين طبيب مختلف لهذا المريض.",
-    "newDoctorIdLabel": "معرّف الطبيب الجديد",
+    "newDoctorLabel": "الطبيب الجديد",
+    "doctorPlaceholder": "اختر طبيباً",
+    "doctorLoading": "جارٍ تحميل الأطباء…",
+    "doctorEmpty": "لا يوجد أطباء نشطون متاحون",
+    "doctorLoadError": "تعذّر تحميل قائمة الأطباء.",
     "submit": "إعادة التعيين",
     "submitting": "جارٍ إعادة التعيين…",
     "success": "تمت إعادة تعيين الطبيب بنجاح.",
     "error": "تعذّرت إعادة تعيين الطبيب. الرجاء المحاولة مجدداً.",
     "validation": {
-      "doctorIdRequired": "معرّف الطبيب مطلوب",
-      "doctorIdInvalid": "أدخل معرّف طبيب صالح (UUID)"
+      "doctorRequired": "الرجاء اختيار طبيب"
     }
   },
   "profileErrors": {

@@ -34,6 +34,29 @@
     "success": "تم إلغاء الموعد.",
     "error": "تعذّر إلغاء الموعد. الرجاء المحاولة مجدداً."
   },
+  "bookDialog": {
+    "trigger": "حجز موعد",
+    "title": "حجز موعد",
+    "description": "اختر طبيباً ووقتاً مناسباً لك.",
+    "doctorLabel": "الطبيب",
+    "doctorPlaceholder": "اختر طبيباً",
+    "doctorLoading": "جارٍ تحميل الأطباء…",
+    "doctorEmpty": "لا يوجد أطباء نشطون متاحون",
+    "doctorLoadError": "تعذّر تحميل قائمة الأطباء.",
+    "submit": "حجز الموعد",
+    "submitting": "جارٍ الحجز…",
+    "success": "تم حجز الموعد.",
+    "error": "تعذّر حجز الموعد. الرجاء المحاولة مجدداً.",
+    "validation": {
+      "doctorRequired": "الرجاء اختيار طبيب"
+    }
+  },
+  "availability": {
+    "heading": "ساعات العمل",
+    "loading": "جارٍ التحقق من التوفر…",
+    "empty": "لم يتم تحديد ساعات عمل لهذا الطبيب بعد — تأكد من الموعد مع العيادة قبل الحجز.",
+    "loadError": "تعذّر تحميل أوقات توفر هذا الطبيب."
+  },
   "form": {
     "optional": "اختياري",
     "createTitle": "جدولة موعد",
@@ -42,8 +65,11 @@
     "editDescription": "تحديث تفاصيل هذا الموعد.",
     "patientIdLabel": "معرّف المريض",
     "patientIdNote": "لا يوجد أداة اختيار مريض في هذا النظام حالياً — الصق معرّف المريض من صفحة ملفه الشخصي.",
-    "doctorIdLabel": "معرّف الطبيب",
-    "doctorIdNote": "لا يمكن تصفح معرّفات الأطباء في هذا النظام حالياً — احصل على معرّف الطبيب من أحد المسؤولين أو من قاعدة البيانات قبل إدخاله هنا.",
+    "doctorLabel": "الطبيب",
+    "doctorPlaceholder": "اختر طبيباً",
+    "doctorLoading": "جارٍ تحميل الأطباء…",
+    "doctorEmpty": "لا يوجد أطباء نشطون متاحون",
+    "doctorLoadError": "تعذّر تحميل قائمة الأطباء.",
     "dateTimeLabel": "التاريخ والوقت",
     "typeLabel": "النوع",
     "notesLabel": "ملاحظات",
@@ -58,8 +84,7 @@
     "validation": {
       "patientIdRequired": "معرّف المريض مطلوب",
       "patientIdInvalid": "أدخل معرّف مريض صالح (UUID)",
-      "doctorIdRequired": "معرّف الطبيب مطلوب",
-      "doctorIdInvalid": "أدخل معرّف طبيب صالح (UUID)",
+      "doctorRequired": "الرجاء اختيار طبيب",
       "dateTimeRequired": "التاريخ والوقت مطلوبان",
       "dateTimeInvalid": "أدخل تاريخاً ووقتاً صالحين",
       "dateTimePast": "يجب أن يكون التاريخ والوقت في المستقبل",

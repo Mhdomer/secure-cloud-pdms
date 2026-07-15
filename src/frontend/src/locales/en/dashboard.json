@@ -8,24 +8,75 @@
     "upcomingAppointments": "Upcoming Appointments",
     "recentRecords": "Recent Records",
     "quickActions": "Quick Actions",
-    "newRecord": "New Record"
+    "newRecord": "New Record",
+    "greetingMorning": "Good morning, Dr. {{name}}",
+    "greetingAfternoon": "Good afternoon, Dr. {{name}}",
+    "greetingEvening": "Good evening, Dr. {{name}}",
+    "stats": {
+      "today": "Today's Appointments",
+      "confirmed": "Confirmed",
+      "awaitingConfirmation": "Awaiting Confirmation",
+      "nextAppointment": "Next Appointment",
+      "noNextAppointment": "Nothing else today",
+      "startingNow": "Starting now"
+    },
+    "timeline": {
+      "heading": "Today's Schedule",
+      "emptyTitle": "Nothing scheduled for today",
+      "emptyDescription": "New appointments will show up here as they're booked.",
+      "lastDiagnosis": "Last diagnosis",
+      "noDiagnosis": "No diagnosis on file yet",
+      "diagnosisLoadError": "Couldn't load",
+      "allergyLoadError": "Couldn't verify allergies — open the chart to check",
+      "viewChart": "View chart"
+    },
+    "recentPatients": {
+      "heading": "Recent Patients",
+      "lastVisit": "Last visit {{date}}",
+      "emptyTitle": "No patients yet",
+      "emptyDescription": "Patients you've written a record for will appear here."
+    }
   },
   "admin": {
-    "totalPatients": "Total Patients",
-    "totalAppointments": "Total Appointments",
-    "activeStaff": "Active Staff",
     "todaysSchedule": "Today's Schedule",
-    "quickActions": "Quick Actions",
-    "registerPatient": "Register Patient",
-    "scheduleAppointment": "Schedule Appointment",
-    "manageUsers": "Manage Users"
+    "actions": {
+      "registerPatient": "Register New Patient",
+      "registerPatientHint": "Add a new patient and assign a doctor",
+      "bookAppointment": "Book Appointment",
+      "bookAppointmentHint": "Schedule a visit for an existing patient"
+    },
+    "timeline": {
+      "emptyTitle": "Nothing scheduled for today",
+      "emptyDescription": "Appointments booked for today will appear here.",
+      "viewAll": "View full schedule"
+    },
+    "recentRegistrations": {
+      "heading": "Recently Registered",
+      "emptyTitle": "No patients registered yet today",
+      "emptyDescription": "Patients you register today will appear here.",
+      "registeredAt": "Registered at {{time}}"
+    }
   },
   "patient": {
     "upcomingAppointments": "Upcoming Appointments",
     "recentRecords": "Recent Records",
     "recordsLinkHint": "View your full visit history and clinical notes.",
     "myDoctor": "My Doctor",
-    "noUpcomingAppointments": "No upcoming appointments"
+    "noUpcomingAppointments": "No upcoming appointments",
+    "nextAppointmentCard": {
+      "emptyDescription": "Book an appointment to see it here."
+    },
+    "prescriptions": {
+      "heading": "Active Prescriptions",
+      "emptyTitle": "No active prescriptions",
+      "emptyDescription": "Prescriptions from your visits will appear here."
+    },
+    "recentVisits": {
+      "heading": "Recent Visits",
+      "emptyTitle": "No visits yet",
+      "emptyDescription": "Your visit history will appear here after your first appointment.",
+      "viewAll": "View all records"
+    }
   },
   "superadmin": {
     "subtitle": "System administration — manage staff accounts and system access.",
@@ -50,7 +101,7 @@
       },
       "patient": {
         "name": "Patient",
-        "desc": "Read-only access to their own records and appointments."
+        "desc": "Book and cancel their own appointments. Read-only access to their own records."
       }
     }
   }

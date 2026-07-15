@@ -126,11 +126,22 @@ const config: Config = {
           from: { opacity: '0', transform: 'translateY(4px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        // Doctor Dashboard "now" line on the appointment timeline. Duration
+        // is fixed at the clinic-window length in seconds; callers set
+        // `--sweep-distance` (total px the line travels) and a negative
+        // `animationDelay` (how far into the window "now" already is) via
+        // inline style so the line starts at the correct position on mount
+        // and then drifts in sync with real time — no setInterval needed.
+        'timeline-sweep': {
+          from: { transform: 'translateY(0px)' },
+          to: { transform: 'translateY(var(--sweep-distance, 0px))' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in': 'fade-in 0.15s ease-out',
+        'timeline-sweep': 'timeline-sweep 43200s linear 1 forwards',
       },
     },
   },

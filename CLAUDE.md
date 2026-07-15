@@ -69,6 +69,7 @@ scripts/
 | Sprint 2 | Terraform: VPC, subnets, SGs, NACLs, RDS, KMS | Complete |
 | Sprint 3a | Backend: Node.js/Express API, JWT auth, two-layer RBAC (middleware + PostgreSQL RLS) | Complete |
 | Sprint 3b | Frontend: React app, RBAC-aware UI, English/Arabic RTL localization | Complete |
+| Sprint 3c | UI visual overhaul (screen-by-screen, see `docs/psm2/sprint-3c-ui-overhaul.md`) + patient self-registration/self-booking (see `docs/psm2/self-registration-design.md`) | In progress — self-registration implemented; UI overhaul: Doctor Dashboard done, other screens pending |
 | Sprint 4 | DevSecOps: GitHub Actions pipeline + CloudWatch + CloudTrail | Not started |
 | Sprint 5 | Security evaluation: scans, RTO test, Security Hub, UAT | Not started |
 
@@ -141,9 +142,9 @@ The orchestrator handles everything autonomously in this order for each sprint:
 | Agent | Role | Auto-used in |
 |---|---|---|
 | `orchestrator` | Master sprint driver — spawns all others | Every sprint via `/sprint-start` |
-| `frontend-designer` | React UI, RTL, Thmanyah font, Arabic/English toggle | Sprint 3b |
+| `frontend-designer` | React UI, RTL, Thmanyah font, Arabic/English toggle | Sprint 3b, 3c |
 | `cloud-fortress` | AWS VPC audits, IAM, pipeline YAML security | Sprint 2, 4 |
-| `code-griller` | Brutal code review — bugs, race conditions, edge cases | Sprint 3a, 3b, 4, 5 |
+| `code-griller` | Brutal code review — bugs, race conditions, edge cases | Sprint 3a, 3b, 3c, 4, 5 |
 | `terraform-reviewer` | HIPAA-specific Terraform checks | Sprint 2 |
 | `api-designer` | Full route spec from design docs before coding | Sprint 3a |
 | `psm2-checker` | Coverage check — code vs design requirements | Sprint 3a, 5 |
@@ -153,10 +154,10 @@ The orchestrator handles everything autonomously in this order for each sprint:
 | Skill | Auto-used in |
 |---|---|
 | `/security-gate` | Every sprint before commit |
-| `/rtl-check` | Sprint 3b after each component |
+| `/rtl-check` | Sprint 3b after each component; Sprint 3c after each rebuilt screen |
 | `/i18n-check` | Sprint 3b after all pages |
 | `/font-audit` | Sprint 3b after font setup |
-| `/ui-review` | Sprint 3b after each page |
+| `/ui-review` | Sprint 3b after each page; Sprint 3c after each rebuilt screen |
 | `/grill-me` | Sprint 5 final check |
 | `/sprint-end` | Every sprint after gates pass |
 
@@ -198,3 +199,6 @@ Apply font family switch as part of the same language toggle that sets dir="rtl"
 - NFRs (including RTO ≤15min, 99.9% uptime): Chapter 3 Section 3.5.2
 - Functional requirements: Chapter 3 Section 3.5.1
 - Workflow guide for Claude sessions: `claude-sessions/psm2-workflow.md`
+- Sprint 3c UI overhaul plan + screen-by-screen status: `docs/psm2/sprint-3c-ui-overhaul.md`
+- Sprint 3c self-registration (OTP) + self-booking design: `docs/psm2/self-registration-design.md`
+- Report edits still owed for Sprint 3c work: `docs/psm2/report-delta.md`

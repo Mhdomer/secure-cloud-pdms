@@ -34,6 +34,29 @@
     "success": "Appointment cancelled.",
     "error": "Could not cancel the appointment. Please try again."
   },
+  "bookDialog": {
+    "trigger": "Book appointment",
+    "title": "Book an appointment",
+    "description": "Choose a doctor and a time that works for you.",
+    "doctorLabel": "Doctor",
+    "doctorPlaceholder": "Select a doctor",
+    "doctorLoading": "Loading doctors…",
+    "doctorEmpty": "No active doctors available",
+    "doctorLoadError": "Could not load the doctor list.",
+    "submit": "Book appointment",
+    "submitting": "Booking…",
+    "success": "Appointment booked.",
+    "error": "Could not book the appointment. Please try again.",
+    "validation": {
+      "doctorRequired": "Please select a doctor"
+    }
+  },
+  "availability": {
+    "heading": "Working hours",
+    "loading": "Checking availability…",
+    "empty": "No working hours set for this doctor yet — confirm timing with the clinic before booking.",
+    "loadError": "Could not load this doctor's availability."
+  },
   "form": {
     "optional": "Optional",
     "createTitle": "Schedule appointment",
@@ -42,8 +65,11 @@
     "editDescription": "Update this appointment's details.",
     "patientIdLabel": "Patient ID",
     "patientIdNote": "There is no patient picker in this system yet — paste the patient's ID from their profile page.",
-    "doctorIdLabel": "Doctor ID",
-    "doctorIdNote": "Doctor IDs cannot be browsed in this system yet — obtain the doctor's ID from an administrator or a database lookup before entering it here.",
+    "doctorLabel": "Doctor",
+    "doctorPlaceholder": "Select a doctor",
+    "doctorLoading": "Loading doctors…",
+    "doctorEmpty": "No active doctors available",
+    "doctorLoadError": "Could not load the doctor list.",
     "dateTimeLabel": "Date & time",
     "typeLabel": "Type",
     "notesLabel": "Notes",
@@ -58,8 +84,7 @@
     "validation": {
       "patientIdRequired": "Patient ID is required",
       "patientIdInvalid": "Enter a valid patient ID (UUID)",
-      "doctorIdRequired": "Doctor ID is required",
-      "doctorIdInvalid": "Enter a valid doctor ID (UUID)",
+      "doctorRequired": "Please select a doctor",
       "dateTimeRequired": "Date and time are required",
       "dateTimeInvalid": "Enter a valid date and time",
       "dateTimePast": "Date and time must be in the future",

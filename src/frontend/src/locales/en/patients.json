@@ -21,7 +21,6 @@
   },
   "backToLookup": "Back to patient lookup",
   "viewMedicalHistory": "View medical history",
-  "doctorIdNote": "Doctor IDs cannot be browsed in this system yet — obtain the doctor's ID from an administrator or a database lookup before entering it here.",
   "card": {
     "id": "Patient ID",
     "dateOfBirth": "Date of birth",
@@ -35,21 +34,19 @@
     "genderFemale": "Female",
     "genderUnknown": "Not specified"
   },
-  "lookup": {
+  "search": {
     "title": "Find a patient",
-    "description": "Enter a known patient ID to view their profile.",
-    "idLabel": "Patient ID",
-    "idPlaceholder": "e.g. 8f14e45f-ceea-4c9c-...",
-    "submit": "Look up",
-    "viewProfile": "View full profile",
-    "notFoundTitle": "Patient not found",
-    "notFoundDescription": "No patient exists with this ID, or you do not have access to it. Double-check the ID and try again.",
-    "forbiddenTitle": "Access denied",
-    "forbiddenDescription": "You do not have permission to view this patient.",
-    "validation": {
-      "idRequired": "Patient ID is required",
-      "idInvalid": "Enter a valid patient ID (UUID)"
-    }
+    "description": "Search by national ID, name, or phone number.",
+    "placeholder": "National ID, name, or phone…",
+    "hint": "Start typing to search — results appear as you go.",
+    "resultsCount_one": "{{count}} result",
+    "resultsCount_other": "{{count}} results",
+    "noResultsTitle": "No matching patients",
+    "noResultsDescription": "Try a different national ID, name, or phone number.",
+    "startTypingTitle": "Search for a patient",
+    "startTypingDescription": "Results appear here as you type — no need to press enter.",
+    "loadError": "Could not search patients. Please try again.",
+    "unassigned": "Unassigned"
   },
   "register": {
     "trigger": "Add patient",
@@ -62,7 +59,12 @@
     "genderUnspecified": "Not specified",
     "contactNumberLabel": "Contact number",
     "contactNumberOptional": "Optional",
-    "assignedDoctorIdLabel": "Assigned doctor ID",
+    "nationalIdLabel": "National ID / Iqama / passport number",
+    "assignedDoctorLabel": "Assigned doctor",
+    "assignedDoctorPlaceholder": "Select a doctor",
+    "assignedDoctorLoading": "Loading doctors…",
+    "assignedDoctorEmpty": "No active doctors available",
+    "assignedDoctorLoadError": "Could not load the doctor list.",
     "submit": "Register patient",
     "submitting": "Registering…",
     "success": "Patient registered successfully.",
@@ -70,8 +72,8 @@
     "validation": {
       "fullNameRequired": "Full name is required",
       "dateOfBirthRequired": "Date of birth is required",
-      "doctorIdRequired": "Assigned doctor ID is required",
-      "doctorIdInvalid": "Enter a valid doctor ID (UUID)",
+      "nationalIdRequired": "National ID / iqama / passport number is required",
+      "doctorRequired": "Assigned doctor is required",
       "contactNumberInvalid": "Enter a valid contact number"
     }
   },
@@ -104,14 +106,17 @@
   "assignDoctor": {
     "title": "Reassign doctor",
     "description": "Assign a different doctor to this patient.",
-    "newDoctorIdLabel": "New doctor ID",
+    "newDoctorLabel": "New doctor",
+    "doctorPlaceholder": "Select a doctor",
+    "doctorLoading": "Loading doctors…",
+    "doctorEmpty": "No active doctors available",
+    "doctorLoadError": "Could not load the doctor list.",
     "submit": "Reassign",
     "submitting": "Reassigning…",
     "success": "Doctor reassigned successfully.",
     "error": "Could not reassign the doctor. Please try again.",
     "validation": {
-      "doctorIdRequired": "Doctor ID is required",
-      "doctorIdInvalid": "Enter a valid doctor ID (UUID)"
+      "doctorRequired": "Please select a doctor"
     }
   },
   "profileErrors": {

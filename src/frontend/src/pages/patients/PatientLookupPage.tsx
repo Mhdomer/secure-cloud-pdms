@@ -1,74 +1,35 @@
-import { useMemo, useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { AxiosError } from 'axios'
-import { Search, ShieldAlert, UserX } from 'lucide-react'
-import { useForm } from 'react-hook-form'
+import { Search, UserX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { z } from 'zod'
 
 import { EmptyState } from '@/components/shared/EmptyState'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
-import { PatientSummary } from '@/components/shared/PatientSummary'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/useAuth'
+import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { patientsApi } from '@/lib/api'
 import { RecentlyTreatedPatients } from '@/pages/patients/RecentlyTreatedPatients'
 import { RegisterPatientDialog } from '@/pages/patients/RegisterPatientDialog'
+import type { PatientSearchResult } from '@/types/patient'
+
+const SEARCH_DEBOUNCE_MS = 300
 
 /**
- * `/patients` — there is no `GET /api/patients` list/search endpoint (see
- * lib/api.ts's `patientsApi` comment), so this page is a "look up a known
- * patient ID" tool rather than a browsable table. Admin additionally gets
- * the "register new patient" flow; doctor additionally gets a
- * "recently treated" widget derived from their own records list.
+ * `/patients`. Both Admin and Doctor get the same live search
+ * (`GET /patients?q=`, national ID exact match / name substring / phone
+ * prefix) — a patient_id UUID is never typed or shown, only followed via a
+ * result's link. The two roles hit the identical endpoint and component;
+ * `admin_select_patients` / `doctor_select_assigned` RLS policies (schema.sql)
+ * are what actually scope the rows each session gets back — admin sees every
+ * patient, a doctor only their own assigned patients. Doctor also keeps the
+ * "recently treated" widget alongside, for browsing without typing anything.
  */
 export default function PatientLookupPage() {
   const { t } = useTranslation('patients')
-  const { t: tCommon } = useTranslation('common')
   const { isAdmin, isDoctor } = useAuth()
-  const [submittedId, setSubmittedId] = useState<string | null>(null)
-
-  const lookupSchema = useMemo(
-    () =>
-      z.object({
-        patientId: z
-          .string()
-          .trim()
-          .min(1, t('lookup.validation.idRequired'))
-          .uuid(t('lookup.validation.idInvalid')),
-      }),
-    [t],
-  )
-
-  type LookupFormValues = z.infer<typeof lookupSchema>
-
-  const form = useForm<LookupFormValues>({
-    resolver: zodResolver(lookupSchema),
-    defaultValues: { patientId: '' },
-  })
-
-  const {
-    data: patient,
-    isFetching,
-    isError,
-    error,
-  } = useQuery({
-    queryKey: ['patients', 'detail', submittedId],
-    queryFn: () => patientsApi.get(submittedId!),
-    enabled: !!submittedId,
-    retry: false,
-  })
-
-  const onSubmit = (values: LookupFormValues) => {
-    setSubmittedId(values.patientId)
-  }
-
-  const errorStatus = isError ? (error as AxiosError).response?.status : null
 
   return (
     <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
@@ -79,74 +40,7 @@ export default function PatientLookupPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('lookup.title')}</CardTitle>
-              <CardDescription>{t('lookup.description')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  noValidate
-                  className="flex flex-col gap-3 sm:flex-row sm:items-start"
-                >
-                  <FormField
-                    control={form.control}
-                    name="patientId"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel className="sr-only">{t('lookup.idLabel')}</FormLabel>
-                        <FormControl>
-                          <Input
-                            dir="ltr"
-                            placeholder={t('lookup.idPlaceholder')}
-                            autoFocus
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={form.formState.isSubmitting || isFetching}>
-                    <Search className="h-4 w-4" aria-hidden="true" />
-                    {t('lookup.submit')}
-                  </Button>
-                </form>
-              </Form>
-
-              <div className="mt-6">
-                {isFetching && <LoadingSpinner label={tCommon('loading')} />}
-
-                {!isFetching && isError && errorStatus === 404 && (
-                  <EmptyState
-                    icon={UserX}
-                    title={t('lookup.notFoundTitle')}
-                    description={t('lookup.notFoundDescription')}
-                  />
-                )}
-                {!isFetching && isError && errorStatus === 403 && (
-                  <EmptyState
-                    icon={ShieldAlert}
-                    title={t('lookup.forbiddenTitle')}
-                    description={t('lookup.forbiddenDescription')}
-                  />
-                )}
-                {!isFetching && isError && errorStatus !== 404 && errorStatus !== 403 && (
-                  <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
-                )}
-
-                {!isFetching && !isError && patient && (
-                  <PatientSummary patient={patient}>
-                    <Button asChild size="sm">
-                      <Link to={`/patients/${patient.patientId}`}>{t('lookup.viewProfile')}</Link>
-                    </Button>
-                  </PatientSummary>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <PatientSearchPanel />
         </div>
 
         {isDoctor && (
@@ -156,5 +50,118 @@ export default function PatientLookupPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function PatientSearchPanel() {
+  const { t } = useTranslation('patients')
+  const { t: tCommon } = useTranslation('common')
+  const [rawQuery, setRawQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+
+  // Debounced-as-you-type, not a submit button — searching is the primary,
+  // repeated action on this page for both roles, so it should feel instant
+  // rather than requiring an explicit lookup step each time.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(rawQuery.trim()), SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timer)
+  }, [rawQuery])
+
+  const { data, isFetching, isError } = useQuery({
+    queryKey: ['patients', 'search', debouncedQuery],
+    queryFn: () => patientsApi.search({ q: debouncedQuery, limit: 20 }),
+    enabled: debouncedQuery.length > 0,
+  })
+
+  const results = data?.patients ?? []
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('search.title')}</CardTitle>
+        <CardDescription>{t('search.description')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Input
+            value={rawQuery}
+            onChange={(event) => setRawQuery(event.target.value)}
+            placeholder={t('search.placeholder')}
+            autoFocus
+            className="ps-9"
+            aria-label={t('search.placeholder')}
+          />
+        </div>
+
+        <div className="mt-6">
+          {debouncedQuery.length === 0 && (
+            <EmptyState
+              icon={Search}
+              title={t('search.startTypingTitle')}
+              description={t('search.startTypingDescription')}
+            />
+          )}
+
+          {debouncedQuery.length > 0 && isFetching && <LoadingSpinner label={tCommon('loading')} />}
+
+          {debouncedQuery.length > 0 && !isFetching && isError && (
+            <p className="text-sm text-danger-600">{t('search.loadError')}</p>
+          )}
+
+          {debouncedQuery.length > 0 && !isFetching && !isError && results.length === 0 && (
+            <EmptyState
+              icon={UserX}
+              title={t('search.noResultsTitle')}
+              description={t('search.noResultsDescription')}
+            />
+          )}
+
+          {debouncedQuery.length > 0 && !isFetching && !isError && results.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t('search.resultsCount', { count: results.length })}
+              </p>
+              {results.map((patient) => (
+                <PatientSearchResultRow key={patient.patientId} patient={patient} />
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function PatientSearchResultRow({ patient }: { patient: PatientSearchResult }) {
+  const { t } = useTranslation('patients')
+
+  return (
+    <Link
+      to={`/patients/${patient.patientId}`}
+      className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors duration-150 ease-out hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarClassesFor(patient.patientId)}`}
+        aria-hidden="true"
+      >
+        {initialsFor(patient.fullName)}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-sm font-medium text-foreground">{patient.fullName}</span>
+        <span className="truncate text-xs text-muted-foreground" dir="ltr">
+          {patient.nationalId ?? '—'}
+          {patient.contactNumber ? ` · ${patient.contactNumber}` : ''}
+        </span>
+      </div>
+      {!patient.assignedDoctorId && (
+        <span className="shrink-0 rounded-full bg-warning-50 px-2 py-0.5 text-xs font-medium text-warning-600">
+          {t('search.unassigned')}
+        </span>
+      )}
+    </Link>
   )
 }

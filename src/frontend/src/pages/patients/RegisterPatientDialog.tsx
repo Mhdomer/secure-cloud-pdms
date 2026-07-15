@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
+import type { AxiosError } from 'axios'
 import { Check, Copy, UserPlus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
+import { DoctorSelect } from '@/components/shared/DoctorSelect'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,7 +21,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -36,10 +37,21 @@ import {
 import { toast } from '@/components/ui/toaster'
 import { patientsApi } from '@/lib/api'
 import { copyToClipboard } from '@/lib/utils'
+import { useRecentRegistrationsStore } from '@/store/recentRegistrationsStore'
 import type { CreatePatientPayload, Gender, RegisterPatientResponse } from '@/types/patient'
 
 /** Sentinel for "no gender selected" — Radix `Select` forbids an empty-string item value. */
 const GENDER_UNSPECIFIED = 'unspecified' as const
+
+interface RegisterPatientDialogProps {
+  /**
+   * Overrides the default `Button` trigger — e.g. the Admin Dashboard's big
+   * primary-600 action tile. Passed straight into `DialogTrigger asChild`,
+   * so it must be a single ref-forwarding element. Defaults to the small
+   * icon+label button used everywhere else (e.g. PatientLookupPage).
+   */
+  trigger?: ReactNode
+}
 
 /**
  * Admin-only "register new patient" flow (UC-06). Wraps both the
@@ -47,7 +59,7 @@ const GENDER_UNSPECIFIED = 'unspecified' as const
  * Dialog so the credentials can never be shown without the admin having just
  * submitted the form in this session.
  */
-export function RegisterPatientDialog() {
+export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = {}) {
   const { t } = useTranslation('patients')
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState<RegisterPatientResponse | null>(null)
@@ -68,11 +80,10 @@ export function RegisterPatientDialog() {
           .refine((value) => !value || /^[0-9+\-\s()]{7,20}$/.test(value), {
             message: t('register.validation.contactNumberInvalid'),
           }),
-        assigned_doctor_id: z
-          .string()
-          .trim()
-          .min(1, t('register.validation.doctorIdRequired'))
-          .uuid(t('register.validation.doctorIdInvalid')),
+        national_id: z.string().trim().min(1, t('register.validation.nationalIdRequired')),
+        // Bound to a Select populated from GET /doctors — staff pick a name,
+        // never type a UUID (see UC-06 in the schema-gaps session prompt).
+        assigned_doctor_id: z.string().trim().min(1, t('register.validation.doctorRequired')),
       }),
     [t],
   )
@@ -86,19 +97,33 @@ export function RegisterPatientDialog() {
       date_of_birth: '',
       gender: GENDER_UNSPECIFIED,
       contact_number: '',
+      national_id: '',
       assigned_doctor_id: '',
     },
   })
 
   const registerMutation = useMutation({
     mutationFn: (payload: CreatePatientPayload) => patientsApi.register(payload),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       // Do NOT log `data` anywhere — it carries the one-time temp password.
       setResult(data)
       toast.success(t('register.success'))
+      // Feeds the Admin Dashboard's "Recently registered" strip — see
+      // store/recentRegistrationsStore.ts for why this is session-local
+      // rather than a network fetch.
+      useRecentRegistrationsStore.getState().addEntry({
+        patientId: data.patientId,
+        fullName: data.fullName,
+        nationalId: variables.national_id,
+        registeredAt: new Date().toISOString(),
+      })
     },
-    onError: () => {
-      toast.error(t('register.error'))
+    onError: (error: AxiosError<{ error?: string }>) => {
+      // Surfaces the backend's message as-is, e.g. the 409 "A patient with
+      // this ID number is already registered" — same convention as the
+      // appointment dialogs' conflict handling.
+      const conflictMessage = error.response?.status === 409 ? error.response.data?.error : null
+      toast.error(conflictMessage ?? t('register.error'))
     },
   })
 
@@ -106,6 +131,7 @@ export function RegisterPatientDialog() {
     const payload: CreatePatientPayload = {
       full_name: values.full_name,
       date_of_birth: values.date_of_birth,
+      national_id: values.national_id,
       assigned_doctor_id: values.assigned_doctor_id,
       ...(values.gender !== GENDER_UNSPECIFIED ? { gender: values.gender as Gender } : {}),
       ...(values.contact_number ? { contact_number: values.contact_number } : {}),
@@ -149,10 +175,12 @@ export function RegisterPatientDialog() {
       }}
     >
       <DialogTrigger asChild>
-        <Button>
-          <UserPlus className="h-4 w-4" aria-hidden="true" />
-          {t('register.trigger')}
-        </Button>
+        {trigger ?? (
+          <Button>
+            <UserPlus className="h-4 w-4" aria-hidden="true" />
+            {t('register.trigger')}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent
         onInteractOutside={(event) => {
@@ -244,14 +272,31 @@ export function RegisterPatientDialog() {
                 />
                 <FormField
                   control={form.control}
-                  name="assigned_doctor_id"
+                  name="national_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('register.assignedDoctorIdLabel')}</FormLabel>
+                      <FormLabel>{t('register.nationalIdLabel')}</FormLabel>
                       <FormControl>
                         <Input dir="ltr" {...field} />
                       </FormControl>
-                      <FormDescription>{t('doctorIdNote')}</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="assigned_doctor_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('register.assignedDoctorLabel')}</FormLabel>
+                      <DoctorSelect
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder={t('register.assignedDoctorPlaceholder')}
+                        loadingLabel={t('register.assignedDoctorLoading')}
+                        emptyLabel={t('register.assignedDoctorEmpty')}
+                        loadErrorLabel={t('register.assignedDoctorLoadError')}
+                      />
                       <FormMessage />
                     </FormItem>
                   )}

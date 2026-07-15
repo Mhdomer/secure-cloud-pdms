@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Stethoscope, UserCog } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
+import { EmptyState } from '@/components/shared/EmptyState'
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -25,15 +29,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from '@/components/ui/toaster'
+import { useLanguage } from '@/hooks/useLanguage'
+import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { usersApi } from '@/lib/api'
-import type { CreateUserPayload, StaffRole } from '@/types/user'
+import { cn } from '@/lib/utils'
+import type { CreateUserPayload, StaffRole, StaffUser } from '@/types/user'
 
 /**
- * `/users`, admin only. The backend has no `GET /api/users` (list/search)
- * endpoint at all (see `types/user.ts`'s module-level comment), so this is
- * three independent action panels rather than a user directory: create a
- * staff account, and deactivate/reactivate one by a `userId` the admin
- * already has on hand.
+ * `/users`, superadmin only. `GET /users` (staff/doctor directory — never
+ * patients, see `User.listStaffAndDoctors` backend-side) backs the list
+ * below so a superadmin can actually see how many doctor/staff accounts
+ * exist and deactivate/reactivate a row directly, instead of the old
+ * paste-a-userId-you-already-have-on-hand flow.
  */
 export default function UserManagementPage() {
   const { t } = useTranslation('settings')
@@ -46,11 +53,7 @@ export default function UserManagementPage() {
       </div>
 
       <CreateStaffAccountCard />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <DeactivateAccountCard />
-        <ReactivateAccountCard />
-      </div>
+      <StaffDirectoryCard />
     </div>
   )
 }
@@ -60,6 +63,7 @@ const STAFF_ROLES: StaffRole[] = ['doctor', 'admin']
 function CreateStaffAccountCard() {
   const { t } = useTranslation('settings')
   const { t: tCommon } = useTranslation('common')
+  const queryClient = useQueryClient()
 
   const createUserSchema = useMemo(
     () =>
@@ -109,6 +113,7 @@ function CreateStaffAccountCard() {
       // no credentials panel to build.
       toast.success(t('users.create.success', { username: data.username }))
       form.reset(defaultValues)
+      queryClient.invalidateQueries({ queryKey: ['users', 'directory'] })
     },
     onError: () => {
       toast.error(t('users.create.error'))
@@ -242,161 +247,160 @@ function CreateStaffAccountCard() {
   )
 }
 
-/** Shared UUID-only schema for the deactivate/reactivate-by-id panels. */
-function useUserIdSchema() {
+function StaffDirectoryCard() {
   const { t } = useTranslation('settings')
-  return useMemo(
-    () =>
-      z.object({
-        userId: z
-          .string()
-          .trim()
-          .min(1, t('users.validation.userIdRequired'))
-          .uuid(t('users.validation.userIdInvalid')),
-      }),
-    [t],
-  )
-}
+  const { t: tCommon } = useTranslation('common')
+  const { currentLang } = useLanguage()
+  const queryClient = useQueryClient()
 
-function DeactivateAccountCard() {
-  const { t } = useTranslation('settings')
-  const userIdSchema = useUserIdSchema()
-  type UserIdFormValues = z.infer<typeof userIdSchema>
-  const [lastResult, setLastResult] = useState<string | null>(null)
-
-  const form = useForm<UserIdFormValues>({
-    resolver: zodResolver(userIdSchema),
-    defaultValues: { userId: '' },
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['users', 'directory'],
+    queryFn: () => usersApi.list(),
   })
+
+  const users = data?.users ?? []
+  const doctorCount = users.filter((u) => u.role === 'doctor').length
+  const staffCount = users.filter((u) => u.role === 'admin').length
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['users', 'directory'] })
 
   const deactivateMutation = useMutation({
     mutationFn: (userId: string) => usersApi.deactivate(userId),
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success(t('users.deactivate.success'))
-      setLastResult(data.userId)
-      form.reset({ userId: '' })
+      invalidate()
     },
-    onError: () => {
-      toast.error(t('users.deactivate.error'))
-    },
-  })
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('users.deactivate.title')}</CardTitle>
-        <CardDescription>{t('users.deactivate.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit((values) => deactivateMutation.mutate(values.userId))}
-            noValidate
-            className="flex flex-col gap-3"
-          >
-            <FormField
-              control={form.control}
-              name="userId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('users.deactivate.userIdLabel')}</FormLabel>
-                  <FormControl>
-                    <Input dir="ltr" {...field} />
-                  </FormControl>
-                  <FormDescription>{t('users.userIdNote')}</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              type="submit"
-              variant="destructive"
-              className="w-fit"
-              disabled={form.formState.isSubmitting || deactivateMutation.isPending}
-            >
-              {deactivateMutation.isPending
-                ? t('users.deactivate.submitting')
-                : t('users.deactivate.submit')}
-            </Button>
-          </form>
-        </Form>
-        {lastResult && (
-          <p className="mt-3 truncate text-xs text-muted-foreground" dir="ltr">
-            {lastResult}
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function ReactivateAccountCard() {
-  const { t } = useTranslation('settings')
-  const userIdSchema = useUserIdSchema()
-  type UserIdFormValues = z.infer<typeof userIdSchema>
-  const [lastResult, setLastResult] = useState<string | null>(null)
-
-  const form = useForm<UserIdFormValues>({
-    resolver: zodResolver(userIdSchema),
-    defaultValues: { userId: '' },
+    onError: () => toast.error(t('users.deactivate.error')),
   })
 
   const reactivateMutation = useMutation({
     mutationFn: (userId: string) => usersApi.reactivate(userId),
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success(t('users.reactivate.success'))
-      setLastResult(data.userId)
-      form.reset({ userId: '' })
+      invalidate()
     },
-    onError: () => {
-      toast.error(t('users.reactivate.error'))
-    },
+    onError: () => toast.error(t('users.reactivate.error')),
   })
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('users.reactivate.title')}</CardTitle>
-        <CardDescription>{t('users.reactivate.description')}</CardDescription>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle>{t('users.directory.title')}</CardTitle>
+            <CardDescription>{t('users.directory.description')}</CardDescription>
+          </div>
+          {!isLoading && !isError && users.length > 0 && (
+            <div className="flex shrink-0 items-center gap-2">
+              <Badge variant="secondary" className="gap-1.5">
+                <Stethoscope className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('users.directory.countDoctors', { count: doctorCount })}
+              </Badge>
+              <Badge variant="secondary" className="gap-1.5">
+                <UserCog className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('users.directory.countStaff', { count: staffCount })}
+              </Badge>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit((values) => reactivateMutation.mutate(values.userId))}
-            noValidate
-            className="flex flex-col gap-3"
-          >
-            <FormField
-              control={form.control}
-              name="userId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('users.reactivate.userIdLabel')}</FormLabel>
-                  <FormControl>
-                    <Input dir="ltr" {...field} />
-                  </FormControl>
-                  <FormDescription>{t('users.userIdNote')}</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button
-              type="submit"
-              className="w-fit"
-              disabled={form.formState.isSubmitting || reactivateMutation.isPending}
-            >
-              {reactivateMutation.isPending
-                ? t('users.reactivate.submitting')
-                : t('users.reactivate.submit')}
-            </Button>
-          </form>
-        </Form>
-        {lastResult && (
-          <p className="mt-3 truncate text-xs text-muted-foreground" dir="ltr">
-            {lastResult}
-          </p>
+        {isLoading ? (
+          <LoadingSpinner label={tCommon('loading')} />
+        ) : isError ? (
+          <p className="text-sm text-danger-600">{t('users.directory.loadError')}</p>
+        ) : users.length === 0 ? (
+          <EmptyState icon={UserCog} title={t('users.directory.empty')} />
+        ) : (
+          <div className="flex flex-col divide-y divide-border">
+            {users.map((user) => (
+              <StaffDirectoryRow
+                key={user.userId}
+                user={user}
+                lang={currentLang}
+                onDeactivate={() => deactivateMutation.mutate(user.userId)}
+                onReactivate={() => reactivateMutation.mutate(user.userId)}
+                isMutating={
+                  (deactivateMutation.isPending || reactivateMutation.isPending) &&
+                  (deactivateMutation.variables === user.userId || reactivateMutation.variables === user.userId)
+                }
+              />
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function StaffDirectoryRow({
+  user,
+  lang,
+  onDeactivate,
+  onReactivate,
+  isMutating,
+}: {
+  user: StaffUser
+  lang: 'ar' | 'en'
+  onDeactivate: () => void
+  onReactivate: () => void
+  isMutating: boolean
+}) {
+  const { t } = useTranslation('settings')
+  const { t: tCommon } = useTranslation('common')
+
+  const displayName = user.fullName ?? user.username
+  const joinedDate = new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(user.createdAt))
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <span
+        className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+          avatarClassesFor(user.userId),
+        )}
+        aria-hidden="true"
+      >
+        {initialsFor(displayName)}
+      </span>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-sm font-medium text-foreground">{displayName}</span>
+        <span className="truncate text-xs text-muted-foreground" dir="ltr">
+          {user.username}
+          {user.specialisation ? ` · ${user.specialisation}` : ''}
+        </span>
+      </div>
+
+      <Badge variant="secondary">{tCommon(`roles.${user.role}`)}</Badge>
+
+      <Badge variant={user.isActive ? 'success' : 'danger'}>
+        {user.isActive ? t('users.directory.statusActive') : t('users.directory.statusInactive')}
+      </Badge>
+
+      <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+        {t('users.directory.createdOn', { date: joinedDate })}
+      </span>
+
+      <Button
+        type="button"
+        size="sm"
+        variant={user.isActive ? 'destructive' : 'default'}
+        disabled={isMutating}
+        onClick={user.isActive ? onDeactivate : onReactivate}
+      >
+        {isMutating
+          ? user.isActive
+            ? t('users.deactivate.submitting')
+            : t('users.reactivate.submitting')
+          : user.isActive
+            ? t('users.deactivate.submit')
+            : t('users.reactivate.submit')}
+      </Button>
+    </div>
   )
 }

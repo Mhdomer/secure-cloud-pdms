@@ -20,6 +20,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { appointmentsApi } from '@/lib/api'
+import { BookAppointmentDialog } from '@/pages/appointments/BookAppointmentDialog'
 import { CancelAppointmentDialog } from '@/pages/appointments/CancelAppointmentDialog'
 import { CreateAppointmentDialog } from '@/pages/appointments/CreateAppointmentDialog'
 import { EditAppointmentDialog } from '@/pages/appointments/EditAppointmentDialog'
@@ -40,9 +41,12 @@ const PAGE_LIMIT = 10
  * back with fewer than `PAGE_LIMIT` rows (the only page-boundary signal the
  * API gives us).
  *
- * Mutations (create/edit/cancel) are admin-only and gated on `isAdmin` here
- * in addition to the backend's own enforcement — doctor and patient sessions
- * never render so much as a disabled button for any of them.
+ * Mutations: Admin can create/edit/cancel any appointment (UC-14/17/18).
+ * Patient can book (UC-20) and cancel (UC-21) only their own — never edit,
+ * and never anyone else's, both gated here on `isPatient` in addition to the
+ * backend's own enforcement (`bookOwnAppointment` derives `patient_id` from
+ * the session; `cancelAppointment` checks ownership server-side). Doctor
+ * sessions never render so much as a disabled button for any of these.
  */
 export default function AppointmentsPage() {
   const { t } = useTranslation('appointments')
@@ -93,6 +97,7 @@ export default function AppointmentsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
         {isAdmin && <CreateAppointmentDialog />}
+        {isPatient && <BookAppointmentDialog />}
       </div>
 
       {isLoading && <LoadingSpinner label={tCommon('loading')} />}
@@ -127,7 +132,7 @@ export default function AppointmentsPage() {
                 {showPatientColumn && <TableHead>{t('patient')}</TableHead>}
                 <TableHead>{t('type')}</TableHead>
                 <TableHead>{t('status')}</TableHead>
-                {isAdmin && (
+                {(isAdmin || isPatient) && (
                   <TableHead className="text-end">
                     <span className="sr-only">{t('actions')}</span>
                   </TableHead>
@@ -159,11 +164,11 @@ export default function AppointmentsPage() {
                   <TableCell>
                     <StatusBadge status={appointment.status} />
                   </TableCell>
-                  {isAdmin && (
+                  {(isAdmin || isPatient) && (
                     <TableCell className="text-end">
-                      {appointment.status === 'scheduled' ? (
+                      {appointment.status === 'scheduled' || appointment.status === 'confirmed' ? (
                         <div className="flex items-center justify-end gap-1">
-                          <EditAppointmentDialog appointment={appointment} />
+                          {isAdmin && <EditAppointmentDialog appointment={appointment} />}
                           <CancelAppointmentDialog appointment={appointment} />
                         </div>
                       ) : (

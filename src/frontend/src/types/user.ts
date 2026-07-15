@@ -1,17 +1,22 @@
 import type { Role } from './auth'
 
-/**
- * IMPORTANT — Sprint 3a API gap: there is no `GET /api/users` (list) or
- * `GET /api/users/:userId` (single) endpoint anywhere in the backend route
- * table. An admin can create a staff account, deactivate one, or reactivate
- * one — always by a `userId` they already have on hand — but there is no
- * way to browse or search existing accounts through the API. `ManagedUser`
- * below is therefore never actually returned by any GET; it only describes
- * the (partial) fields each mutation response echoes back. Do not build a
- * "user directory" screen backed by a real API call — it doesn't exist yet.
- * See sprint-3b-summary.md for the full list of these directory/list gaps.
- */
 export type StaffRole = Extract<Role, 'doctor' | 'admin'>
+
+/** One row from GET /api/users (superadmin only) — staff/doctor accounts only, never patients. */
+export interface StaffUser {
+  userId: string
+  username: string
+  role: StaffRole
+  isActive: boolean
+  createdAt: string
+  /** Doctor accounts only — null for admin/staff. */
+  fullName: string | null
+  specialisation: string | null
+}
+
+export interface ListUsersResponse {
+  users: StaffUser[]
+}
 
 /** Body for POST /api/users (admin only, doctor/admin roles only). Field names match the backend exactly. */
 export interface CreateUserPayload {

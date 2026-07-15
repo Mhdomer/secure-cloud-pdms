@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import type { AxiosError } from 'axios'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
 import { LanguageToggle } from '@/components/shared/LanguageToggle'
@@ -101,9 +101,9 @@ export default function LoginPage() {
           <div className="mb-8 flex flex-col items-center text-center">
             <div className="mb-4 rounded-2xl bg-white p-3 shadow-modal">
               <img
-                src="/images/logo-clinic.jpg"
+                src="/images/logo-mark.png"
                 alt={tCommon('appName')}
-                className="h-16 w-16 rounded-xl object-cover"
+                className="h-16 w-16 object-contain"
               />
             </div>
             {/* No tracking-wide here — letter-spacing is banned on Arabic
@@ -180,18 +180,23 @@ export default function LoginPage() {
               </form>
             </Form>
           </div>
+
+          <p className="mt-6 text-center text-sm text-white/70">
+            {t('newPatientPrompt')}{' '}
+            <Link to="/register" className="font-medium text-brand-gold-300 hover:underline">
+              {t('createAccount')}
+            </Link>
+          </p>
         </div>
       </div>
 
       {/* Hero panel — gradient + decorative glow/dot texture by default;
-          drop a photo at public/images/auth-hero.jpg and it layers on top
+          drop a photo at public/images/auth-hero.png and it layers on top
           automatically (the texture stays underneath, invisible once the
           photo loads). DOM order mirrors correctly under dir="rtl" with no
           manual order-N needed, same as the form panel above. */}
       <div className="relative hidden overflow-hidden lg:block lg:w-1/2">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-charcoal via-brand-charcoal-700 to-brand-gold-700" />
-        <div className="absolute -top-24 end-[-6rem] h-[420px] w-[420px] rounded-full bg-brand-gold/25 blur-3xl" />
-        <div className="absolute -bottom-32 start-[-4rem] h-[380px] w-[380px] rounded-full bg-brand-gold-700/30 blur-3xl" />
         <div
           className="absolute inset-0 opacity-[0.08]"
           style={{
@@ -200,11 +205,23 @@ export default function LoginPage() {
             backgroundSize: '28px 28px',
           }}
         />
+        {/* Photo shown near-full brightness — multiply against the dark
+            base crushed this bright, warm-toned interior into near
+            invisibility, so this trades that for a light color-grade wash
+            (next layer) plus a bottom scrim, letting the actual photo (the
+            chandeliers, the gold logo on the reception wall) read clearly. */}
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/images/auth-hero.jpg')" }}
+          style={{ backgroundImage: "url('/images/auth-hero.png')" }}
         />
-        <div className="absolute inset-0 bg-black/55" />
+        {/* Gentle warm-dark color grade, not a crush — ties the photo's
+            existing warm tones to the brand palette without hiding it. */}
+        <div className="absolute inset-0 bg-brand-charcoal-900/35" />
+        <div className="absolute -top-24 end-[-6rem] h-[420px] w-[420px] rounded-full bg-brand-gold/20 mix-blend-screen blur-3xl" />
+        {/* Bottom-anchored scrim, not a flat overlay — keeps the upper photo
+            visible and colorful while guaranteeing contrast for the tagline
+            text sitting at the bottom. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal-900 via-brand-charcoal-900/40 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 p-10">
           <p className="max-w-md text-lg font-medium leading-relaxed text-white/95">
             {t('heroTagline')}

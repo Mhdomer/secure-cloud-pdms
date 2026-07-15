@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+import { useRecentRegistrationsStore } from '@/store/recentRegistrationsStore'
 import type { User } from '@/types/auth'
 
 /** Mirrors the backend's JWT cookie TTL (`server.js` / `authController.js` default `15m`). */
@@ -55,7 +56,12 @@ export const useAuthStore = create<AuthStore>()(
       expiresAt: null,
       setAuth: (profile) =>
         set({ user: profile, isAuthenticated: true, expiresAt: Date.now() + SESSION_TTL_MS }),
-      clearAuth: () => set({ user: null, isAuthenticated: false, expiresAt: null }),
+      clearAuth: () => {
+        set({ user: null, isAuthenticated: false, expiresAt: null })
+        // Other session-local PHI/PII caches must be wiped here too — see
+        // recentRegistrationsStore.ts's file-level comment for why.
+        useRecentRegistrationsStore.getState().clearEntries()
+      },
     }),
     {
       name: 'pdms-auth',

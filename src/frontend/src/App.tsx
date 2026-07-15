@@ -10,7 +10,11 @@ import { useLanguage } from '@/hooks/useLanguage'
 import { useSessionWatcher } from '@/hooks/useSessionWatcher'
 import { ROLE_HOME } from '@/lib/roleHome'
 import LandingPage from '@/pages/landing/LandingPage'
+import ServicesPage from '@/pages/landing/ServicesPage'
+import FacilitiesPage from '@/pages/landing/FacilitiesPage'
+import PatientInfoPage from '@/pages/landing/PatientInfoPage'
 import LoginPage from '@/pages/auth/LoginPage'
+import RegisterPage from '@/pages/auth/RegisterPage'
 import AdminDashboard from '@/pages/dashboard/AdminDashboard'
 import DoctorDashboard from '@/pages/dashboard/DoctorDashboard'
 import PatientDashboard from '@/pages/dashboard/PatientDashboard'
@@ -58,7 +62,11 @@ function App() {
         >
           <Routes>
             <Route path="/" element={<RoleAwareRedirect />} />
+            <Route path="/services" element={<ServicesPage />} />
+            <Route path="/facilities" element={<FacilitiesPage />} />
+            <Route path="/patient-info" element={<PatientInfoPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
 
             <Route
               path="/dashboard/superadmin"

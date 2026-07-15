@@ -1,5 +1,5 @@
-/** Matches `config/constants.js` `APPOINTMENT_STATUS` — NOT pending/confirmed. */
-export type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled'
+/** Matches `config/constants.js` `APPOINTMENT_STATUS` exactly. */
+export type AppointmentStatus = 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
 
 /** Matches `config/constants.js` `APPOINTMENT_TYPES` exactly (snake_case value). */
 export type AppointmentType = 'consultation' | 'follow_up' | 'emergency' | 'checkup'
@@ -21,6 +21,7 @@ export interface Appointment {
   scheduledAt: string
   status: AppointmentStatus
   type: AppointmentType
+  durationMinutes: number
 }
 
 /** Response body for `GET /api/appointments`. NOT the generic `Paginated<T>` shape — no `total`. */
@@ -40,6 +41,7 @@ export interface CreateAppointmentPayload {
   scheduled_at: string
   type?: AppointmentType
   notes?: string
+  duration_minutes?: number
 }
 
 /** Response body for POST /api/appointments. */
@@ -49,6 +51,7 @@ export interface CreateAppointmentResponse {
   doctorId: string
   scheduledAt: string
   status: AppointmentStatus
+  durationMinutes: number
   message: string
 }
 
@@ -59,6 +62,7 @@ export interface UpdateAppointmentPayload {
   scheduled_at?: string
   type?: AppointmentType
   notes?: string
+  duration_minutes?: number
 }
 
 /** Response body for PUT /api/appointments/:appointmentId and PATCH .../cancel. */
@@ -66,5 +70,34 @@ export interface AppointmentMutationResponse {
   appointmentId: string
   scheduledAt?: string
   status: AppointmentStatus
+  durationMinutes?: number
   message: string
+}
+
+/**
+ * UC-20 — Body for POST /api/appointments/mine (patient only). No
+ * `patient_id` field — it's always derived server-side from the session,
+ * never accepted from the client (see appointmentsController.bookOwnAppointment).
+ */
+export interface BookOwnAppointmentPayload {
+  doctor_id: string
+  scheduled_at: string
+  type?: AppointmentType
+  notes?: string
+  duration_minutes?: number
+}
+
+/** Response body for POST /api/appointments/mine. */
+export interface BookOwnAppointmentResponse {
+  appointmentId: string
+  doctorId: string
+  scheduledAt: string
+  status: AppointmentStatus
+  durationMinutes: number
+  message: string
+}
+
+/** UC-21 — Body for PATCH /api/appointments/:id/cancel. Same endpoint for Admin (any) and Patient (own only, checked server-side). */
+export interface CancelAppointmentPayload {
+  cancellation_note?: string
 }

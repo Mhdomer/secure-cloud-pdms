@@ -36,7 +36,27 @@
   "users": {
     "title": "إدارة حسابات الموظفين",
     "description": "إنشاء أو تعطيل أو إعادة تفعيل حسابات الأطباء والمسؤولين.",
-    "userIdNote": "لا يوجد دليل حسابات في هذا النظام حالياً — احصل على معرّف المستخدم من تأكيد الإنشاء أو من مسؤول آخر.",
+    "directory": {
+      "title": "دليل الموظفين",
+      "description": "كل حسابات الأطباء والموظفين في النظام — لا تظهر حسابات المرضى هنا أبداً.",
+      "countDoctors_zero": "لا يوجد أطباء",
+      "countDoctors_one": "طبيب واحد",
+      "countDoctors_two": "طبيبان",
+      "countDoctors_few": "{{count}} أطباء",
+      "countDoctors_many": "{{count}} طبيباً",
+      "countDoctors_other": "{{count}} طبيب",
+      "countStaff_zero": "لا يوجد موظفون",
+      "countStaff_one": "موظف واحد",
+      "countStaff_two": "موظفان",
+      "countStaff_few": "{{count}} موظفين",
+      "countStaff_many": "{{count}} موظفاً",
+      "countStaff_other": "{{count}} موظف",
+      "loadError": "تعذّر تحميل دليل الموظفين.",
+      "empty": "لا توجد حسابات موظفين أو أطباء بعد.",
+      "statusActive": "نشط",
+      "statusInactive": "معطّل",
+      "createdOn": "انضم في {{date}}"
+    },
     "create": {
       "title": "إنشاء حساب موظف",
       "description": "أنشئ بيانات دخول لطبيب أو مسؤول جديد.",
@@ -61,26 +81,16 @@
       }
     },
     "deactivate": {
-      "title": "تعطيل حساب",
-      "description": "عطّل حساب موظف باستخدام معرّف المستخدم.",
-      "userIdLabel": "معرّف المستخدم",
       "submit": "تعطيل",
       "submitting": "جارٍ التعطيل…",
       "success": "تم تعطيل الحساب.",
       "error": "تعذّر تعطيل هذا الحساب. الرجاء المحاولة مجدداً."
     },
     "reactivate": {
-      "title": "إعادة تفعيل حساب",
-      "description": "أعد تفعيل حساب موظف مُعطّل سابقاً باستخدام معرّف المستخدم.",
-      "userIdLabel": "معرّف المستخدم",
       "submit": "إعادة التفعيل",
       "submitting": "جارٍ إعادة التفعيل…",
       "success": "تمت إعادة تفعيل الحساب.",
       "error": "تعذّرت إعادة تفعيل هذا الحساب. الرجاء المحاولة مجدداً."
-    },
-    "validation": {
-      "userIdRequired": "معرّف المستخدم مطلوب",
-      "userIdInvalid": "أدخل معرّف مستخدم صالح (UUID)"
     }
   }
 }

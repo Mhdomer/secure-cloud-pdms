@@ -2,10 +2,12 @@ export type Gender = 'male' | 'female'
 
 /**
  * Shape returned by GET /api/patients/:patientId and PUT /api/patients/:patientId.
- * Matches `patientsController.viewPatient` / `updatePatient` exactly — there is
- * no `mrn`, `email`, `address`, `allergies`, or `currentMedications` field
- * anywhere in the Sprint 3a schema/API. Do not invent fields the backend
- * doesn't send; the `patients` table only has the columns listed below.
+ * Matches `patientsController.viewPatient` exactly. Sprint 3c added several
+ * more columns to `patients` (bloodType, nationality, address, insurance,
+ * email, emergency contact, preferredLanguage, idType/nationalId) that the
+ * controller now returns but aren't modeled here yet — only `allergies` is
+ * added below, for the Doctor Dashboard's safety badge. Do not invent
+ * fields beyond what a controller response actually includes.
  */
 export interface Patient {
   patientId: string
@@ -15,6 +17,8 @@ export interface Patient {
   contactNumber: string | null
   assignedDoctorId: string | null
   createdAt: string
+  /** Free-text, nullable. Always render as a visible warning where a patient's name appears in a clinical context — patient safety, not a cosmetic field. */
+  allergies: string | null
 }
 
 /**
@@ -31,6 +35,8 @@ export interface CreatePatientPayload {
   contact_number?: string
   /** Required — UC-06 has no "register without a doctor" path. */
   assigned_doctor_id: string
+  /** Required — staff registers a patient by national ID/iqama/passport first. */
+  national_id: string
 }
 
 /**
@@ -65,6 +71,29 @@ export interface UpdatePatientResponse {
   gender: Gender | null
   contactNumber: string | null
   message: string
+}
+
+/**
+ * One row from GET /api/patients?q= (admin only) — matches
+ * `patientsController.searchPatients` exactly. A lighter shape than the full
+ * `Patient` profile (no gender/createdAt/allergies) since this is a result
+ * list, not a detail view; staff clicks through to `/patients/:patientId`
+ * (which returns the full `Patient`) rather than acting on this shape directly.
+ */
+export interface PatientSearchResult {
+  patientId: string
+  fullName: string
+  nationalId: string | null
+  contactNumber: string | null
+  dateOfBirth: string
+  assignedDoctorId: string | null
+}
+
+/** Response body for GET /api/patients?q=. */
+export interface SearchPatientsResponse {
+  patients: PatientSearchResult[]
+  page: number
+  limit: number
 }
 
 /** Body for PATCH /api/patients/:patientId/assign-doctor (admin only). */

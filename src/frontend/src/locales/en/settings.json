@@ -36,7 +36,19 @@
   "users": {
     "title": "Manage staff accounts",
     "description": "Create, deactivate, or reactivate doctor and admin accounts.",
-    "userIdNote": "There is no account directory in this system yet — obtain the user ID from the creation confirmation or from another administrator.",
+    "directory": {
+      "title": "Staff directory",
+      "description": "Every doctor and staff account in the system — patients are never listed here.",
+      "countDoctors_one": "{{count}} doctor",
+      "countDoctors_other": "{{count}} doctors",
+      "countStaff_one": "{{count}} staff member",
+      "countStaff_other": "{{count}} staff members",
+      "loadError": "Could not load the staff directory.",
+      "empty": "No staff or doctor accounts yet.",
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "createdOn": "Joined {{date}}"
+    },
     "create": {
       "title": "Create staff account",
       "description": "Create a login for a new doctor or admin.",
@@ -61,26 +73,16 @@
       }
     },
     "deactivate": {
-      "title": "Deactivate account",
-      "description": "Deactivate a staff account by its user ID.",
-      "userIdLabel": "User ID",
       "submit": "Deactivate",
       "submitting": "Deactivating…",
       "success": "Account deactivated.",
       "error": "Could not deactivate this account. Please try again."
     },
     "reactivate": {
-      "title": "Reactivate account",
-      "description": "Reactivate a previously deactivated staff account by its user ID.",
-      "userIdLabel": "User ID",
       "submit": "Reactivate",
       "submitting": "Reactivating…",
       "success": "Account reactivated.",
       "error": "Could not reactivate this account. Please try again."
-    },
-    "validation": {
-      "userIdRequired": "User ID is required",
-      "userIdInvalid": "Enter a valid user ID (UUID)"
     }
   }
 }
