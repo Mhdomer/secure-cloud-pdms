@@ -31,10 +31,28 @@ router.post(
     body('scheduled_at').isISO8601().custom(futureDate),
     body('type').optional({ nullable: true }).isIn(APPOINTMENT_TYPES),
     body('notes').optional({ nullable: true }).trim().isLength({ max: 500 }),
+    body('duration_minutes').optional({ nullable: true }).isInt({ min: 1 }),
   ],
   validateRequest,
   setupRLSContext,
   asyncHandler(appointmentsController.scheduleAppointment)
+);
+
+// UC-20 — Patient Books Own Appointment (patient_id always derived from session)
+router.post(
+  '/mine',
+  authenticateJWT,
+  authorizeRole(ROLES.PATIENT),
+  [
+    body('doctor_id').isUUID(),
+    body('scheduled_at').isISO8601().custom(futureDate),
+    body('type').optional({ nullable: true }).isIn(APPOINTMENT_TYPES),
+    body('notes').optional({ nullable: true }).trim().isLength({ max: 500 }),
+    body('duration_minutes').optional({ nullable: true }).isInt({ min: 1 }),
+  ],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(appointmentsController.bookOwnAppointment)
 );
 
 // UC-15 / UC-16 — View Appointment Schedule (scope always derived from session role)
@@ -42,7 +60,12 @@ router.get(
   '/',
   authenticateJWT,
   authorizeRole(ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
-  [query('page').optional().isInt({ min: 1 }), query('limit').optional().isInt({ min: 1, max: 100 })],
+  [
+    query('page').optional().isInt({ min: 1 }),
+    query('limit').optional().isInt({ min: 1, max: 100 }),
+    query('from').optional().isISO8601(),
+    query('to').optional().isISO8601(),
+  ],
   validateRequest,
   setupRLSContext,
   asyncHandler(appointmentsController.listAppointments)
@@ -60,18 +83,30 @@ router.put(
     body('scheduled_at').optional({ nullable: true }).isISO8601().custom(futureDate),
     body('type').optional({ nullable: true }).isIn(APPOINTMENT_TYPES),
     body('notes').optional({ nullable: true }).trim().isLength({ max: 500 }),
+    body('duration_minutes').optional({ nullable: true }).isInt({ min: 1 }),
   ],
   validateRequest,
   setupRLSContext,
   asyncHandler(appointmentsController.updateAppointment)
 );
 
-// UC-18 — Cancel Appointment
+// UC-17b — Confirm Appointment (Admin or the assigned Doctor)
+router.patch(
+  '/:appointmentId/confirm',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.DOCTOR),
+  [param('appointmentId').isUUID()],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(appointmentsController.confirmAppointment)
+);
+
+// UC-18 / UC-21 — Cancel Appointment (Admin: any; Patient: own only, checked in the controller)
 router.patch(
   '/:appointmentId/cancel',
   authenticateJWT,
-  authorizeRole(ROLES.ADMIN),
-  [param('appointmentId').isUUID()],
+  authorizeRole(ROLES.ADMIN, ROLES.PATIENT),
+  [param('appointmentId').isUUID(), body('cancellation_note').optional({ nullable: true }).trim().isLength({ max: 500 })],
   validateRequest,
   setupRLSContext,
   asyncHandler(appointmentsController.cancelAppointment)

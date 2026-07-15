@@ -14,7 +14,18 @@ const { parsePagination } = require('../utils/pagination');
  * policy that independently re-enforces the same boundary on the INSERT.
  */
 async function createRecord(req, res) {
-  const { patient_id: patientId, diagnosis, prescription, notes } = req.body;
+  const {
+    patient_id: patientId,
+    diagnosis,
+    prescription,
+    notes,
+    chief_complaint: chiefComplaint,
+    objective,
+    assessment,
+    plan,
+    vital_signs: vitalSigns,
+    visit_type: visitType,
+  } = req.body;
   const doctorId = req.rlsSession.doctorId;
 
   const result = await withTransaction(req.rlsSession, async (client) => {
@@ -27,7 +38,19 @@ async function createRecord(req, res) {
       throw err;
     }
 
-    const record = await MedicalRecord.create(client, { patientId, doctorId, diagnosis, prescription, notes });
+    const record = await MedicalRecord.create(client, {
+      patientId,
+      doctorId,
+      diagnosis,
+      prescription,
+      notes,
+      chiefComplaint,
+      objective,
+      assessment,
+      plan,
+      vitalSigns,
+      visitType,
+    });
 
     await AuditLog.log(client, {
       userId: req.user.userId,
@@ -96,16 +119,42 @@ async function viewRecord(req, res) {
     notes: record.notes,
     createdAt: record.created_at,
     updatedAt: record.updated_at,
+    chiefComplaint: record.chief_complaint,
+    objective: record.objective,
+    assessment: record.assessment,
+    plan: record.plan,
+    vitalSigns: record.vital_signs,
+    visitType: record.visit_type,
   });
 }
 
 /** UC-12 — Update Medical Record (Doctor only; RLS rejects records they don't own). */
 async function updateRecord(req, res) {
   const { recordId } = req.params;
-  const { diagnosis, prescription, notes } = req.body;
+  const {
+    diagnosis,
+    prescription,
+    notes,
+    chief_complaint: chiefComplaint,
+    objective,
+    assessment,
+    plan,
+    vital_signs: vitalSigns,
+    visit_type: visitType,
+  } = req.body;
 
   const result = await withTransaction(req.rlsSession, async (client) => {
-    const updated = await MedicalRecord.update(client, recordId, { diagnosis, prescription, notes });
+    const updated = await MedicalRecord.update(client, recordId, {
+      diagnosis,
+      prescription,
+      notes,
+      chiefComplaint,
+      objective,
+      assessment,
+      plan,
+      vitalSigns,
+      visitType,
+    });
     if (!updated) {
       const err = new Error('Record not found');
       err.statusCode = 404;

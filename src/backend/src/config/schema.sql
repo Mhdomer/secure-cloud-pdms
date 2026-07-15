@@ -27,7 +27,10 @@ CREATE TABLE IF NOT EXISTS doctors (
   doctor_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id        UUID REFERENCES users(user_id) ON DELETE CASCADE,
   full_name      VARCHAR(100) NOT NULL,
-  specialisation VARCHAR(100)
+  specialisation VARCHAR(100),
+  license_number VARCHAR(50),   -- SCFHS license (ترخيص مزاولة المهنة)
+  phone          VARCHAR(20),
+  is_active      BOOLEAN DEFAULT true
 );
 
 -- ── patients ───────────────────────────────────────────────────────────────
@@ -39,10 +42,29 @@ CREATE TABLE IF NOT EXISTS patients (
   gender             VARCHAR(10)  CHECK (gender IN ('male','female')),
   contact_number     VARCHAR(20),
   assigned_doctor_id UUID REFERENCES doctors(doctor_id) ON DELETE SET NULL,
-  created_at         TIMESTAMPTZ  DEFAULT NOW()
+  created_at         TIMESTAMPTZ  DEFAULT NOW(),
+  id_type            VARCHAR(15) DEFAULT 'national_id'
+                       CHECK (id_type IN ('national_id','iqama','passport')),
+  national_id        VARCHAR(20) UNIQUE,
+  blood_type         VARCHAR(5)
+                       CHECK (blood_type IN ('A+','A-','B+','B-','AB+','AB-','O+','O-')),
+  allergies          TEXT,        -- free-text for now; upgrade to JSONB/table later
+  nationality        VARCHAR(50),
+  address            TEXT,
+  emergency_contact_name  VARCHAR(100),
+  emergency_contact_phone VARCHAR(20),
+  insurance_provider      VARCHAR(100),
+  insurance_number        VARCHAR(50),
+  email                   VARCHAR(255),
+  preferred_language      VARCHAR(2) DEFAULT 'en' CHECK (preferred_language IN ('en','ar'))
 );
 
 -- ── medical_records ────────────────────────────────────────────────────────
+-- diagnosis/prescription/notes are the original flat fields, kept intact.
+-- chief_complaint/objective/assessment/plan/vital_signs/visit_type add the
+-- SOAP structure alongside them — assessment is the full narrative that
+-- replaces free-text diagnosis going forward; diagnosis stays as the short
+-- summary line shown in the patient profile timeline.
 CREATE TABLE IF NOT EXISTS medical_records (
   record_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id   UUID REFERENCES patients(patient_id) ON DELETE CASCADE,
@@ -51,7 +73,14 @@ CREATE TABLE IF NOT EXISTS medical_records (
   prescription TEXT,
   notes        TEXT,
   created_at   TIMESTAMPTZ DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ
+  updated_at   TIMESTAMPTZ,
+  chief_complaint TEXT,
+  objective       TEXT,   -- objective findings / examination
+  assessment      TEXT,   -- assessment / diagnosis narrative
+  plan            TEXT,   -- treatment plan
+  vital_signs     JSONB,  -- { bp: "120/80", temp: "37.1", weight: "75kg", height: "175cm" }
+  visit_type      VARCHAR(20) DEFAULT 'consultation'
+                    CHECK (visit_type IN ('consultation','follow_up','emergency','checkup'))
 );
 
 -- ── appointments ───────────────────────────────────────────────────────────
@@ -65,13 +94,54 @@ CREATE TABLE IF NOT EXISTS appointments (
   doctor_id      UUID REFERENCES doctors(doctor_id)   ON DELETE SET NULL,
   scheduled_at   TIMESTAMPTZ NOT NULL,
   status         VARCHAR(20) DEFAULT 'scheduled'
-                   CHECK (status IN ('scheduled','completed','cancelled')),
+                   CHECK (status IN ('scheduled','confirmed','completed','cancelled')),
   type           VARCHAR(20) DEFAULT 'consultation'
                    CHECK (type IN ('consultation','follow_up','emergency','checkup')),
   notes          TEXT,
   created_by     UUID REFERENCES users(user_id) ON DELETE SET NULL,
-  created_at     TIMESTAMPTZ DEFAULT NOW()
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  duration_minutes  INT DEFAULT 30,
+  cancelled_by      UUID REFERENCES users(user_id) ON DELETE SET NULL,
+  cancellation_note TEXT
 );
+
+-- ── doctor_availability ───────────────────────────────────────────────────
+-- Weekly working-hours schedule. Without this table the system can book
+-- appointments at 3am on a Sunday. Saudi work week: Sun–Thu (day_of_week 0–4).
+CREATE TABLE IF NOT EXISTS doctor_availability (
+  availability_id UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  doctor_id       UUID    REFERENCES doctors(doctor_id) ON DELETE CASCADE,
+  day_of_week     SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+                                   -- 0=Sunday, 1=Monday … 6=Saturday
+  start_time      TIME    NOT NULL,
+  end_time        TIME    NOT NULL,
+  slot_minutes    INT     DEFAULT 30,  -- appointment slot length for this doctor on this day
+  is_active       BOOLEAN DEFAULT true,
+  UNIQUE (doctor_id, day_of_week)
+);
+
+-- ── otp_verifications ───────────────────────────────────────────────────────
+-- Backs UC-19 patient self-registration (docs/psm2/self-registration-design.md).
+-- No RLS — this is pre-authentication data with no user_id to key policies on.
+-- id_type/date_of_birth are captured here at request-otp time so step 3
+-- (complete registration) never has to re-trust those fields from the client.
+CREATE TABLE IF NOT EXISTS otp_verifications (
+  otp_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone_number  VARCHAR(20) NOT NULL,
+  national_id   VARCHAR(20) NOT NULL,
+  id_type       VARCHAR(15) NOT NULL DEFAULT 'national_id'
+                  CHECK (id_type IN ('national_id','iqama','passport')),
+  date_of_birth DATE NOT NULL,
+  otp_hash      VARCHAR(255) NOT NULL,
+  purpose       VARCHAR(20) NOT NULL DEFAULT 'registration'
+                  CHECK (purpose IN ('registration')),
+  attempts      INT NOT NULL DEFAULT 0,
+  expires_at    TIMESTAMPTZ NOT NULL,
+  verified_at   TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_verifications(phone_number);
 
 -- ── audit_log ──────────────────────────────────────────────────────────────
 -- Append-only. No UPDATE/DELETE grants are given to the application role
@@ -91,11 +161,15 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_doctors_user_id            ON doctors(user_id);
 CREATE INDEX IF NOT EXISTS idx_patients_user_id            ON patients(user_id);
 CREATE INDEX IF NOT EXISTS idx_patients_assigned_doctor_id ON patients(assigned_doctor_id);
+CREATE INDEX IF NOT EXISTS idx_patients_national_id        ON patients(national_id);
+CREATE INDEX IF NOT EXISTS idx_patients_full_name          ON patients USING gin(to_tsvector('simple', full_name));
+CREATE INDEX IF NOT EXISTS idx_patients_contact            ON patients(contact_number);
 CREATE INDEX IF NOT EXISTS idx_medical_records_doctor_id   ON medical_records(doctor_id);
 CREATE INDEX IF NOT EXISTS idx_medical_records_patient_id  ON medical_records(patient_id);
 CREATE INDEX IF NOT EXISTS idx_appointments_doctor_slot    ON appointments(doctor_id, scheduled_at) WHERE status = 'scheduled';
 CREATE INDEX IF NOT EXISTS idx_appointments_patient_id     ON appointments(patient_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_user_id           ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_availability_doctor          ON doctor_availability(doctor_id);
 
 -- ── Row-Level Security ───────────────────────────────────────────────────
 -- Session variables set per request by src/config/database.js#withTransaction:
@@ -198,6 +272,34 @@ CREATE POLICY admin_update_patients ON patients
   USING (current_setting('app.current_role', true) = 'admin')
   WITH CHECK (current_setting('app.current_role', true) = 'admin');
 
+-- System: narrow carve-out for UC-19 patient self-registration
+-- (docs/psm2/self-registration-design.md) — the only place app.current_role
+-- is ever set to 'system' is patientRegistrationController.js, checking a
+-- national_id for an existing account and inserting the new patient row,
+-- both before any authenticated session exists. setupRLSContext (the normal
+-- per-request RLS bootstrap) never produces this role.
+DROP POLICY IF EXISTS system_check_national_id ON patients;
+CREATE POLICY system_check_national_id ON patients
+  FOR SELECT
+  USING (current_setting('app.current_role', true) = 'system');
+
+DROP POLICY IF EXISTS system_insert_patients ON patients;
+CREATE POLICY system_insert_patients ON patients
+  FOR INSERT
+  WITH CHECK (current_setting('app.current_role', true) = 'system');
+
+-- Patient: self-assign a doctor, but only once — the USING clause only
+-- matches while assigned_doctor_id is still NULL, so this can never be used
+-- to change an existing assignment (that stays an admin-only UC-09 action).
+-- Backs UC-20 self-booking auto-assigning the doctor from a self-registered
+-- patient's first appointment — without this, appointmentsController's
+-- Patient.assignDoctor call would silently affect zero rows under RLS.
+DROP POLICY IF EXISTS patient_self_assign_doctor ON patients;
+CREATE POLICY patient_self_assign_doctor ON patients
+  FOR UPDATE
+  USING (user_id = NULLIF(current_setting('app.current_user_id', true), '')::UUID AND assigned_doctor_id IS NULL)
+  WITH CHECK (user_id = NULLIF(current_setting('app.current_user_id', true), '')::UUID);
+
 -- ── Admin bootstrap ─────────────────────────────────────────────────────────
 -- There is deliberately NO seeded admin user in this file. A hardcoded
 -- username/password/hash committed to version control is a permanent,
@@ -233,7 +335,7 @@ END
 $$;
 
 GRANT USAGE ON SCHEMA public TO pdms_app;
-GRANT SELECT, INSERT, UPDATE ON users, doctors, patients, medical_records, appointments TO pdms_app;
+GRANT SELECT, INSERT, UPDATE ON users, doctors, patients, medical_records, appointments, doctor_availability, otp_verifications TO pdms_app;
 GRANT SELECT, INSERT ON audit_log TO pdms_app; -- append-only: no UPDATE/DELETE grant, even to the app role
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO pdms_app;
 

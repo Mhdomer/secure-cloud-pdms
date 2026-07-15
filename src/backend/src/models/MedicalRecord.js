@@ -6,19 +6,38 @@
  * called with a transaction client from withTransaction(session, ...).
  */
 class MedicalRecord {
-  static async create(client, { patientId, doctorId, diagnosis, prescription, notes }) {
+  static async create(
+    client,
+    { patientId, doctorId, diagnosis, prescription, notes, chiefComplaint, objective, assessment, plan, vitalSigns, visitType }
+  ) {
     const result = await client.query(
-      `INSERT INTO medical_records (patient_id, doctor_id, diagnosis, prescription, notes, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+      `INSERT INTO medical_records (
+         patient_id, doctor_id, diagnosis, prescription, notes, created_at,
+         chief_complaint, objective, assessment, plan, vital_signs, visit_type
+       )
+       VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9, $10, COALESCE($11, 'consultation'))
        RETURNING record_id, created_at`,
-      [patientId, doctorId, diagnosis, prescription || null, notes || null]
+      [
+        patientId,
+        doctorId,
+        diagnosis,
+        prescription || null,
+        notes || null,
+        chiefComplaint,
+        objective || null,
+        assessment || null,
+        plan || null,
+        vitalSigns ? JSON.stringify(vitalSigns) : null,
+        visitType || null,
+      ]
     );
     return result.rows[0];
   }
 
   static async findById(client, recordId) {
     const result = await client.query(
-      `SELECT record_id, patient_id, doctor_id, diagnosis, prescription, notes, created_at, updated_at
+      `SELECT record_id, patient_id, doctor_id, diagnosis, prescription, notes, created_at, updated_at,
+              chief_complaint, objective, assessment, plan, vital_signs, visit_type
          FROM medical_records WHERE record_id = $1`,
       [recordId]
     );
@@ -80,12 +99,22 @@ class MedicalRecord {
     return result.rows[0].total;
   }
 
-  static async update(client, recordId, { diagnosis, prescription, notes }) {
+  static async update(
+    client,
+    recordId,
+    { diagnosis, prescription, notes, chiefComplaint, objective, assessment, plan, vitalSigns, visitType }
+  ) {
     const result = await client.query(
       `UPDATE medical_records
           SET diagnosis = COALESCE($2, diagnosis),
               prescription = COALESCE($3, prescription),
               notes = COALESCE($4, notes),
+              chief_complaint = COALESCE($5, chief_complaint),
+              objective = COALESCE($6, objective),
+              assessment = COALESCE($7, assessment),
+              plan = COALESCE($8, plan),
+              vital_signs = COALESCE($9, vital_signs),
+              visit_type = COALESCE($10, visit_type),
               updated_at = NOW()
         WHERE record_id = $1
         RETURNING record_id, updated_at`,
@@ -94,7 +123,18 @@ class MedicalRecord {
       // reach COALESCE as '' so it actually clears the column, not get
       // coerced into NULL, which COALESCE would then treat as "keep the old
       // value" and silently no-op the clear.
-      [recordId, diagnosis ?? null, prescription ?? null, notes ?? null]
+      [
+        recordId,
+        diagnosis ?? null,
+        prescription ?? null,
+        notes ?? null,
+        chiefComplaint ?? null,
+        objective ?? null,
+        assessment ?? null,
+        plan ?? null,
+        vitalSigns ? JSON.stringify(vitalSigns) : null,
+        visitType || null,
+      ]
     );
     // rowCount is 0 both when the record doesn't exist AND when the RLS
     // UPDATE policy rejects it (doctor_id mismatch) — callers must treat

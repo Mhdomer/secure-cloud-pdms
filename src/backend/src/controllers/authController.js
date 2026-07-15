@@ -1,17 +1,15 @@
 'use strict';
 
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 const { pool, withTransaction } = require('../config/database');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
-const { JWT_COOKIE_NAME, MAX_FAILED_LOGIN_ATTEMPTS, AUDIT_ACTIONS } = require('../config/constants');
-const { parseDurationMs } = require('../utils/duration');
+const { MAX_FAILED_LOGIN_ATTEMPTS, AUDIT_ACTIONS, JWT_COOKIE_NAME } = require('../config/constants');
+const { cookieOptions, issueSessionCookie } = require('../utils/session');
 const logger = require('../config/logger');
 
 const BCRYPT_COST = 12;
-const DEFAULT_TOKEN_TTL_MS = 15 * 60 * 1000;
 
 // Valid-format bcrypt hash with no matching password — used to burn a
 // constant amount of CPU time on the "user doesn't exist" / "account
@@ -19,24 +17,6 @@ const DEFAULT_TOKEN_TTL_MS = 15 * 60 * 1000;
 // genuine wrong-password attempt on an active account (timing side-channel
 // / username enumeration mitigation).
 const DUMMY_HASH = '$2b$12$C6UzMDM.H6dfI/f/IKcEeOtRMg7/tXqhCPhjCLyzxc/Y7BvvHJb2i';
-
-function tokenTtlMs() {
-  return parseDurationMs(process.env.JWT_EXPIRES_IN, DEFAULT_TOKEN_TTL_MS);
-}
-
-function cookieOptions() {
-  return {
-    httpOnly: true,
-    // Kept as its own explicit flag (default true) rather than inferred
-    // from NODE_ENV, so a staging/pre-prod stack behind real TLS never
-    // silently ships secure:false cookies just because NODE_ENV isn't the
-    // literal string "production". Only ever false for local HTTP dev.
-    secure: process.env.COOKIE_SECURE !== 'false',
-    sameSite: 'strict',
-    maxAge: tokenTtlMs(),
-    path: '/',
-  };
-}
 
 /**
  * UC-01 / Figure 4.10 — User Login.
@@ -85,13 +65,7 @@ async function login(req, res) {
     await AuditLog.log(client, { userId: user.user_id, action: AUDIT_ACTIONS.LOGIN, resource: 'users', ipAddress });
   });
 
-  const token = jwt.sign(
-    { userId: user.user_id, username: user.username, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
-  );
-
-  res.cookie(JWT_COOKIE_NAME, token, cookieOptions());
+  issueSessionCookie(res, user);
 
   return res.status(200).json({
     userId: user.user_id,

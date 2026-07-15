@@ -15,6 +15,17 @@ class Doctor {
     return result.rows[0] || null;
   }
 
+  /** Directory listing for the assign-doctor dropdown — active doctors only. */
+  static async listActive(executor) {
+    const result = await executor.query(
+      `SELECT doctor_id, full_name, specialisation, is_active
+         FROM doctors
+        WHERE is_active = true
+        ORDER BY full_name ASC`
+    );
+    return result.rows;
+  }
+
   /** Only returns the doctor if their linked user account is active. */
   static async findActiveById(executor, doctorId) {
     const result = await executor.query(

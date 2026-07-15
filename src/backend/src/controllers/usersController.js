@@ -1,7 +1,7 @@
 'use strict';
 
 const bcrypt = require('bcryptjs');
-const { withTransaction } = require('../config/database');
+const { pool, withTransaction } = require('../config/database');
 const User = require('../models/User');
 const Doctor = require('../models/Doctor');
 const AuditLog = require('../models/AuditLog');
@@ -173,4 +173,27 @@ async function changeOwnPassword(req, res) {
   return res.status(200).json({ message: 'Password changed successfully' });
 }
 
-module.exports = { createUser, deactivateUser, reactivateUser, changeOwnPassword };
+/**
+ * Superadmin's staff/doctor account directory — the gap noted in
+ * types/user.ts (frontend) and sprint-3b-summary.md: there was previously no
+ * way to browse existing accounts, only create/deactivate/reactivate by a
+ * userId already on hand. Patients are never returned — see
+ * User.listStaffAndDoctors for why.
+ */
+async function listUsers(req, res) {
+  const rows = await User.listStaffAndDoctors(pool);
+
+  return res.status(200).json({
+    users: rows.map((r) => ({
+      userId: r.user_id,
+      username: r.username,
+      role: r.role,
+      isActive: r.is_active,
+      createdAt: r.created_at,
+      fullName: r.full_name,
+      specialisation: r.specialisation,
+    })),
+  });
+}
+
+module.exports = { listUsers, createUser, deactivateUser, reactivateUser, changeOwnPassword };

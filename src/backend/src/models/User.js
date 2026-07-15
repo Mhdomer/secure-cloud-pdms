@@ -74,6 +74,24 @@ class User {
   static async updatePassword(executor, userId, passwordHash) {
     await executor.query('UPDATE users SET password_hash = $2 WHERE user_id = $1', [userId, passwordHash]);
   }
+
+  /**
+   * Staff (admin) + doctor accounts only, newest first — backs the
+   * superadmin account directory. Patient accounts are never included here;
+   * they're managed entirely through /api/patients, not role-based account
+   * management. LEFT JOIN doctors since an 'admin' row has no doctors match.
+   */
+  static async listStaffAndDoctors(executor) {
+    const result = await executor.query(
+      `SELECT u.user_id, u.username, u.role, u.is_active, u.created_at,
+              d.full_name, d.specialisation
+         FROM users u
+         LEFT JOIN doctors d ON d.user_id = u.user_id
+        WHERE u.role IN ('doctor', 'admin')
+        ORDER BY u.created_at DESC`
+    );
+    return result.rows;
+  }
 }
 
 module.exports = User;

@@ -12,6 +12,11 @@ const { ROLES } = require('../config/constants');
 
 const router = Router();
 
+// Superadmin's staff/doctor account directory — patients are never listed
+// here (see User.listStaffAndDoctors). Backs the "how many staff/doctor
+// accounts do I have" view on the User Management page.
+router.get('/', authenticateJWT, authorizeRole(ROLES.SUPERADMIN), asyncHandler(usersController.listUsers));
+
 // UC-04 — Superadmin Creates Staff Account (doctor or admin).
 // Regular admin/staff cannot create other elevated accounts.
 router.post(

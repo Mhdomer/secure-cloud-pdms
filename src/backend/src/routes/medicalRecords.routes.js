@@ -9,13 +9,25 @@ const { authorizeRole } = require('../middleware/rbacMiddleware');
 const { setupRLSContext } = require('../middleware/rlsContext');
 const asyncHandler = require('../utils/asyncHandler');
 const medicalRecordsController = require('../controllers/medicalRecordsController');
-const { ROLES } = require('../config/constants');
+const { ROLES, APPOINTMENT_TYPES } = require('../config/constants');
 
 const router = Router();
 
 const paginationValidators = [
   query('page').optional().isInt({ min: 1 }),
   query('limit').optional().isInt({ min: 1, max: 100 }),
+];
+
+const soapValidators = [
+  body('objective').optional({ nullable: true }).trim().isLength({ max: 2000 }),
+  body('assessment').optional({ nullable: true }).trim().isLength({ max: 2000 }),
+  body('plan').optional({ nullable: true }).trim().isLength({ max: 2000 }),
+  body('vital_signs').optional({ nullable: true }).isObject(),
+  body('vital_signs.bp').optional({ nullable: true }).isString().trim().isLength({ max: 20 }),
+  body('vital_signs.temp').optional({ nullable: true }).isString().trim().isLength({ max: 20 }),
+  body('vital_signs.weight').optional({ nullable: true }).isString().trim().isLength({ max: 20 }),
+  body('vital_signs.height').optional({ nullable: true }).isString().trim().isLength({ max: 20 }),
+  body('visit_type').optional({ nullable: true }).isIn(APPOINTMENT_TYPES),
 ];
 
 // UC-10 — Create Medical Record
@@ -28,6 +40,8 @@ router.post(
     body('diagnosis').trim().isLength({ min: 1, max: 2000 }),
     body('prescription').optional({ nullable: true }).trim().isLength({ max: 2000 }),
     body('notes').optional({ nullable: true }).trim().isLength({ max: 2000 }),
+    body('chief_complaint').trim().isLength({ min: 1, max: 2000 }),
+    ...soapValidators,
   ],
   validateRequest,
   setupRLSContext,
@@ -66,6 +80,8 @@ router.put(
     body('diagnosis').optional({ nullable: true }).trim().isLength({ min: 1, max: 2000 }),
     body('prescription').optional({ nullable: true }).trim().isLength({ max: 2000 }),
     body('notes').optional({ nullable: true }).trim().isLength({ max: 2000 }),
+    body('chief_complaint').optional({ nullable: true }).trim().isLength({ min: 1, max: 2000 }),
+    ...soapValidators,
   ],
   validateRequest,
   setupRLSContext,
