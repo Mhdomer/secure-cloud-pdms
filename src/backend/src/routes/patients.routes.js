@@ -120,4 +120,15 @@ router.patch(
   asyncHandler(patientsController.assignDoctor)
 );
 
+// Regenerate a patient's password-setup QR (e.g. lost before scanning)
+router.post(
+  '/:patientId/regenerate-qr',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.SUPERADMIN),
+  [param('patientId').isUUID()],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(patientsController.regenerateQR)
+);
+
 module.exports = router;

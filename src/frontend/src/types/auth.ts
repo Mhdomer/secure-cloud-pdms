@@ -89,3 +89,24 @@ export interface CompleteRegistrationResponse extends User {
   redirectUrl: string
   message: string
 }
+
+// ── Password setup (QR-based first password, replaces the old temp-password
+// flow — see docs/psm2/report-delta.md) ────────────────────────────────────
+
+/** GET /api/auth/setup-password?token=xxx (public, no auth). */
+export interface ValidateSetupTokenResponse {
+  valid: true
+  /** The patient's login username (= national ID), shown so they know what to log in with next. */
+  username: string
+}
+
+/** POST /api/auth/setup-password (public, no auth) — the token itself is the credential. */
+export interface SetupPasswordPayload {
+  token: string
+  password: string
+  confirmPassword: string
+}
+
+export interface SetupPasswordResponse {
+  message: string
+}

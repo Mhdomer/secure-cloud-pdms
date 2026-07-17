@@ -143,6 +143,63 @@ CREATE TABLE IF NOT EXISTS otp_verifications (
 
 CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_verifications(phone_number);
 
+-- ── patient_invoices ─────────────────────────────────────────────────────────
+-- Billing documents uploaded by staff. No RLS — access is role-gated only
+-- (admin/superadmin upload, admin/superadmin/doctor view, patient never),
+-- not scoped per-doctor like medical_records/lab_results.
+CREATE TABLE IF NOT EXISTS patient_invoices (
+  invoice_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id        UUID NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+  uploaded_by       UUID NOT NULL REFERENCES users(user_id),
+  file_path         TEXT NOT NULL,
+  original_filename TEXT NOT NULL,
+  file_size         INTEGER,
+  mime_type         VARCHAR(100),
+  amount            DECIMAL(10,2),
+  description       TEXT,
+  invoice_date      DATE,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── lab_results ──────────────────────────────────────────────────────────────
+-- Lab result files uploaded by doctors. RLS-protected (see the RLS section
+-- below) — only the patient's assigned doctor may see or upload results.
+CREATE TABLE IF NOT EXISTS lab_results (
+  result_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id        UUID NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+  uploaded_by       UUID NOT NULL REFERENCES users(user_id),
+  file_path         TEXT NOT NULL,
+  original_filename TEXT NOT NULL,
+  file_size         INTEGER,
+  mime_type         VARCHAR(100),
+  test_name         VARCHAR(255),
+  result_date       DATE,
+  notes             TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_patient_invoices_patient ON patient_invoices(patient_id);
+CREATE INDEX IF NOT EXISTS idx_lab_results_patient      ON lab_results(patient_id);
+
+-- ── password_setup_tokens ────────────────────────────────────────────────────
+-- Backs the QR-based first-password flow: staff registers a patient with no
+-- password disclosed to them, the patient scans a QR / opens a link carrying
+-- this token, and sets their own password. No RLS — like otp_verifications,
+-- this exists precisely to bootstrap a session before one exists, so there's
+-- no authenticated app.current_* context to key a policy on; single-use
+-- (used_at) and a 256-bit token are what protect it instead.
+CREATE TABLE IF NOT EXISTS password_setup_tokens (
+  token_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  token       VARCHAR(64) NOT NULL UNIQUE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used_at     TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pst_token ON password_setup_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_pst_user  ON password_setup_tokens(user_id);
+
 -- ── audit_log ──────────────────────────────────────────────────────────────
 -- Append-only. No UPDATE/DELETE grants are given to the application role
 -- (see APPLICATION ROLE section) so a compromised API cannot tamper with
@@ -186,11 +243,13 @@ CREATE INDEX IF NOT EXISTS idx_availability_doctor          ON doctor_availabili
 
 ALTER TABLE medical_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patients        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lab_results     ENABLE ROW LEVEL SECURITY;
 
 -- FORCE ensures RLS applies even to a connection role that happens to own
 -- these tables — defence in depth against a future role/ownership mistake.
 ALTER TABLE medical_records FORCE ROW LEVEL SECURITY;
 ALTER TABLE patients        FORCE ROW LEVEL SECURITY;
+ALTER TABLE lab_results     FORCE ROW LEVEL SECURITY;
 
 -- Drop legacy/broken policies from the original scaffold (these compared
 -- doctor_id/patient_id, which are their own surrogate keys, directly
@@ -253,11 +312,13 @@ CREATE POLICY doctor_select_assigned ON patients
   FOR SELECT
   USING (assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID);
 
--- Admin: full read access for registration, profile lookups, reassignment.
+-- Admin/superadmin: full read access for registration, profile lookups,
+-- reassignment, and QR regeneration (regenerateQR needs to resolve
+-- patient_id -> user_id under a superadmin session, same as an admin one).
 DROP POLICY IF EXISTS admin_select_patients ON patients;
 CREATE POLICY admin_select_patients ON patients
   FOR SELECT
-  USING (current_setting('app.current_role', true) = 'admin');
+  USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
 
 -- Admin: register new patients.
 DROP POLICY IF EXISTS admin_insert_patients ON patients;
@@ -300,6 +361,37 @@ CREATE POLICY patient_self_assign_doctor ON patients
   USING (user_id = NULLIF(current_setting('app.current_user_id', true), '')::UUID AND assigned_doctor_id IS NULL)
   WITH CHECK (user_id = NULLIF(current_setting('app.current_user_id', true), '')::UUID);
 
+-- ── lab_results policies ─────────────────────────────────────────────────
+-- RESTRICTIVE + no FOR clause = applies to every command (SELECT/INSERT/
+-- UPDATE/DELETE) and is AND-combined with every permissive policy below —
+-- this is what actually keeps admin/superadmin/patient sessions out, not
+-- just the absence of a permissive policy for them.
+DROP POLICY IF EXISTS doctor_only_lab_results ON lab_results;
+CREATE POLICY doctor_only_lab_results ON lab_results
+  AS RESTRICTIVE
+  USING (current_setting('app.current_role', true) = 'doctor')
+  WITH CHECK (current_setting('app.current_role', true) = 'doctor');
+
+-- Doctor: only results for patients currently assigned to them. The
+-- subquery against `patients` runs under the same session and is itself
+-- filtered by doctor_select_assigned, so this stays correct even if this
+-- policy's own logic is ever copy-pasted somewhere without that context.
+DROP POLICY IF EXISTS doctor_select_lab_results ON lab_results;
+CREATE POLICY doctor_select_lab_results ON lab_results
+  FOR SELECT
+  USING (patient_id IN (
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ));
+
+DROP POLICY IF EXISTS doctor_insert_lab_results ON lab_results;
+CREATE POLICY doctor_insert_lab_results ON lab_results
+  FOR INSERT
+  WITH CHECK (patient_id IN (
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ));
+
 -- ── Admin bootstrap ─────────────────────────────────────────────────────────
 -- There is deliberately NO seeded admin user in this file. A hardcoded
 -- username/password/hash committed to version control is a permanent,
@@ -337,6 +429,8 @@ $$;
 GRANT USAGE ON SCHEMA public TO pdms_app;
 GRANT SELECT, INSERT, UPDATE ON users, doctors, patients, medical_records, appointments, doctor_availability, otp_verifications TO pdms_app;
 GRANT SELECT, INSERT ON audit_log TO pdms_app; -- append-only: no UPDATE/DELETE grant, even to the app role
+GRANT SELECT, INSERT ON patient_invoices, lab_results TO pdms_app; -- upload-only: no UPDATE/DELETE, files are immutable once uploaded
+GRANT SELECT, INSERT, UPDATE ON password_setup_tokens TO pdms_app; -- UPDATE needed to mark used_at
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO pdms_app;
 
 -- Ensure the app role is never the table owner (owners bypass RLS just
@@ -344,3 +438,4 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO pdms_app;
 -- this script, so this is a no-op unless that ever changes.
 ALTER TABLE medical_records OWNER TO CURRENT_USER;
 ALTER TABLE patients        OWNER TO CURRENT_USER;
+ALTER TABLE lab_results     OWNER TO CURRENT_USER;

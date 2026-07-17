@@ -10,12 +10,18 @@ const Patient = require('../models/Patient');
 const AuditLog = require('../models/AuditLog');
 const { AUDIT_ACTIONS, ROLES } = require('../config/constants');
 const { parsePagination } = require('../utils/pagination');
+const { generateSetupToken } = require('../lib/generateSetupToken');
 
 const BCRYPT_COST = 12;
 const UNIQUE_VIOLATION = '23505';
 const DUPLICATE_NATIONAL_ID_MESSAGE = 'A patient with this ID number is already registered';
 
-/** 16 random bytes, base64url — well above the 8-char minimum and never logged. */
+/**
+ * Placeholder password hashed into the new account so password_hash (NOT
+ * NULL) is never empty before the patient sets their own via the QR/setup-
+ * token flow. Never returned to the client and never logged — the account
+ * is unusable until setPassword overwrites this hash.
+ */
 function generateTempPassword() {
   return crypto.randomBytes(16).toString('base64url');
 }
@@ -63,8 +69,10 @@ function extractPatientFields(body) {
  * UC-06 — Register New Patient (Admin only).
  * The patient's login username is their national_id/iqama/passport number —
  * something they already carry and have memorized — rather than a random
- * generated string. Only the temp password is random; the patient is
- * expected to change it after first login.
+ * generated string. No password is ever generated for staff to relay: a
+ * one-time setup token is issued instead, rendered as a QR code the patient
+ * scans to choose their own password (see lib/generateSetupToken.js and
+ * passwordSetupController.js).
  */
 async function registerPatient(req, res) {
   const { assigned_doctor_id: assignedDoctorId } = req.body;
@@ -109,7 +117,11 @@ async function registerPatient(req, res) {
         ipAddress: req.ip,
       });
 
-      return patient;
+      // Same transaction as the account/patient insert — if anything above
+      // rolls back, the token never gets committed as an orphan either.
+      const setupToken = await generateSetupToken(client, user.user_id, process.env.FRONTEND_URL);
+
+      return { patient, setupToken };
     });
   } catch (err) {
     if (err.existingPatient) {
@@ -132,14 +144,17 @@ async function registerPatient(req, res) {
     throw err;
   }
 
+  const { patient, setupToken } = result;
+
   return res.status(201).json({
-    patientId: result.patient_id,
-    fullName: result.full_name,
-    assignedDoctorId: result.assigned_doctor_id,
-    tempUsername: username,
-    tempPassword,
-    message:
-      'Patient registered successfully. These temporary credentials are shown once — relay them to the patient out-of-band.',
+    patientId: patient.patient_id,
+    fullName: patient.full_name,
+    assignedDoctorId: patient.assigned_doctor_id,
+    username,
+    qrCode: setupToken.qrDataUrl,
+    setupUrl: setupToken.setupUrl,
+    expiresAt: setupToken.expiresAt,
+    message: 'Patient registered successfully. Show this QR code to the patient so they can set their own password.',
   });
 }
 
@@ -314,4 +329,46 @@ async function assignDoctor(req, res) {
   });
 }
 
-module.exports = { registerPatient, searchPatients, viewPatient, updatePatient, assignDoctor };
+/**
+ * Regenerates a patient's password-setup QR (Admin/superadmin) — for a
+ * patient who lost the original before scanning it. generateSetupToken
+ * invalidates the previous unused token itself, so at most one setup token
+ * is ever live for a given account.
+ */
+async function regenerateQR(req, res) {
+  const { patientId } = req.params;
+
+  const setupToken = await withTransaction(req.rlsSession, async (client) => {
+    const patient = await Patient.findById(client, patientId);
+    if (!patient) {
+      const err = new Error('Patient not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    if (!patient.user_id) {
+      const err = new Error('This patient has no linked user account');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const token = await generateSetupToken(client, patient.user_id, process.env.FRONTEND_URL);
+
+    await AuditLog.log(client, {
+      userId: req.user.userId,
+      action: AUDIT_ACTIONS.REGENERATE_SETUP_QR,
+      resource: 'patients',
+      recordId: patientId,
+      ipAddress: req.ip,
+    });
+
+    return token;
+  });
+
+  return res.status(200).json({
+    qrCode: setupToken.qrDataUrl,
+    setupUrl: setupToken.setupUrl,
+    expiresAt: setupToken.expiresAt,
+  });
+}
+
+module.exports = { registerPatient, searchPatients, viewPatient, updatePatient, assignDoctor, regenerateQR };

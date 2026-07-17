@@ -83,14 +83,24 @@
   },
   "credentialsPanel": {
     "title": "تم إنشاء حساب المريض",
-    "description": "شارك بيانات الاعتماد المؤقتة هذه مع المريض الآن — لن تظهر مرة أخرى.",
-    "username": "اسم المستخدم المؤقت",
-    "password": "كلمة المرور المؤقتة",
+    "description": "اطلب من المريض مسح رمز QR هذا — أو فتح الرابط أدناه — لتعيين كلمة مروره الخاصة. سيسجّل الدخول باسم {{username}}.",
+    "qrAlt": "رمز QR يؤدي إلى صفحة تعيين كلمة المرور",
+    "setupLink": "رابط التعيين",
     "copy": "نسخ",
     "copied": "تم النسخ",
     "copyUnavailable": "النسخ غير مدعوم في هذا المتصفح — انسخ يدوياً.",
-    "warning": "تُعرض بيانات الاعتماد هذه مرة واحدة فقط ولا يمكن استرجاعها لاحقاً. سجّلها أو أرسلها للمريض قبل إغلاق هذه اللوحة.",
-    "acknowledge": "لقد سجّلت بيانات الاعتماد — إغلاق"
+    "expiresAt": "تنتهي الصلاحية {{date}}",
+    "warning": "يُعرض رمز QR هذا والرابط مرة واحدة فقط ولا يمكن استرجاعهما لاحقاً — أعد إنشاءهما من ملف المريض إذا فُقدا.",
+    "acknowledge": "تم — إغلاق"
+  },
+  "regenerateQr": {
+    "title": "رمز إعداد كلمة المرور",
+    "description": "أعد إنشاء هذا الرمز إذا فقد المريض رمز QR قبل مسحه، أو انتهت صلاحيته.",
+    "submit": "إعادة إنشاء الرمز",
+    "submitting": "جارٍ إعادة الإنشاء…",
+    "error": "تعذّر إعادة إنشاء رمز QR. الرجاء المحاولة مجدداً.",
+    "dialogTitle": "تم إنشاء رمز QR جديد",
+    "dialogDescription": "تم إبطال الرابط السابق إن لم يُستخدم. اعرض هذا الرابط الجديد على المريض."
   },
   "recentlyTreated": {
     "title": "المرضى الذين عالجتهم مؤخراً",
@@ -128,5 +138,100 @@
     "notFoundDescription": "هذا المريض غير موجود، أو لا تملك صلاحية الوصول إلى سجله.",
     "forbiddenTitle": "الوصول مرفوض",
     "forbiddenDescription": "دورك لا يملك صلاحية عرض هذه الصفحة."
+  },
+  "header": {
+    "nationalId": "الهوية الوطنية",
+    "ageYears": "{{age}} سنة",
+    "bloodType": "فصيلة الدم",
+    "bloodTypeUnknown": "فصيلة الدم غير مسجّلة",
+    "noAllergies": "لا توجد حساسية معروفة",
+    "edit": "تعديل",
+    "doneEditing": "إنهاء التعديل"
+  },
+  "tabs": {
+    "medicalRecords": "السجلات الطبية",
+    "appointments": "المواعيد",
+    "demographics": "البيانات الديموغرافية",
+    "invoices": "الفواتير",
+    "labResults": "نتائج المختبر"
+  },
+  "recordsTab": {
+    "empty": "لا توجد سجلات طبية لهذا المريض بعد.",
+    "loadError": "تعذّر تحميل السجلات الطبية لهذا المريض.",
+    "prescription": "الوصفة الطبية",
+    "notes": "ملاحظات"
+  },
+  "appointmentsTab": {
+    "description": "المواعيد خلال آخر 30 يوماً.",
+    "empty": "لا توجد مواعيد خلال آخر 30 يوماً.",
+    "loadError": "تعذّر تحميل مواعيد هذا المريض."
+  },
+  "demographicsTab": {
+    "nationalIdLabel": "الهوية الوطنية / الإقامة / جواز السفر",
+    "idTypeLabel": "نوع الهوية",
+    "bloodTypeLabel": "فصيلة الدم",
+    "bloodTypePlaceholder": "اختر فصيلة الدم",
+    "allergiesLabel": "الحساسية",
+    "allergiesPlaceholder": "مثال: البنسلين",
+    "nationalityLabel": "الجنسية",
+    "addressLabel": "العنوان",
+    "emergencyContactNameLabel": "اسم جهة الاتصال في الطوارئ",
+    "emergencyContactPhoneLabel": "هاتف جهة الاتصال في الطوارئ",
+    "insuranceProviderLabel": "شركة التأمين",
+    "insuranceNumberLabel": "رقم التأمين",
+    "emailLabel": "البريد الإلكتروني",
+    "preferredLanguageLabel": "اللغة المفضّلة",
+    "notProvided": "غير متوفر",
+    "save": "حفظ التغييرات",
+    "saving": "جارٍ الحفظ…",
+    "success": "تم تحديث البيانات الديموغرافية.",
+    "error": "تعذّر حفظ التغييرات. الرجاء المحاولة مجدداً.",
+    "validation": {
+      "emailInvalid": "أدخل بريداً إلكترونياً صالحاً"
+    }
+  },
+  "invoicesTab": {
+    "description": "المستندات المالية المسجّلة لهذا المريض.",
+    "empty": "لا توجد فواتير مرفوعة بعد.",
+    "loadError": "تعذّر تحميل فواتير هذا المريض.",
+    "download": "تنزيل",
+    "uploadTrigger": "رفع فاتورة",
+    "uploadTitle": "رفع فاتورة",
+    "fileLabel": "الملف (PDF أو صورة)",
+    "amountLabel": "المبلغ (ريال سعودي)",
+    "amountOptional": "اختياري",
+    "descriptionLabel": "الوصف",
+    "descriptionOptional": "اختياري",
+    "invoiceDateLabel": "تاريخ الفاتورة",
+    "invoiceDateOptional": "اختياري",
+    "submit": "رفع",
+    "submitting": "جارٍ الرفع…",
+    "success": "تم رفع الفاتورة.",
+    "error": "تعذّر رفع الفاتورة. الرجاء المحاولة مجدداً.",
+    "validation": {
+      "fileRequired": "الملف مطلوب"
+    }
+  },
+  "labResultsTab": {
+    "description": "ملفات نتائج المختبر المسجّلة لهذا المريض.",
+    "empty": "لا توجد نتائج مختبر مرفوعة بعد.",
+    "loadError": "تعذّر تحميل نتائج المختبر لهذا المريض.",
+    "download": "تنزيل",
+    "uploadTrigger": "رفع نتيجة مختبر",
+    "uploadTitle": "رفع نتيجة مختبر",
+    "testNameLabel": "اسم الفحص",
+    "resultDateLabel": "تاريخ النتيجة",
+    "resultDateOptional": "اختياري",
+    "notesLabel": "ملاحظات",
+    "notesOptional": "اختياري",
+    "fileLabel": "الملف (PDF أو صورة)",
+    "submit": "رفع",
+    "submitting": "جارٍ الرفع…",
+    "success": "تم رفع نتيجة المختبر.",
+    "error": "تعذّر رفع نتيجة المختبر. الرجاء المحاولة مجدداً.",
+    "validation": {
+      "testNameRequired": "اسم الفحص مطلوب",
+      "fileRequired": "الملف مطلوب"
+    }
   }
 }

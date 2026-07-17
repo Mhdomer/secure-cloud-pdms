@@ -20,7 +20,10 @@ function errorHandler(err, req, res, next) {
     return res.status(403).json({ error: 'Origin not allowed' });
   }
 
-  const statusCode = err.statusCode || 500;
+  // multer's own errors (file too large, too many files, etc.) are
+  // MulterError instances with no statusCode set — they'd otherwise fall
+  // through to a generic 500 even though they're caller input errors.
+  const statusCode = err.statusCode || (err.name === 'MulterError' ? 400 : 500);
   const message = statusCode === 500 ? 'Internal server error' : err.message;
 
   return res.status(statusCode).json({

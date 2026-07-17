@@ -79,14 +79,24 @@
   },
   "credentialsPanel": {
     "title": "Patient account created",
-    "description": "Share these temporary credentials with the patient now — they will not be shown again.",
-    "username": "Temporary username",
-    "password": "Temporary password",
+    "description": "Have the patient scan this QR code — or open the link below — to set their own password. They'll log in as {{username}}.",
+    "qrAlt": "QR code linking to the password setup page",
+    "setupLink": "Setup link",
     "copy": "Copy",
     "copied": "Copied",
     "copyUnavailable": "Copy not supported in this browser — copy manually.",
-    "warning": "These credentials are shown only once and cannot be retrieved later. Record them or relay them to the patient before closing this panel.",
-    "acknowledge": "I've recorded these credentials — close"
+    "expiresAt": "Expires {{date}}",
+    "warning": "This QR code and link are shown only once and cannot be retrieved later — regenerate them from the patient's profile if lost.",
+    "acknowledge": "Done — close"
+  },
+  "regenerateQr": {
+    "title": "Password setup QR",
+    "description": "Regenerate this if the patient lost their QR code before scanning it, or it expired.",
+    "submit": "Regenerate QR",
+    "submitting": "Regenerating…",
+    "error": "Could not regenerate the QR code. Please try again.",
+    "dialogTitle": "New setup QR generated",
+    "dialogDescription": "The previous link, if unused, has been invalidated. Show this new one to the patient."
   },
   "recentlyTreated": {
     "title": "Patients I've recently treated",
@@ -124,5 +134,100 @@
     "notFoundDescription": "This patient does not exist, or you do not have access to their record.",
     "forbiddenTitle": "Access denied",
     "forbiddenDescription": "Your role does not have permission to view this page."
+  },
+  "header": {
+    "nationalId": "National ID",
+    "ageYears": "{{age}} yrs",
+    "bloodType": "Blood type",
+    "bloodTypeUnknown": "Blood type not on file",
+    "noAllergies": "No known allergies",
+    "edit": "Edit",
+    "doneEditing": "Done editing"
+  },
+  "tabs": {
+    "medicalRecords": "Medical Records",
+    "appointments": "Appointments",
+    "demographics": "Demographics",
+    "invoices": "Invoices",
+    "labResults": "Lab Results"
+  },
+  "recordsTab": {
+    "empty": "No medical records for this patient yet.",
+    "loadError": "Could not load this patient's medical records.",
+    "prescription": "Prescription",
+    "notes": "Notes"
+  },
+  "appointmentsTab": {
+    "description": "Appointments from the last 30 days.",
+    "empty": "No appointments in the last 30 days.",
+    "loadError": "Could not load this patient's appointments."
+  },
+  "demographicsTab": {
+    "nationalIdLabel": "National ID / Iqama / passport",
+    "idTypeLabel": "ID type",
+    "bloodTypeLabel": "Blood type",
+    "bloodTypePlaceholder": "Select blood type",
+    "allergiesLabel": "Allergies",
+    "allergiesPlaceholder": "e.g. Penicillin",
+    "nationalityLabel": "Nationality",
+    "addressLabel": "Address",
+    "emergencyContactNameLabel": "Emergency contact name",
+    "emergencyContactPhoneLabel": "Emergency contact phone",
+    "insuranceProviderLabel": "Insurance provider",
+    "insuranceNumberLabel": "Insurance number",
+    "emailLabel": "Email",
+    "preferredLanguageLabel": "Preferred language",
+    "notProvided": "Not provided",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "success": "Demographics updated.",
+    "error": "Could not save changes. Please try again.",
+    "validation": {
+      "emailInvalid": "Enter a valid email address"
+    }
+  },
+  "invoicesTab": {
+    "description": "Billing documents on file for this patient.",
+    "empty": "No invoices uploaded yet.",
+    "loadError": "Could not load invoices for this patient.",
+    "download": "Download",
+    "uploadTrigger": "Upload invoice",
+    "uploadTitle": "Upload an invoice",
+    "fileLabel": "File (PDF or image)",
+    "amountLabel": "Amount (SAR)",
+    "amountOptional": "Optional",
+    "descriptionLabel": "Description",
+    "descriptionOptional": "Optional",
+    "invoiceDateLabel": "Invoice date",
+    "invoiceDateOptional": "Optional",
+    "submit": "Upload",
+    "submitting": "Uploading…",
+    "success": "Invoice uploaded.",
+    "error": "Could not upload the invoice. Please try again.",
+    "validation": {
+      "fileRequired": "A file is required"
+    }
+  },
+  "labResultsTab": {
+    "description": "Lab result files on file for this patient.",
+    "empty": "No lab results uploaded yet.",
+    "loadError": "Could not load lab results for this patient.",
+    "download": "Download",
+    "uploadTrigger": "Upload lab result",
+    "uploadTitle": "Upload a lab result",
+    "testNameLabel": "Test name",
+    "resultDateLabel": "Result date",
+    "resultDateOptional": "Optional",
+    "notesLabel": "Notes",
+    "notesOptional": "Optional",
+    "fileLabel": "File (PDF or image)",
+    "submit": "Upload",
+    "submitting": "Uploading…",
+    "success": "Lab result uploaded.",
+    "error": "Could not upload the lab result. Please try again.",
+    "validation": {
+      "testNameRequired": "Test name is required",
+      "fileRequired": "A file is required"
+    }
   }
 }

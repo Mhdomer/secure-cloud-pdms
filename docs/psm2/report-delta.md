@@ -352,6 +352,53 @@ In the original design it was not explicitly stated who creates user accounts. I
 
 ---
 
+## Sprint 3c — QR-Based Password Setup (replaces admin-issued temp password)
+
+---
+
+### [DELTA-017] UC-06 registration no longer discloses a password to staff — QR/token setup flow instead
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI / Security / DB Schema / API |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — backend smoke-tested via curl, frontend verified live in-browser (both AR/EN) |
+
+**What changed:**
+DELTA-011 (this same file) had already moved the patient's *username* to their
+national ID. This entry replaces the other half of UC-06's temp-credentials
+step: staff no longer see or relay a password at all. Registering a patient
+now issues a one-time, single-use, 72-hour setup token (256-bit,
+`crypto.randomBytes(32)`), rendered server-side as a QR code (base64 PNG data
+URL) plus a plain link. Staff shows the QR to the patient (in person or via
+the link); the patient opens a new public page, `/setup-password`, and
+chooses their own password. The old "read the temporary password aloud"
+step — awkward and error-prone, and the actual motivation for this change —
+no longer exists. A parallel "regenerate QR" admin action covers the case
+where a patient loses the QR before scanning it or the 72-hour window
+lapses; regenerating auto-invalidates the previous unused token so at most
+one is ever live per account.
+
+Also surfaced and fixed a real RLS gap while building the regenerate-QR
+admin action: the `admin_select_patients` policy only ever matched
+`role = 'admin'`, never `'superadmin'` — so a superadmin session (a role this
+project added specifically to be admin-equivalent-or-greater, DELTA-001)
+would have silently gotten 404s reading the `patients` table. Widened to
+`IN ('admin', 'superadmin')`.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Replace the UC-06 temp-credential FR: the system shall not disclose a password to staff; it shall issue a one-time QR/link the patient uses to set their own password |
+| Chapter 4 | §4.x Sequence Diagram (Figure 4.11, Register Patient) | Replace the "generate temp password, display to staff" step with "generate setup token, render as QR + link" |
+| Chapter 4 | §4.x ER Diagram | Add `password_setup_tokens` entity (FK to `users`, `token`, `expires_at`, `used_at`) |
+| Chapter 4 | §4.x Security Design | Document the token's properties as the abuse-prevention controls: 256-bit entropy, single-use (atomic consume), 72-hour expiry, auto-invalidation of prior unused tokens, no auth middleware on the public setup endpoints because the token itself is the credential |
+| Chapter 4 | §4.x RBAC / Access Control Design | Note the `admin_select_patients` RLS fix — superadmin now has the same `patients` table read access as admin, closing a gap that predates this feature but blocked it (regenerate-QR needs to resolve patient → user_id under a superadmin session) |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the new public `/setup-password` screen description; update the "Register New Patient" dialog's success-state description (QR panel, not a temp-credentials panel) |
+
+---
+
 ## Sprint 3c — Landing Page Major Expansion
 
 ---
@@ -491,4 +538,4 @@ always have a legible anchor to open from. Logo swapped to the real clinic logo 
 
 ---
 
-*Last updated: Sprint 3c (2026-07-15)*
+*Last updated: Sprint 3c (2026-07-16)*

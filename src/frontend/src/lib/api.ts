@@ -8,6 +8,9 @@ import type {
   LoginResponse,
   RequestOtpPayload,
   RequestOtpResponse,
+  SetupPasswordPayload,
+  SetupPasswordResponse,
+  ValidateSetupTokenResponse,
   VerifyOtpPayload,
   VerifyOtpResponse,
 } from '@/types/auth'
@@ -16,6 +19,7 @@ import type {
   AssignDoctorResponse,
   CreatePatientPayload,
   Patient,
+  RegenerateQrResponse,
   RegisterPatientResponse,
   SearchPatientsResponse,
   UpdatePatientPayload,
@@ -47,6 +51,8 @@ import type {
   UserStatusResponse,
 } from '@/types/user'
 import type { DoctorAvailabilityResponse, ListActiveDoctorsResponse } from '@/types/doctor'
+import type { InvoicesListResponse, UploadInvoiceResponse } from '@/types/invoice'
+import type { LabResultsListResponse, UploadLabResultResponse } from '@/types/labResult'
 
 const AUTH_LOGIN_PATH = '/auth/login'
 // UC-19 step 3 can 401 for "registration token expired/invalid" — a
@@ -116,6 +122,16 @@ export const registerApi = {
     api.post<CompleteRegistrationResponse>(`${AUTH_REGISTER_PATH}complete`, payload).then((res) => res.data),
 }
 
+// Public — no session cookie, no auth middleware server-side (the token
+// itself is the credential). Backs the QR-based first-password flow that
+// replaced the old admin-issued temp password (UC-06).
+export const passwordSetupApi = {
+  validateToken: (token: string) =>
+    api.get<ValidateSetupTokenResponse>('/auth/setup-password', { params: { token } }).then((res) => res.data),
+  setPassword: (payload: SetupPasswordPayload) =>
+    api.post<SetupPasswordResponse>('/auth/setup-password', payload).then((res) => res.data),
+}
+
 // ── Users (admin-managed staff accounts) ───────────────────────────────────
 
 export const usersApi = {
@@ -161,6 +177,9 @@ export const patientsApi = {
     api
       .patch<AssignDoctorResponse>(`/patients/${patientId}/assign-doctor`, payload)
       .then((res) => res.data),
+  /** Admin/superadmin only — for a patient who lost their QR before scanning it. */
+  regenerateQr: (patientId: string) =>
+    api.post<RegenerateQrResponse>(`/patients/${patientId}/regenerate-qr`).then((res) => res.data),
 }
 
 // ── Medical records ──────────────────────────────────────────────────────
@@ -228,4 +247,62 @@ export const appointmentsApi = {
   /** UC-20 — Patient books their own appointment; patient_id is never sent, it's derived server-side from the session. */
   bookMine: (payload: BookOwnAppointmentPayload) =>
     api.post<BookOwnAppointmentResponse>('/appointments/mine', payload).then((res) => res.data),
+}
+
+// ── Invoices (billing documents — admin uploads, admin + doctor view) ──────
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api') as string
+
+export interface UploadInvoicePayload {
+  file: File
+  amount?: string
+  description?: string
+  invoice_date?: string
+}
+
+export const invoicesApi = {
+  listForPatient: (patientId: string) =>
+    api.get<InvoicesListResponse>(`/patients/${patientId}/invoices`).then((res) => res.data),
+  /** Admin/superadmin only — multipart/form-data, matches `uploadSingle` middleware's field name `file`. */
+  upload: (patientId: string, payload: UploadInvoicePayload) => {
+    const form = new FormData()
+    form.append('file', payload.file)
+    if (payload.amount) form.append('amount', payload.amount)
+    if (payload.description) form.append('description', payload.description)
+    if (payload.invoice_date) form.append('invoice_date', payload.invoice_date)
+    return api
+      .post<UploadInvoiceResponse>(`/patients/${patientId}/invoices`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((res) => res.data)
+  },
+  /** Not fetched via axios — this is a plain `<a href download>` target so the browser handles the file, same-origin cookie rides along automatically. */
+  fileUrl: (invoiceId: string) => `${API_BASE_URL}/invoices/${invoiceId}/file`,
+}
+
+// ── Lab results (doctor uploads, doctor-only view) ─────────────────────────
+
+export interface UploadLabResultPayload {
+  file: File
+  test_name: string
+  result_date?: string
+  notes?: string
+}
+
+export const labResultsApi = {
+  listForPatient: (patientId: string) =>
+    api.get<LabResultsListResponse>(`/patients/${patientId}/lab-results`).then((res) => res.data),
+  upload: (patientId: string, payload: UploadLabResultPayload) => {
+    const form = new FormData()
+    form.append('file', payload.file)
+    form.append('test_name', payload.test_name)
+    if (payload.result_date) form.append('result_date', payload.result_date)
+    if (payload.notes) form.append('notes', payload.notes)
+    return api
+      .post<UploadLabResultResponse>(`/patients/${patientId}/lab-results`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((res) => res.data)
+  },
+  fileUrl: (resultId: string) => `${API_BASE_URL}/lab-results/${resultId}/file`,
 }

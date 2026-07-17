@@ -48,6 +48,16 @@
       "notesMax": "Notes must be 2000 characters or fewer"
     }
   },
+  "splitView": {
+    "backToProfile": "Back to {{name}}'s profile",
+    "historyHeading": "History",
+    "historyEmpty": "No previous records for this patient yet.",
+    "historyLoadError": "Could not load this patient's history.",
+    "newRecordHeading": "New record",
+    "newRecordDescription": "Seeing the history alongside this form helps catch what's already been tried.",
+    "save": "Save record",
+    "saving": "Saving…"
+  },
   "detail": {
     "title": "Medical record",
     "createdOn": "Created",

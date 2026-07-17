@@ -1,30 +1,40 @@
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
-import { ArrowLeft, FileText, ShieldAlert, UserX } from 'lucide-react'
+import { ArrowLeft, ShieldAlert, UserX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 
 import { EmptyState } from '@/components/shared/EmptyState'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { PatientSummary } from '@/components/shared/PatientSummary'
-import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { patientsApi } from '@/lib/api'
-import { AssignDoctorForm } from '@/pages/patients/AssignDoctorForm'
-import { PatientEditForm } from '@/pages/patients/PatientEditForm'
+import { cn } from '@/lib/utils'
+import { AppointmentsTab } from '@/pages/patients/profile/AppointmentsTab'
+import { DemographicsTab } from '@/pages/patients/profile/DemographicsTab'
+import { InvoicesTab } from '@/pages/patients/profile/InvoicesTab'
+import { LabResultsTab } from '@/pages/patients/profile/LabResultsTab'
+import { MedicalRecordsTab } from '@/pages/patients/profile/MedicalRecordsTab'
+
+type TabKey = 'medicalRecords' | 'appointments' | 'demographics' | 'invoices' | 'labResults'
 
 /**
- * `/patients/:patientId`. The backend intentionally returns a generic 404
+ * `/patients/:patientId`. Sticky header (design-system.md/ui-brief.md) +
+ * role-gated vertical tabs — see docs/psm2/sprint-3c-ui-overhaul.md's
+ * expanded Screen 7 spec for exactly which tabs each role gets and why
+ * (Invoices/Lab Results tabs are new, backed by invoicesController.js /
+ * labResultsController.js). The backend intentionally returns a generic 404
  * for both "patient doesn't exist" and "exists but RLS says this doctor
- * isn't assigned to them" — those two cases are deliberately indistinguishable
- * here, matching the lookup page. A genuine 403 (role-mismatch on the route
- * itself) is a separate code path and gets its own message.
+ * isn't assigned to them" — those two cases are deliberately
+ * indistinguishable here, matching the lookup page.
  */
 export default function PatientProfilePage() {
   const { patientId } = useParams<{ patientId: string }>()
   const { t } = useTranslation('patients')
   const { t: tCommon } = useTranslation('common')
   const { isAdmin, isDoctor } = useAuth()
+  const [isEditing, setIsEditing] = useState(false)
 
   const {
     data: patient,
@@ -39,6 +49,18 @@ export default function PatientProfilePage() {
   })
 
   const errorStatus = isError ? (error as AxiosError).response?.status : null
+
+  const availableTabs = useMemo(() => {
+    const tabs: TabKey[] = []
+    if (isDoctor) tabs.push('medicalRecords')
+    if (isDoctor || isAdmin) tabs.push('appointments', 'demographics')
+    if (isDoctor || isAdmin) tabs.push('invoices')
+    if (isDoctor) tabs.push('labResults')
+    return tabs
+  }, [isDoctor, isAdmin])
+
+  const [activeTab, setActiveTab] = useState<TabKey>(availableTabs[0] ?? 'demographics')
+  const currentTab = availableTabs.includes(activeTab) ? activeTab : availableTabs[0]
 
   return (
     <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
@@ -72,30 +94,49 @@ export default function PatientProfilePage() {
 
       {!isLoading && !isError && patient && (
         <>
-          <PatientSummary patient={patient}>
-            {isDoctor && (
-              <Button asChild size="sm" variant="secondary">
-                {/*
-                 * Contract with the next agent (Medical Records pages):
-                 * `/records?patientId=<uuid>` — that page should read this
-                 * query param via useSearchParams and call
-                 * `recordsApi.listForPatient(patientId)` instead of the
-                 * doctor's own full `recordsApi.list()` when it's present.
-                 */}
-                <Link to={`/records?patientId=${patient.patientId}`}>
-                  <FileText className="h-4 w-4" aria-hidden="true" />
-                  {t('viewMedicalHistory')}
-                </Link>
-              </Button>
-            )}
-          </PatientSummary>
+          <PatientSummary
+            patient={patient}
+            isEditing={isAdmin ? isEditing : undefined}
+            onToggleEdit={isAdmin ? () => setIsEditing((v) => !v) : undefined}
+          />
 
-          {isAdmin && (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <PatientEditForm patient={patient} />
-              <AssignDoctorForm patient={patient} />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[200px_1fr]">
+            <nav className="flex flex-row gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+              {availableTabs.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    'shrink-0 rounded-lg px-3 py-2 text-start text-sm font-medium transition-colors duration-150 ease-out',
+                    'border-s-4 lg:border-s-4',
+                    currentTab === tab
+                      ? 'border-primary-600 bg-primary-50 text-primary-700'
+                      : 'border-transparent text-muted-foreground hover:bg-neutral-100',
+                  )}
+                >
+                  {t(`tabs.${tab}`)}
+                </button>
+              ))}
+            </nav>
+
+            <div className="rounded-lg border border-border bg-card p-5 shadow-card">
+              {currentTab === 'medicalRecords' && <MedicalRecordsTab patientId={patient.patientId} />}
+              {currentTab === 'appointments' && <AppointmentsTab patientId={patient.patientId} />}
+              {currentTab === 'demographics' && (
+                <DemographicsTab
+                  patient={patient}
+                  isAdmin={isAdmin}
+                  isEditing={isAdmin && isEditing}
+                  onDoneEditing={() => setIsEditing(false)}
+                />
+              )}
+              {currentTab === 'invoices' && (
+                <InvoicesTab patientId={patient.patientId} isAdmin={isAdmin} />
+              )}
+              {currentTab === 'labResults' && <LabResultsTab patientId={patient.patientId} />}
             </div>
-          )}
+          </div>
         </>
       )}
     </div>

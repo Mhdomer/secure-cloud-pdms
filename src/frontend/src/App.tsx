@@ -15,6 +15,7 @@ import FacilitiesPage from '@/pages/landing/FacilitiesPage'
 import PatientInfoPage from '@/pages/landing/PatientInfoPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
+import SetupPasswordPage from '@/pages/auth/SetupPasswordPage'
 import AdminDashboard from '@/pages/dashboard/AdminDashboard'
 import DoctorDashboard from '@/pages/dashboard/DoctorDashboard'
 import PatientDashboard from '@/pages/dashboard/PatientDashboard'
@@ -67,6 +68,7 @@ function App() {
             <Route path="/patient-info" element={<PatientInfoPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/setup-password" element={<SetupPasswordPage />} />
 
             <Route
               path="/dashboard/superadmin"

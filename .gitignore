@@ -14,6 +14,9 @@ npm-debug.log
 dist/
 *.tsbuildinfo
 
+# Uploaded patient files (dev local storage — Sprint 4 moves this to S3)
+src/backend/uploads/
+
 # Python
 __pycache__/
 *.pyc

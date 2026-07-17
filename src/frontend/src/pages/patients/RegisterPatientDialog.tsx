@@ -2,12 +2,13 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
-import { Check, Copy, UserPlus } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 import { DoctorSelect } from '@/components/shared/DoctorSelect'
+import { SetupQrPanel } from '@/components/shared/SetupQrPanel'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -36,7 +37,6 @@ import {
 } from '@/components/ui/select'
 import { toast } from '@/components/ui/toaster'
 import { patientsApi } from '@/lib/api'
-import { copyToClipboard } from '@/lib/utils'
 import { useRecentRegistrationsStore } from '@/store/recentRegistrationsStore'
 import type { CreatePatientPayload, Gender, RegisterPatientResponse } from '@/types/patient'
 
@@ -55,15 +55,16 @@ interface RegisterPatientDialogProps {
 
 /**
  * Admin-only "register new patient" flow (UC-06). Wraps both the
- * registration form and the one-time temp-credentials reveal in a single
- * Dialog so the credentials can never be shown without the admin having just
- * submitted the form in this session.
+ * registration form and the one-time QR/setup-link reveal in a single
+ * Dialog so the QR can never be shown without the admin having just
+ * submitted the form in this session. No password is generated for staff to
+ * relay — the patient scans the QR (or opens the link) to set their own at
+ * /setup-password.
  */
 export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = {}) {
   const { t } = useTranslation('patients')
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState<RegisterPatientResponse | null>(null)
-  const [copiedField, setCopiedField] = useState<'username' | 'password' | null>(null)
 
   // Rebuilt when language changes so validation messages stay in sync, same
   // pattern as LoginPage's schema.
@@ -105,7 +106,7 @@ export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = 
   const registerMutation = useMutation({
     mutationFn: (payload: CreatePatientPayload) => patientsApi.register(payload),
     onSuccess: (data, variables) => {
-      // Do NOT log `data` anywhere — it carries the one-time temp password.
+      // Do NOT log `data` anywhere — it carries the one-time setup QR/link.
       setResult(data)
       toast.success(t('register.success'))
       // Feeds the Admin Dashboard's "Recently registered" strip — see
@@ -139,22 +140,9 @@ export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = 
     registerMutation.mutate(payload)
   }
 
-  const handleCopy = async (field: 'username' | 'password', value: string) => {
-    const ok = await copyToClipboard(value)
-    if (!ok) {
-      toast.error(t('credentialsPanel.copyUnavailable'))
-      return
-    }
-    setCopiedField(field)
-    window.setTimeout(() => {
-      setCopiedField((current) => (current === field ? null : current))
-    }, 2000)
-  }
-
   const handleAcknowledge = () => {
     setOpen(false)
     setResult(null)
-    setCopiedField(null)
     form.reset()
   }
 
@@ -162,10 +150,9 @@ export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = 
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
-        // Once credentials are showing, only the explicit "acknowledge"
-        // button may close this dialog — the temp password is never
-        // retrievable again after this response, so an accidental dismiss
-        // must not be possible.
+        // Once the QR/setup link is showing, only the explicit "acknowledge"
+        // button may close this dialog — it is never retrievable again
+        // after this response, so an accidental dismiss must not be possible.
         if (!nextOpen && result) return
         setOpen(nextOpen)
         if (!nextOpen) {
@@ -319,27 +306,12 @@ export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = 
           <>
             <DialogHeader>
               <DialogTitle>{t('credentialsPanel.title')}</DialogTitle>
-              <DialogDescription>{t('credentialsPanel.description')}</DialogDescription>
+              <DialogDescription>
+                {t('credentialsPanel.description', { username: result.username })}
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="flex flex-col gap-3">
-              <CredentialRow
-                label={t('credentialsPanel.username')}
-                value={result.tempUsername}
-                copied={copiedField === 'username'}
-                onCopy={() => handleCopy('username', result.tempUsername)}
-                copyLabel={t('credentialsPanel.copy')}
-                copiedLabel={t('credentialsPanel.copied')}
-              />
-              <CredentialRow
-                label={t('credentialsPanel.password')}
-                value={result.tempPassword}
-                copied={copiedField === 'password'}
-                onCopy={() => handleCopy('password', result.tempPassword)}
-                copyLabel={t('credentialsPanel.copy')}
-                copiedLabel={t('credentialsPanel.copied')}
-              />
-            </div>
+            <SetupQrPanel qrCode={result.qrCode} setupUrl={result.setupUrl} expiresAt={result.expiresAt} />
 
             <p className="rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-600">
               {t('credentialsPanel.warning')}
@@ -354,42 +326,5 @@ export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = 
         )}
       </DialogContent>
     </Dialog>
-  )
-}
-
-interface CredentialRowProps {
-  label: string
-  value: string
-  copied: boolean
-  onCopy: () => void
-  copyLabel: string
-  copiedLabel: string
-}
-
-function CredentialRow({
-  label,
-  value,
-  copied,
-  onCopy,
-  copyLabel,
-  copiedLabel,
-}: CredentialRowProps) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-neutral-50 px-3 py-2">
-        <code className="flex-1 truncate text-sm text-foreground" dir="ltr">
-          {value}
-        </code>
-        <Button type="button" variant="ghost" size="sm" onClick={onCopy}>
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-success-600" aria-hidden="true" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          {copied ? copiedLabel : copyLabel}
-        </Button>
-      </div>
-    </div>
   )
 }
