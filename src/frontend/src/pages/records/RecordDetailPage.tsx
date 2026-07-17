@@ -106,9 +106,7 @@ export default function RecordDetailPage() {
               </span>
               <div>
                 <CardTitle>{t('detail.title')}</CardTitle>
-                <p className="truncate text-xs text-muted-foreground" dir="ltr">
-                  {record.recordId}
-                </p>
+                <p className="text-xs text-muted-foreground">{formatDateTime(record.createdAt)}</p>
               </div>
             </div>
             {canEdit && !isEditing && (
@@ -118,20 +116,12 @@ export default function RecordDetailPage() {
             )}
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
-            <dl className="grid grid-cols-1 gap-3 border-b border-border pb-6 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-xs font-medium text-muted-foreground">
-                  {t('detail.createdOn')}
-                </dt>
-                <dd className="text-foreground">{formatDateTime(record.createdAt)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-muted-foreground">
-                  {t('detail.updatedOn')}
-                </dt>
+            {record.updatedAt !== record.createdAt && (
+              <dl className="border-b border-border pb-6 text-sm">
+                <dt className="text-xs font-medium text-muted-foreground">{t('detail.updatedOn')}</dt>
                 <dd className="text-foreground">{formatDateTime(record.updatedAt)}</dd>
-              </div>
-            </dl>
+              </dl>
+            )}
 
             {isEditing ? (
               <RecordEditForm record={record} onDone={() => setIsEditing(false)} />

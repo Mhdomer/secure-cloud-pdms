@@ -47,22 +47,36 @@ Rules you must follow:
 
 | # | Screen | File | Status | Session # |
 |---|---|---|---|---|
-| 1 | Login Page | `src/pages/auth/LoginPage.tsx` | Not started | — |
+| 1 | Login Page | `src/pages/auth/LoginPage.tsx` | Gate passed | 2026-07-17 |
 | 2 | Doctor Dashboard | `src/pages/dashboard/DoctorDashboard.tsx` | Gate passed | 2026-07-14 |
 | 3 | Staff Dashboard | `src/pages/dashboard/AdminDashboard.tsx` | Gate passed | 2026-07-15 |
 | 4 | Patient Dashboard | `src/pages/dashboard/PatientDashboard.tsx` | Gate passed | 2026-07-15 |
-| 5 | Superadmin Dashboard | `src/pages/dashboard/SuperAdminDashboard.tsx` | Not started | — |
-| 6 | Patient List | `src/pages/patients/PatientLookupPage.tsx` | Not started | — |
-| 7 | Patient Profile | `src/pages/patients/PatientProfilePage.tsx` | Not started | — |
-| 8 | Appointments | `src/pages/appointments/AppointmentsPage.tsx` | Not started | — |
-| 9 | Medical Records | `src/pages/records/MedicalRecordsPage.tsx` | Not started | — |
-| 10 | Record Detail | `src/pages/records/RecordDetailPage.tsx` | Not started | — |
-| 11 | Settings | `src/pages/settings/SettingsPage.tsx` | Not started | — |
-| 12 | User Management | `src/pages/settings/UserManagementPage.tsx` | Not started | — |
-| 13 | Landing Page | `src/pages/landing/LandingPage.tsx` | Prompt ready — not started | — |
-| 14 | App Shell / Sidebar | `src/components/layout/` | Not started | — |
+| 5 | Superadmin Dashboard | `src/pages/dashboard/SuperAdminDashboard.tsx` | Gate passed | 2026-07-17 |
+| 6 | Patient List | `src/pages/patients/PatientLookupPage.tsx` | Gate passed | 2026-07-17 |
+| 7 | Patient Profile | `src/pages/patients/PatientProfilePage.tsx` | Needs rebuild — audited 2026-07-17: plain data-entry look, raw UUIDs for MRN + assigned doctor, no sticky header/tabs/allergy badge | — |
+| 8 | Appointments | `src/pages/appointments/AppointmentsPage.tsx` | Gate passed (create/edit dialogs still plain modals, not the slide-in panel `ui-brief.md` describes — follow-up, not blocking) | 2026-07-17 |
+| 9 | Medical Records | `src/pages/records/MedicalRecordsPage.tsx` | Needs rebuild — audited 2026-07-17: plain table, no split-pane history+form layout | — |
+| 10 | Record Detail | `src/pages/records/RecordDetailPage.tsx` | Gate passed — replaced the exposed raw record UUID in the header with the created date (existing left-border clinical-field treatment was already reasonable) | 2026-07-17 |
+| 11 | Settings | `src/pages/settings/SettingsPage.tsx` | Gate passed (superadmin "Change Display Name" not implemented — no backend endpoint exists yet, out of frontend scope) | 2026-07-17 |
+| 12 | User Management | `src/pages/settings/UserManagementPage.tsx` | Gate passed — added `components/ui/sheet.tsx` (new, RTL-aware slide-in) for account creation + a confirm dialog before deactivate/reactivate | 2026-07-17 |
+| 13 | Landing Page | `src/pages/landing/LandingPage.tsx` | Gate passed | 2026-07-17 |
+| 14 | App Shell / Sidebar | `src/components/layout/` | Needs rebuild — audited 2026-07-17: missing bottom user/logout footer in sidebar (user chip currently top-right in header instead) | — |
+| 15 | Password Setup Page (new, public) | `src/pages/auth/SetupPasswordPage.tsx` | Done — built same session as the backend QR flow it depends on (see Backend Edit Sessions below). Manually verified bilingual (AR/EN) end-to-end in-browser (token validate → set password → success → login with new password); formal `/rtl-check` + `/ui-review` not yet run | 2026-07-16 |
 
 Update Status to: `In progress` → `Done` → `Gate passed` as you go.
+
+> **Screen 15 note:** run `/rtl-check` and `/ui-review` on `SetupPasswordPage.tsx` (and on the QR panel it shares with `RegisterPatientDialog.tsx`/`RegenerateQrCard.tsx` — `components/shared/SetupQrPanel.tsx`) before marking Gate passed, per the one-screen-per-session rule.
+
+> **Login Page brand correction (found during 2026-07-17 audit):** `LoginPage.tsx` uses the
+> `brand.gold`/`brand.charcoal` palette (real photo hero, gold CTA) instead of the plain
+> `primary-700` teal panel + SVG pattern described in `ui-brief.md`'s Login Page section.
+> This isn't a bug — `tailwind.config.ts` documents `brand.*` as intentionally "scoped to
+> auth/marketing surfaces," matching the same real-photography treatment used on the
+> rebuilt Landing Page. `ui-brief.md`'s Login section is stale on this point; the code's
+> decision wins. Login also asks for `username`, not `email`, since the backend auths by
+> username — another point where the brief text predates the actual implementation.
+
+
 
 ---
 
@@ -710,6 +724,18 @@ For backend fixes and additions, use the same one-session-per-feature rule.
 | Seed superadmin account | `scripts/seed-admin.js` | Not started |
 | Schema gap fixes (national_id, SOAP, confirmed status, doctor_availability) | `schema.sql`, `patientsController.js`, `medicalRecordsController.js`, `appointmentsController.js`, `DoctorAvailability.js`, `availability.js` | **Already implemented** — all files exist and contain the new fields. `docs/psm2/session-prompts/backend-schema-gaps.md` prompt is now stale/unneeded. Only outstanding question: whether the local DB was actually migrated (run `schema-additions.sql` against local Postgres if app errors on the new columns). |
 | `GET /appointments` had no date bound — `ORDER BY scheduled_at ASC LIMIT` alone silently returned only the oldest rows once past `limit`, found while gating the Staff Dashboard screen | `models/Appointment.js`, `controllers/appointmentsController.js`, `routes/appointments.routes.js`, `lib/dateRange.ts`, `DoctorDashboard.tsx`, `AdminDashboard.tsx` | Fixed 2026-07-15 — added optional `from`/`to` ISO8601 query params, both dashboards now request a padded window around today; verified live against seeded data (admin/doctor/patient scoping + backward-compat pagination all confirmed via curl) |
+| QR-based first-password flow — replaces the old admin-issued random temp password. Staff registers a patient with no password disclosed to them; a one-time 72-hour setup token is issued and rendered as a QR (`qrcode` npm package, server-side) + link; patient scans/opens it, lands on the new public `/setup-password` page, and sets their own password. Single-use, atomically consumed to close a race window; previous unused token auto-invalidated on regenerate. Also fixed a latent RLS gap found while building this: `admin_select_patients` only matched role `'admin'`, never `'superadmin'`, so any superadmin-authorized patients-table read (like the new regenerate-QR lookup) would have silently 404'd | Backend: `schema.sql` (`password_setup_tokens` table + RLS widen), `lib/generateSetupToken.js`, `models/PasswordSetupToken.js`, `controllers/passwordSetupController.js`, `controllers/patientsController.js` (registerPatient + new regenerateQR), `routes/passwordSetup.routes.js`, `routes/patients.routes.js`. Frontend: `pages/auth/SetupPasswordPage.tsx` (new), `components/shared/SetupQrPanel.tsx` (new, shared), `pages/patients/RegenerateQrCard.tsx` (new), `pages/patients/RegisterPatientDialog.tsx` (credentials panel → QR panel), `pages/patients/PatientProfilePage.tsx`, `App.tsx`, `lib/api.ts`, `types/patient.ts`, `types/auth.ts`, `locales/{en,ar}/{patients,auth}.json` | Done 2026-07-16 — backend smoke-tested end-to-end via curl in one session, frontend built and verified live in-browser in a follow-up session (register → QR shown → scan link → set password → login with new password → regenerate QR as admin, all confirmed working in both AR and EN). One real bug caught and fixed during browser verification: `SetupQrPanel`'s root div needed `min-w-0` — `DialogContent` is `display:grid`, and grid/flex items default to `min-width:auto`, so the panel refused to shrink below the un-truncated setup URL's intrinsic width and overflowed the dialog box. |
+
+### Upcoming — QR/password-setup follow-ups (not started)
+
+Raised while reviewing the QR flow above; none of these are blocking, but the QR flow's rollout isn't fully "smooth" without them.
+
+| Item | Type | Why |
+|---|---|---|
+| Rate limit `POST /api/auth/setup-password` | Backend | It's public/unauthenticated and does a bcrypt hash on every call — cheap CPU-exhaustion target today. Should reuse the `loginLimiter` pattern in `middleware/rateLimiter.js`. |
+| SMS delivery of the setup link | Backend (small) | `utils/smsProvider.js` already exists (stubbed, from the UC-19 OTP flow) — reuse it so staff can text the link instead of relying on the patient scanning a QR on the spot. |
+| "Pending setup" list for admins | Backend + Frontend | No way today to see which registered patients haven't scanned their QR yet, or whose 72-hour window is about to lapse — staff only finds out reactively when the patient shows up unable to log in. Needs a query (`password_setup_tokens` where `used_at IS NULL`) and a small admin-facing view/badge. |
+| Printable QR slip | Frontend | Not every patient scans on the spot; a print-friendly bilingual card (QR + instructions) the patient can take home would reduce round-trips back to the desk. |
 
 Backend session prompt prefix:
 ```

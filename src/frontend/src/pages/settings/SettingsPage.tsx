@@ -2,18 +2,20 @@ import { useMemo } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
+import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
-import { LanguageToggle } from '@/components/shared/LanguageToggle'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
+import { useLanguage, type SupportedLanguage } from '@/hooks/useLanguage'
 import { usersApi } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import type { ChangePasswordPayload } from '@/types/user'
 
 /**
@@ -63,11 +65,60 @@ export default function SettingsPage() {
           <CardDescription>{t('language.description')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <LanguageToggle />
+          <LanguageSegmentedControl />
         </CardContent>
       </Card>
 
       <ChangePasswordCard />
+    </div>
+  )
+}
+
+/**
+ * The settings page's one bold idea, per ui-brief.md: a large, obvious
+ * segmented control (not the header's small pill, not a dropdown) — clicking
+ * either half changes the whole page's language/direction live, the clearest
+ * demo of the bilingual system the app has.
+ */
+function LanguageSegmentedControl() {
+  const { t } = useTranslation('settings')
+  const { currentLang, setLanguage } = useLanguage()
+
+  const options: { value: SupportedLanguage; label: string }[] = [
+    { value: 'en', label: t('language.english') },
+    { value: 'ar', label: t('language.arabic') },
+  ]
+
+  return (
+    <div className="relative grid grid-cols-2 gap-1 rounded-xl border border-border bg-neutral-100 p-1">
+      {options.map((option) => {
+        const isActive = currentLang === option.value
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setLanguage(option.value)}
+            aria-pressed={isActive}
+            className="relative rounded-lg px-4 py-3 text-sm font-semibold transition-colors duration-150 ease-out"
+          >
+            {isActive && (
+              <motion.span
+                layoutId="settings-lang-active"
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="absolute inset-0 rounded-lg bg-card shadow-card"
+              />
+            )}
+            <span
+              className={cn(
+                'relative',
+                isActive ? 'text-primary-700' : 'text-muted-foreground',
+              )}
+            >
+              {option.label}
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 }

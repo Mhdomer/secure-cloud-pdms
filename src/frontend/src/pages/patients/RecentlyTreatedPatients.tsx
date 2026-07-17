@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { Users } from 'lucide-react'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { ChevronRight, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
@@ -7,7 +7,8 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLanguage } from '@/hooks/useLanguage'
-import { recordsApi } from '@/lib/api'
+import { avatarClassesFor, initialsFor } from '@/lib/avatar'
+import { patientsApi, recordsApi } from '@/lib/api'
 import type { MedicalRecordSummary } from '@/types/medicalRecord'
 
 interface DerivedPatientRow {
@@ -61,6 +62,17 @@ export function RecentlyTreatedPatients() {
 
   const rows = deriveRecentPatients(data?.records ?? [])
 
+  // Names/allergies aren't on the records endpoint, only patientId — fetch
+  // each derived patient's profile, same pattern DoctorDashboard uses for
+  // its own "recent patients" widget.
+  const patientQueries = useQueries({
+    queries: rows.map((row) => ({
+      queryKey: ['patients', 'get', row.patientId],
+      queryFn: () => patientsApi.get(row.patientId),
+      staleTime: 5 * 60 * 1000,
+    })),
+  })
+
   const formatDate = (iso: string) => {
     try {
       return new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-US', {
@@ -87,26 +99,46 @@ export function RecentlyTreatedPatients() {
         )}
         {!isLoading && !isError && rows.length > 0 && (
           <ul className="flex flex-col gap-1">
-            {rows.map((row) => (
-              <li key={row.patientId}>
-                <Link
-                  to={`/patients/${row.patientId}`}
-                  className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 transition-colors duration-150 ease-out hover:bg-primary-50"
-                >
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-medium text-foreground" dir="ltr">
-                      {row.patientId}
+            {rows.map((row, idx) => {
+              const patient = patientQueries[idx]?.data
+              if (!patient) {
+                return (
+                  <li key={row.patientId}>
+                    <span className="block h-14 w-full animate-pulse rounded-lg bg-neutral-200" />
+                  </li>
+                )
+              }
+              return (
+                <li key={row.patientId}>
+                  <Link
+                    to={`/patients/${row.patientId}`}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors duration-150 ease-out hover:bg-primary-50"
+                  >
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarClassesFor(patient.patientId)}`}
+                      aria-hidden="true"
+                    >
+                      {initialsFor(patient.fullName)}
                     </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {row.lastDiagnosis}
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {patient.fullName}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {row.lastDiagnosis}
+                      </span>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDate(row.lastRecordCreatedAt)}
                     </span>
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {t('recentlyTreated.lastRecord')}: {formatDate(row.lastRecordCreatedAt)}
-                  </span>
-                </Link>
-              </li>
-            ))}
+                    <ChevronRight
+                      className="h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                </li>
+              )
+            })}
           </ul>
         )}
       </CardContent>

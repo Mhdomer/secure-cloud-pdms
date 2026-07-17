@@ -1,6 +1,13 @@
 {
   "title": "Appointments",
   "new": "New appointment",
+  "view": {
+    "day": "Day view",
+    "list": "List view"
+  },
+  "dayView": {
+    "heading": "Today's schedule"
+  },
   "date": "Date",
   "time": "Time",
   "doctor": "Doctor",

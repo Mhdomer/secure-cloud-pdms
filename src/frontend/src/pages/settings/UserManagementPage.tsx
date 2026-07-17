@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Stethoscope, UserCog } from 'lucide-react'
+import { Plus, Stethoscope, UserCog } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
@@ -11,6 +11,14 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Form,
   FormControl,
@@ -28,6 +36,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import { toast } from '@/components/ui/toaster'
 import { useLanguage } from '@/hooks/useLanguage'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
@@ -47,12 +63,14 @@ export default function UserManagementPage() {
 
   return (
     <div className="mx-auto flex max-w-[960px] flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{t('users.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('users.description')}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t('users.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('users.description')}</p>
+        </div>
+        <CreateStaffAccountSheet />
       </div>
 
-      <CreateStaffAccountCard />
       <StaffDirectoryCard />
     </div>
   )
@@ -60,9 +78,10 @@ export default function UserManagementPage() {
 
 const STAFF_ROLES: StaffRole[] = ['doctor', 'admin']
 
-function CreateStaffAccountCard() {
+function CreateStaffAccountSheet() {
   const { t } = useTranslation('settings')
   const { t: tCommon } = useTranslation('common')
+  const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
 
   const createUserSchema = useMemo(
@@ -114,6 +133,7 @@ function CreateStaffAccountCard() {
       toast.success(t('users.create.success', { username: data.username }))
       form.reset(defaultValues)
       queryClient.invalidateQueries({ queryKey: ['users', 'directory'] })
+      setOpen(false)
     },
     onError: () => {
       toast.error(t('users.create.error'))
@@ -134,12 +154,18 @@ function CreateStaffAccountCard() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('users.create.title')}</CardTitle>
-        <CardDescription>{t('users.create.description')}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button type="button" className="gap-1.5">
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {t('users.create.trigger')}
+        </Button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>{t('users.create.title')}</SheetTitle>
+          <SheetDescription>{t('users.create.description')}</SheetDescription>
+        </SheetHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -242,8 +268,8 @@ function CreateStaffAccountCard() {
             </Button>
           </form>
         </Form>
-      </CardContent>
-    </Card>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -348,6 +374,7 @@ function StaffDirectoryRow({
 }) {
   const { t } = useTranslation('settings')
   const { t: tCommon } = useTranslation('common')
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const displayName = user.fullName ?? user.username
   const joinedDate = new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', {
@@ -355,6 +382,12 @@ function StaffDirectoryRow({
     day: 'numeric',
     year: 'numeric',
   }).format(new Date(user.createdAt))
+
+  const confirmAction = () => {
+    setConfirmOpen(false)
+    if (user.isActive) onDeactivate()
+    else onReactivate()
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
@@ -391,7 +424,7 @@ function StaffDirectoryRow({
         size="sm"
         variant={user.isActive ? 'destructive' : 'default'}
         disabled={isMutating}
-        onClick={user.isActive ? onDeactivate : onReactivate}
+        onClick={() => setConfirmOpen(true)}
       >
         {isMutating
           ? user.isActive
@@ -401,6 +434,35 @@ function StaffDirectoryRow({
             ? t('users.deactivate.submit')
             : t('users.reactivate.submit')}
       </Button>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {user.isActive
+                ? t('users.deactivate.confirmTitle', { name: displayName })
+                : t('users.reactivate.confirmTitle', { name: displayName })}
+            </DialogTitle>
+            <DialogDescription>
+              {user.isActive
+                ? t('users.deactivate.confirmDescription')
+                : t('users.reactivate.confirmDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)}>
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant={user.isActive ? 'destructive' : 'default'}
+              onClick={confirmAction}
+            >
+              {user.isActive ? t('users.deactivate.submit') : t('users.reactivate.submit')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,7 +1,15 @@
-import { useState } from 'react'
+import { type CSSProperties, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
-import { CalendarClock, ChevronLeft, ChevronRight, ShieldAlert } from 'lucide-react'
+import {
+  CalendarClock,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  List,
+  ShieldAlert,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -9,63 +17,79 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { appointmentsApi } from '@/lib/api'
+import { todayWindowIso } from '@/lib/dateRange'
+import { cn } from '@/lib/utils'
 import { BookAppointmentDialog } from '@/pages/appointments/BookAppointmentDialog'
 import { CancelAppointmentDialog } from '@/pages/appointments/CancelAppointmentDialog'
 import { CreateAppointmentDialog } from '@/pages/appointments/CreateAppointmentDialog'
 import { EditAppointmentDialog } from '@/pages/appointments/EditAppointmentDialog'
+import type { Appointment, AppointmentType } from '@/types/appointment'
 
 const PAGE_LIMIT = 10
 
+// Day view clinic window (8 AM–10 PM per ui-brief.md) — same hour-grid
+// timeline pattern as DoctorDashboard/AdminDashboard, so "list view = the
+// same card language as the dashboards" holds across the whole app.
+const WINDOW_START_HOUR = 8
+const WINDOW_END_HOUR = 22
+const PX_PER_HOUR = 72
+const WINDOW_HOURS = WINDOW_END_HOUR - WINDOW_START_HOUR
+const TIMELINE_HEIGHT = WINDOW_HOURS * PX_PER_HOUR
+
+const TYPE_ACCENT: Record<AppointmentType, string> = {
+  consultation: 'border-primary-600',
+  follow_up: 'border-warning-600',
+  emergency: 'border-danger-600',
+  checkup: 'border-slate-400',
+}
+
+function isSameCalendarDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+function minutesFromWindowStart(date: Date) {
+  return (date.getHours() - WINDOW_START_HOUR) * 60 + date.getMinutes()
+}
+
+function topPxFor(date: Date) {
+  return Math.min(Math.max((minutesFromWindowStart(date) / 60) * PX_PER_HOUR, 0), TIMELINE_HEIGHT)
+}
+
+function formatHourLabel(hour: number, lang: 'ar' | 'en') {
+  const marker = new Date()
+  marker.setHours(hour, 0, 0, 0)
+  return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric' }).format(
+    marker,
+  )
+}
+
+type ViewMode = 'day' | 'list'
+
 /**
- * `/appointments`. Scope (own schedule / own appointments / everything) is
- * derived server-side from the session cookie — this page never sends a
- * role or user filter, it just renders whatever `appointmentsApi.list`
- * returns.
- *
- * Pagination note: `GET /api/appointments` returns `{ appointments, page,
- * limit }` with no `total` (see `AppointmentsListResponse` in
- * types/appointment.ts) — a real API limitation, not an oversight. A
- * page-count pager is therefore impossible to build honestly, so this uses a
- * simple next/previous pager instead: "next" is disabled once a fetch comes
- * back with fewer than `PAGE_LIMIT` rows (the only page-boundary signal the
- * API gives us).
- *
- * Mutations: Admin can create/edit/cancel any appointment (UC-14/17/18).
- * Patient can book (UC-20) and cancel (UC-21) only their own — never edit,
- * and never anyone else's, both gated here on `isPatient` in addition to the
- * backend's own enforcement (`bookOwnAppointment` derives `patient_id` from
- * the session; `cancelAppointment` checks ownership server-side). Doctor
- * sessions never render so much as a disabled button for any of these.
+ * `/appointments`. Day view (default) mirrors the dashboards' hour-grid
+ * timeline so a day's shape — gaps, clusters, conflicts — reads at a glance;
+ * List view keeps the plain pager for browsing appointments outside today.
+ * Scope (own schedule / own appointments / everything) is derived
+ * server-side from the session cookie in both views.
  */
 export default function AppointmentsPage() {
   const { t } = useTranslation('appointments')
   const { t: tCommon } = useTranslation('common')
   const { isAdmin, isDoctor, isPatient } = useAuth()
   const { currentLang } = useLanguage()
+  const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [page, setPage] = useState(1)
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['appointments', 'list', page, PAGE_LIMIT],
-    queryFn: () => appointmentsApi.list({ page, limit: PAGE_LIMIT }),
-  })
+  const now = useMemo(() => new Date(), [])
+  const { from, to } = useMemo(() => todayWindowIso(now), [now])
 
-  const appointments = data?.appointments ?? []
-  const hasNextPage = appointments.length === PAGE_LIMIT
-  const errorStatus = isError ? (error as AxiosError).response?.status : null
-
-  // Doctor's own schedule always shows the patient side; patient's own
-  // upcoming list always shows the doctor side; admin sees both.
   const showDoctorColumn = isAdmin || isPatient
   const showPatientColumn = isAdmin || isDoctor
 
@@ -96,119 +120,342 @@ export default function AppointmentsPage() {
     <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        {isAdmin && <CreateAppointmentDialog />}
-        {isPatient && <BookAppointmentDialog />}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === 'day' ? 'default' : 'ghost'}
+              className={cn('h-8 gap-1.5', viewMode !== 'day' && 'text-muted-foreground')}
+              onClick={() => setViewMode('day')}
+            >
+              <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('view.day')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              className={cn('h-8 gap-1.5', viewMode !== 'list' && 'text-muted-foreground')}
+              onClick={() => setViewMode('list')}
+            >
+              <List className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('view.list')}
+            </Button>
+          </div>
+          {isAdmin && <CreateAppointmentDialog />}
+          {isPatient && <BookAppointmentDialog />}
+        </div>
       </div>
 
-      {isLoading && <LoadingSpinner label={tCommon('loading')} />}
-
-      {!isLoading && isError && errorStatus === 403 && (
-        <EmptyState
-          icon={ShieldAlert}
-          title={t('errors.forbiddenTitle')}
-          description={t('errors.forbiddenDescription')}
+      {viewMode === 'day' ? (
+        <DayView
+          from={from}
+          to={to}
+          now={now}
+          currentLang={currentLang}
+          showDoctorColumn={showDoctorColumn}
+          showPatientColumn={showPatientColumn}
+          isAdmin={isAdmin}
+          isPatient={isPatient}
+        />
+      ) : (
+        <ListView
+          page={page}
+          setPage={setPage}
+          formatDate={formatDate}
+          formatTime={formatTime}
+          showDoctorColumn={showDoctorColumn}
+          showPatientColumn={showPatientColumn}
+          isAdmin={isAdmin}
+          isPatient={isPatient}
         />
       )}
-      {!isLoading && isError && errorStatus !== 403 && (
-        <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
-      )}
+    </div>
+  )
+}
 
-      {!isLoading && !isError && appointments.length === 0 && (
+interface ViewProps {
+  showDoctorColumn: boolean
+  showPatientColumn: boolean
+  isAdmin: boolean
+  isPatient: boolean
+}
+
+function DayView({
+  from,
+  to,
+  now,
+  currentLang,
+  showDoctorColumn,
+  showPatientColumn,
+}: ViewProps & { from: string; to: string; now: Date; currentLang: 'ar' | 'en' }) {
+  const { t } = useTranslation('appointments')
+  const { t: tCommon } = useTranslation('common')
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['appointments', 'list', 'day', from, to],
+    queryFn: () => appointmentsApi.list({ limit: 100, from, to }),
+  })
+  const errorStatus = isError ? (error as AxiosError).response?.status : null
+
+  const todaysAppointments = useMemo(
+    () => (data?.appointments ?? []).filter((a) => isSameCalendarDay(new Date(a.scheduledAt), now)),
+    [data, now],
+  )
+
+  const nowOffsetMinutes = minutesFromWindowStart(now)
+  const showNowLine = nowOffsetMinutes >= 0 && nowOffsetMinutes <= WINDOW_HOURS * 60
+  const sweepStyle: CSSProperties = {
+    ['--sweep-distance' as string]: `${TIMELINE_HEIGHT}px`,
+    animationDelay: `-${nowOffsetMinutes * 60}s`,
+  }
+  const hourMarks = Array.from({ length: WINDOW_HOURS + 1 }, (_, i) => WINDOW_START_HOUR + i)
+
+  if (isLoading) return <LoadingSpinner label={tCommon('loading')} />
+
+  if (isError && errorStatus === 403) {
+    return (
+      <EmptyState
+        icon={ShieldAlert}
+        title={t('errors.forbiddenTitle')}
+        description={t('errors.forbiddenDescription')}
+      />
+    )
+  }
+  if (isError) return <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-5 shadow-card">
+      <h2 className="mb-5 text-base font-semibold text-foreground">{t('dayView.heading')}</h2>
+
+      {todaysAppointments.length === 0 ? (
         <EmptyState
           icon={CalendarClock}
           title={t('noAppointments')}
           description={t('noAppointmentsHint')}
         />
-      )}
-
-      {!isLoading && !isError && appointments.length > 0 && (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('date')}</TableHead>
-                <TableHead>{t('time')}</TableHead>
-                {showDoctorColumn && <TableHead>{t('doctor')}</TableHead>}
-                {showPatientColumn && <TableHead>{t('patient')}</TableHead>}
-                <TableHead>{t('type')}</TableHead>
-                <TableHead>{t('status')}</TableHead>
-                {(isAdmin || isPatient) && (
-                  <TableHead className="text-end">
-                    <span className="sr-only">{t('actions')}</span>
-                  </TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {appointments.map((appointment) => (
-                <TableRow key={appointment.appointmentId}>
-                  <TableCell className="whitespace-nowrap">
-                    {formatDate(appointment.scheduledAt)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {formatTime(appointment.scheduledAt)}
-                  </TableCell>
-                  {showDoctorColumn && (
-                    <TableCell className="max-w-[220px] truncate" dir="auto">
-                      {appointment.doctorName ?? '—'}
-                    </TableCell>
-                  )}
-                  {showPatientColumn && (
-                    <TableCell className="max-w-[220px] truncate" dir="auto">
-                      {appointment.patientName ?? '—'}
-                    </TableCell>
-                  )}
-                  <TableCell>
-                    <Badge variant="secondary">{t(`types.${appointment.type}`)}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={appointment.status} />
-                  </TableCell>
-                  {(isAdmin || isPatient) && (
-                    <TableCell className="text-end">
-                      {appointment.status === 'scheduled' || appointment.status === 'confirmed' ? (
-                        <div className="flex items-center justify-end gap-1">
-                          {isAdmin && <EditAppointmentDialog appointment={appointment} />}
-                          <CancelAppointmentDialog appointment={appointment} />
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">
-              {t('pagination.pageInfo', { page })}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-                {t('pagination.previous')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!hasNextPage}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                {t('pagination.next')}
-                <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-              </Button>
+      ) : (
+        <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
+          {hourMarks.map((hour, idx) => (
+            <div
+              key={hour}
+              className="absolute start-0 end-0 border-t border-border"
+              style={{ top: idx * PX_PER_HOUR }}
+            >
+              <span className="relative -top-2 inline-block bg-card pe-2 text-xs text-muted-foreground">
+                {formatHourLabel(hour, currentLang)}
+              </span>
             </div>
+          ))}
+
+          {showNowLine && (
+            <div className="absolute start-12 end-0 z-20 animate-timeline-sweep" style={sweepStyle}>
+              <div className="relative h-0.5 bg-danger-600">
+                <span className="absolute -top-1 -start-1 h-2.5 w-2.5 rounded-full bg-danger-600" />
+              </div>
+            </div>
+          )}
+
+          <div className="absolute inset-y-0 start-12 end-0">
+            {todaysAppointments.map((appointment) => (
+              <div
+                key={appointment.appointmentId}
+                style={{
+                  top: topPxFor(new Date(appointment.scheduledAt)),
+                  minHeight: Math.max((appointment.durationMinutes / 60) * PX_PER_HOUR, 56),
+                }}
+                className="absolute start-0 end-0 px-2 pb-2"
+              >
+                <div
+                  className={cn(
+                    'flex h-full w-full flex-col gap-1.5 rounded-lg border-s-4 bg-card p-3 text-start shadow-card transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-card-hover',
+                    TYPE_ACCENT[appointment.type],
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-foreground">
+                      {showPatientColumn
+                        ? (appointment.patientName ?? t('patient'))
+                        : (appointment.doctorName ?? t('doctor'))}
+                    </span>
+                    <StatusBadge status={appointment.status} />
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    <span>
+                      {new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      }).format(new Date(appointment.scheduledAt))}
+                    </span>
+                    {showDoctorColumn && showPatientColumn && appointment.doctorName && (
+                      <span className="truncate">· {appointment.doctorName}</span>
+                    )}
+                    <Badge variant="secondary" className="ms-auto">
+                      {t(`types.${appointment.type}`)}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ListView({
+  page,
+  setPage,
+  formatDate,
+  formatTime,
+  showDoctorColumn,
+  showPatientColumn,
+  isAdmin,
+  isPatient,
+}: ViewProps & {
+  page: number
+  setPage: (updater: (p: number) => number) => void
+  formatDate: (iso: string) => string
+  formatTime: (iso: string) => string
+}) {
+  const { t } = useTranslation('appointments')
+  const { t: tCommon } = useTranslation('common')
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['appointments', 'list', 'paged', page, PAGE_LIMIT],
+    queryFn: () => appointmentsApi.list({ page, limit: PAGE_LIMIT }),
+  })
+
+  const appointments = data?.appointments ?? []
+  const hasNextPage = appointments.length === PAGE_LIMIT
+  const errorStatus = isError ? (error as AxiosError).response?.status : null
+
+  if (isLoading) return <LoadingSpinner label={tCommon('loading')} />
+
+  if (isError && errorStatus === 403) {
+    return (
+      <EmptyState
+        icon={ShieldAlert}
+        title={t('errors.forbiddenTitle')}
+        description={t('errors.forbiddenDescription')}
+      />
+    )
+  }
+  if (isError) return <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
+
+  if (appointments.length === 0) {
+    return (
+      <EmptyState
+        icon={CalendarClock}
+        title={t('noAppointments')}
+        description={t('noAppointmentsHint')}
+      />
+    )
+  }
+
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        {appointments.map((appointment) => (
+          <AppointmentListCard
+            key={appointment.appointmentId}
+            appointment={appointment}
+            formatDate={formatDate}
+            formatTime={formatTime}
+            showDoctorColumn={showDoctorColumn}
+            showPatientColumn={showPatientColumn}
+            isAdmin={isAdmin}
+            isPatient={isPatient}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <span className="text-sm text-muted-foreground">{t('pagination.pageInfo', { page })}</span>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            {t('pagination.previous')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!hasNextPage}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            {t('pagination.next')}
+            <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function AppointmentListCard({
+  appointment,
+  formatDate,
+  formatTime,
+  showDoctorColumn,
+  showPatientColumn,
+  isAdmin,
+  isPatient,
+}: {
+  appointment: Appointment
+  formatDate: (iso: string) => string
+  formatTime: (iso: string) => string
+} & ViewProps) {
+  const { t } = useTranslation('appointments')
+  const canAct =
+    (isAdmin || isPatient) && (appointment.status === 'scheduled' || appointment.status === 'confirmed')
+
+  return (
+    <div
+      className={cn(
+        'flex flex-wrap items-center gap-3 rounded-lg border-s-4 bg-card p-3 shadow-card transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-card-hover sm:flex-nowrap',
+        TYPE_ACCENT[appointment.type],
+      )}
+    >
+      <div className="flex w-24 shrink-0 flex-col">
+        <span className="text-sm font-semibold text-foreground">{formatTime(appointment.scheduledAt)}</span>
+        <span className="text-xs text-muted-foreground">{formatDate(appointment.scheduledAt)}</span>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {showPatientColumn && (
+          <span className="truncate text-sm font-medium text-foreground" dir="auto">
+            {appointment.patientName ?? t('patient')}
+          </span>
+        )}
+        {showDoctorColumn && (
+          <span className="truncate text-xs text-muted-foreground" dir="auto">
+            {appointment.doctorName ?? t('doctor')}
+          </span>
+        )}
+      </div>
+
+      <Badge variant="secondary" className="shrink-0">
+        {t(`types.${appointment.type}`)}
+      </Badge>
+      <StatusBadge status={appointment.status} className="shrink-0" />
+
+      {canAct ? (
+        <div className="flex shrink-0 items-center gap-1">
+          {isAdmin && <EditAppointmentDialog appointment={appointment} />}
+          <CancelAppointmentDialog appointment={appointment} />
+        </div>
+      ) : (
+        (isAdmin || isPatient) && <span className="w-4 shrink-0" />
       )}
     </div>
   )

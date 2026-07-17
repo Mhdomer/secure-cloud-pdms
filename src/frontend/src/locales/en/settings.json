@@ -50,6 +50,7 @@
       "createdOn": "Joined {{date}}"
     },
     "create": {
+      "trigger": "Create account",
       "title": "Create staff account",
       "description": "Create a login for a new doctor or admin.",
       "usernameLabel": "Username",
@@ -76,13 +77,17 @@
       "submit": "Deactivate",
       "submitting": "Deactivating…",
       "success": "Account deactivated.",
-      "error": "Could not deactivate this account. Please try again."
+      "error": "Could not deactivate this account. Please try again.",
+      "confirmTitle": "Deactivate {{name}}'s account?",
+      "confirmDescription": "They will no longer be able to log in. You can reactivate this account later."
     },
     "reactivate": {
       "submit": "Reactivate",
       "submitting": "Reactivating…",
       "success": "Account reactivated.",
-      "error": "Could not reactivate this account. Please try again."
+      "error": "Could not reactivate this account. Please try again.",
+      "confirmTitle": "Reactivate {{name}}'s account?",
+      "confirmDescription": "They will be able to log in again immediately."
     }
   }
 }
