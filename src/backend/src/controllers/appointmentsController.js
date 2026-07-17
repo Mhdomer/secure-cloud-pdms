@@ -440,6 +440,56 @@ async function confirmAppointment(req, res) {
 }
 
 /**
+ * Quick Check-In (Feature E) — Staff marks a patient as physically present.
+ * Admin/superadmin only (appointments has no RLS, so this is the entire
+ * access boundary — same pattern as scheduleAppointment/cancelAppointment).
+ * Uses 409, not 400, for an already-arrived/completed/cancelled appointment,
+ * matching confirmAppointment/cancelAppointment's existing convention for
+ * "valid request, wrong resource state" in this file.
+ */
+async function checkinAppointment(req, res) {
+  const { appointmentId } = req.params;
+
+  const result = await withTransaction(req.rlsSession, async (client) => {
+    const existing = await Appointment.findById(client, appointmentId);
+    if (!existing) {
+      const err = new Error('Appointment not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (existing.status !== 'scheduled' && existing.status !== 'confirmed') {
+      const err = new Error(`Cannot check in an appointment that is ${existing.status}`);
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const checkedIn = await Appointment.checkin(client, appointmentId);
+    if (!checkedIn) {
+      const err = new Error('Appointment status changed before it could be checked in');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    await AuditLog.log(client, {
+      userId: req.user.userId,
+      action: AUDIT_ACTIONS.PATIENT_CHECKED_IN,
+      resource: 'appointments',
+      recordId: appointmentId,
+      ipAddress: req.ip,
+    });
+
+    return checkedIn;
+  });
+
+  return res.status(200).json({
+    appointmentId: result.appointment_id,
+    status: result.status,
+    message: 'Patient checked in successfully',
+  });
+}
+
+/**
  * UC-18 — Cancel Appointment (Admin only).
  * Runs SERIALIZABLE so two concurrent cancel requests for the same
  * appointment (e.g. a double-click) cannot both pass the status check
@@ -528,5 +578,6 @@ module.exports = {
   listAppointments,
   updateAppointment,
   confirmAppointment,
+  checkinAppointment,
   cancelAppointment,
 };

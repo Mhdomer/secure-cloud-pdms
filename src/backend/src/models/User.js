@@ -84,7 +84,7 @@ class User {
   static async listStaffAndDoctors(executor) {
     const result = await executor.query(
       `SELECT u.user_id, u.username, u.role, u.is_active, u.created_at,
-              d.full_name, d.specialisation
+              d.doctor_id, d.full_name, d.specialisation
          FROM users u
          LEFT JOIN doctors d ON d.user_id = u.user_id
         WHERE u.role IN ('doctor', 'admin')

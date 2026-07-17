@@ -54,7 +54,7 @@ Rules you must follow:
 | 5 | Superadmin Dashboard | `src/pages/dashboard/SuperAdminDashboard.tsx` | Gate passed | 2026-07-17 |
 | 6 | Patient List | `src/pages/patients/PatientLookupPage.tsx` | Gate passed | 2026-07-17 |
 | 7 | Patient Profile | `src/pages/patients/PatientProfilePage.tsx` | Gate passed — full rebuild per the expanded Screen 7 spec: sticky header (avatar/name/national ID/age/blood type/always-visible allergy badge, admin-only edit toggle) + role-gated vertical tabs (Medical Records + Lab Results doctor-only; Appointments + Demographics + Invoices doctor+admin; Demographics edit admin-only). Extended `Patient`/`UpdatePatientPayload` types to the full demographic field set the backend already returns. Added `types/invoice.ts`, `types/labResult.ts`, `invoicesApi`/`labResultsApi` (multipart upload + plain `<a download>` file links) to `lib/api.ts`. New tab components under `pages/patients/profile/`. Verified live as both doctor and admin. | 2026-07-17 |
-| 8 | Appointments | `src/pages/appointments/AppointmentsPage.tsx` | Gate passed (create/edit dialogs still plain modals, not the slide-in panel `ui-brief.md` describes — follow-up, not blocking) | 2026-07-17 |
+| 8 | Appointments | `src/pages/appointments/AppointmentsPage.tsx` | Gate passed — follow-up resolved 2026-07-17: Create/Edit Appointment dialogs converted to the slide-in `Sheet` panel `ui-brief.md` describes, and their `patient_id` field replaced with the new searchable `PatientSelect` combobox (see DELTA-018 in `report-delta.md`) | 2026-07-17 |
 | 9 | Medical Records | `src/pages/records/MedicalRecordsPage.tsx` | Gate passed — added a split-pane view (history left/right by RTL, inline note form) for the doctor+patient-context case (`?patientId=`); doctor's own unscoped list and patient's read-only list keep the plain list. Uses the existing flat diagnosis/prescription/notes fields, not the SOAP shape `ui-brief.md` describes — `types/medicalRecord.ts` documents that the backend has no structured SOAP/prescriptions-array model | 2026-07-17 |
 | 10 | Record Detail | `src/pages/records/RecordDetailPage.tsx` | Gate passed — replaced the exposed raw record UUID in the header with the created date (existing left-border clinical-field treatment was already reasonable) | 2026-07-17 |
 | 11 | Settings | `src/pages/settings/SettingsPage.tsx` | Gate passed (superadmin "Change Display Name" not implemented — no backend endpoint exists yet, out of frontend scope) | 2026-07-17 |
@@ -62,6 +62,7 @@ Rules you must follow:
 | 13 | Landing Page | `src/pages/landing/LandingPage.tsx` | Gate passed | 2026-07-17 |
 | 14 | App Shell / Sidebar | `src/components/layout/` | Gate passed — added bottom-of-sidebar user block (avatar, name, role, logout dropdown) per ui-brief.md, replacing the Topbar's duplicate user menu (Topbar now holds only the language toggle); collapsed state now shows a clinic-initials mark + per-item hover tooltips instead of bare icons with no labels | 2026-07-17 |
 | 15 | Password Setup Page (new, public) | `src/pages/auth/SetupPasswordPage.tsx` | Done — built same session as the backend QR flow it depends on (see Backend Edit Sessions below). Manually verified bilingual (AR/EN) end-to-end in-browser (token validate → set password → success → login with new password); formal `/rtl-check` + `/ui-review` not yet run | 2026-07-16 |
+| 16 | Doctor Working Hours (new, superadmin only) | `src/pages/doctors/DoctorAvailabilityPage.tsx` | Done — new screen against the existing `doctor_availability` API (DELTA-009), which had no frontend write-side UI at all before this session. Reached via a new "Working hours" link on doctor rows in User Management. Verified live end-to-end (view seeded hours → add a day → confirm via API → remove a day with confirm dialog); formal `/rtl-check` + `/ui-review` not yet run. See DELTA-019 in `report-delta.md` for the DB grant bug this session also found and fixed. | 2026-07-17 |
 
 Update Status to: `In progress` → `Done` → `Gate passed` as you go.
 
@@ -725,6 +726,10 @@ For backend fixes and additions, use the same one-session-per-feature rule.
 | Schema gap fixes (national_id, SOAP, confirmed status, doctor_availability) | `schema.sql`, `patientsController.js`, `medicalRecordsController.js`, `appointmentsController.js`, `DoctorAvailability.js`, `availability.js` | **Already implemented** — all files exist and contain the new fields. `docs/psm2/session-prompts/backend-schema-gaps.md` prompt is now stale/unneeded. Only outstanding question: whether the local DB was actually migrated (run `schema-additions.sql` against local Postgres if app errors on the new columns). |
 | `GET /appointments` had no date bound — `ORDER BY scheduled_at ASC LIMIT` alone silently returned only the oldest rows once past `limit`, found while gating the Staff Dashboard screen | `models/Appointment.js`, `controllers/appointmentsController.js`, `routes/appointments.routes.js`, `lib/dateRange.ts`, `DoctorDashboard.tsx`, `AdminDashboard.tsx` | Fixed 2026-07-15 — added optional `from`/`to` ISO8601 query params, both dashboards now request a padded window around today; verified live against seeded data (admin/doctor/patient scoping + backward-compat pagination all confirmed via curl) |
 | QR-based first-password flow — replaces the old admin-issued random temp password. Staff registers a patient with no password disclosed to them; a one-time 72-hour setup token is issued and rendered as a QR (`qrcode` npm package, server-side) + link; patient scans/opens it, lands on the new public `/setup-password` page, and sets their own password. Single-use, atomically consumed to close a race window; previous unused token auto-invalidated on regenerate. Also fixed a latent RLS gap found while building this: `admin_select_patients` only matched role `'admin'`, never `'superadmin'`, so any superadmin-authorized patients-table read (like the new regenerate-QR lookup) would have silently 404'd | Backend: `schema.sql` (`password_setup_tokens` table + RLS widen), `lib/generateSetupToken.js`, `models/PasswordSetupToken.js`, `controllers/passwordSetupController.js`, `controllers/patientsController.js` (registerPatient + new regenerateQR), `routes/passwordSetup.routes.js`, `routes/patients.routes.js`. Frontend: `pages/auth/SetupPasswordPage.tsx` (new), `components/shared/SetupQrPanel.tsx` (new, shared), `pages/patients/RegenerateQrCard.tsx` (new), `pages/patients/RegisterPatientDialog.tsx` (credentials panel → QR panel), `pages/patients/PatientProfilePage.tsx`, `App.tsx`, `lib/api.ts`, `types/patient.ts`, `types/auth.ts`, `locales/{en,ar}/{patients,auth}.json` | Done 2026-07-16 — backend smoke-tested end-to-end via curl in one session, frontend built and verified live in-browser in a follow-up session (register → QR shown → scan link → set password → login with new password → regenerate QR as admin, all confirmed working in both AR and EN). One real bug caught and fixed during browser verification: `SetupQrPanel`'s root div needed `min-w-0` — `DialogContent` is `display:grid`, and grid/flex items default to `min-width:auto`, so the panel refused to shrink below the un-truncated setup URL's intrinsic width and overflowed the dialog box. |
+| Quick Check-In (Feature E from the 2026-07-17 feature audit, see "Feature Audit" section below) — staff marks a patient "arrived" between confirmation and being seen. Added `'arrived'` to the `appointments.status` CHECK constraint (kept the app's real vocabulary — `scheduled`/`confirmed`/`completed`/`cancelled` — never added the suggested-but-nonexistent `'pending'`/`'no_show'`) and an `updated_at` column. New `PATCH /appointments/:id/checkin` (admin/superadmin only). Fixed a bug the status addition would otherwise have caused: `Appointment.listForDoctor`/`.listForPatient` hard-filtered `status IN ('scheduled','confirmed')`, so a checked-in appointment would have vanished from the doctor's and patient's own lists — added `'arrived'` to both filters | `schema.sql`, `config/constants.js`, `models/Appointment.js`, `controllers/appointmentsController.js`, `routes/appointments.routes.js`. Frontend: `types/appointment.ts`, `components/shared/StatusBadge.tsx`, `lib/api.ts`, `pages/dashboard/AdminDashboard.tsx`, `pages/dashboard/DoctorDashboard.tsx`, `locales/{en,ar}/{common,appointments,dashboard}.json` | Done 2026-07-17 — verified live (staff checks in → green "Arrived" badge + button disappears on Staff Dashboard → same appointment shows green border + "● Here" dot on Doctor Dashboard); security gate confirmed via curl (patient → 403, doctor → 403, only admin/superadmin can check in) |
+| Digital Consent Forms (Feature I from the same feature audit) — reuses `patient_invoices` with a `category` column (`'invoice'` \| `'consent'` \| `'other'`) rather than a parallel table, since a consent form is the same "scanned file per patient" shape as a billing invoice. `POST`/`GET .../invoices` both extended with an optional `category` (upload defaults to `'invoice'`, existing callers unaffected) | `schema.sql`, `models/PatientInvoice.js`, `controllers/invoicesController.js`, `routes/invoices.routes.js`. Frontend: `types/invoice.ts`, `lib/api.ts`, `pages/patients/profile/InvoicesTab.tsx` (segmented Invoices/Consent Forms view), `locales/{en,ar}/patients.json` | Done 2026-07-17 — verified live via authenticated API calls (Puppeteer can't drive a native file picker): uploaded one of each category for the same patient, confirmed each view shows only its own category both via `?category=` and after a UI reload; security gate confirmed via curl (doctor → 403 on upload, doctor → 200 on download, matching the existing invoice endpoint's role split) |
+| Patient picker extended into appointment booking + Create/Edit Appointment converted to slide-in panels (DELTA-018) — see the Screen 8 row above and `report-delta.md` for the full writeup | `components/shared/PatientSelect.tsx` (new), `pages/appointments/CreateAppointmentDialog.tsx`, `pages/appointments/EditAppointmentDialog.tsx`, `locales/{en,ar}/appointments.json` | Done 2026-07-17 — verified live (typed a name → debounced results appeared → selected → field populated; slide-in panel opens/closes correctly in RTL) |
+| Doctor working-hours (availability) management screen (DELTA-019) — the `doctor_availability` write API existed since the schema-gap-fixes session but had no frontend ever built against it; also uncovered and fixed a real `GRANT` bug (see "Feature Audit" follow-up notes and `report-delta.md`) | Backend: `schema.sql` (added `GRANT ... DELETE ON doctor_availability`), `models/User.js` + `controllers/usersController.js` (expose `doctorId` on `GET /users`). Frontend: `types/doctor.ts`, `types/user.ts`, `lib/api.ts`, `pages/doctors/DoctorAvailabilityPage.tsx` (new), `pages/settings/UserManagementPage.tsx` (new "Working hours" link), `App.tsx`, `locales/{en,ar}/doctors.json` (new namespace, registered in `lib/i18n.ts`), `locales/{en,ar}/settings.json` | Done 2026-07-17 — verified live end-to-end as superadmin (viewed dr.fahad's seeded Sun–Thu hours → added Friday hours, confirmed via `GET .../availability` → removed Friday, which first 500'd with `permission denied for table doctor_availability` until the GRANT fix, then confirmed working and re-tested); security gate confirmed via curl (admin/staff role → 403, matches `assertCanManage`'s superadmin-or-self rule) |
 
 ### Upcoming — QR/password-setup follow-ups (not started)
 
@@ -736,6 +741,16 @@ Raised while reviewing the QR flow above; none of these are blocking, but the QR
 | SMS delivery of the setup link | Backend (small) | `utils/smsProvider.js` already exists (stubbed, from the UC-19 OTP flow) — reuse it so staff can text the link instead of relying on the patient scanning a QR on the spot. |
 | "Pending setup" list for admins | Backend + Frontend | No way today to see which registered patients haven't scanned their QR yet, or whose 72-hour window is about to lapse — staff only finds out reactively when the patient shows up unable to log in. Needs a query (`password_setup_tokens` where `used_at IS NULL`) and a small admin-facing view/badge. |
 | Printable QR slip | Frontend | Not every patient scans on the spot; a print-friendly bilingual card (QR + instructions) the patient can take home would reduce round-trips back to the desk. |
+
+### Upcoming — doctor scheduling follow-ups (not started)
+
+Raised while building the Doctor Working Hours screen (DELTA-019) above; none block the superadmin flow that exists today.
+
+| Item | Type | Why |
+|---|---|---|
+| Doctor self-service availability | Frontend | The backend already authorizes a doctor to manage their own hours (`assertCanManage` in `doctorAvailabilityController.js`), but nothing links a signed-in doctor to `/doctors/:doctorId/availability` for themselves — a doctor session has no client-side `doctorId` on the authenticated user object to build that link from. Needs either a "my own availability" self-referencing endpoint/route, or exposing `doctorId` on the login/session response. |
+| Availability page for a deactivated doctor | Frontend | `DoctorAvailabilityPage` resolves the doctor's name via `GET /doctors` (the *active*-only directory), so the page shows "not found" for a deactivated doctor even though `GET .../availability` itself would still return their schedule. Minor — a superadmin managing hours for someone they just deactivated is an edge case, but the "not found" wording is misleading for it. |
+| Grant audit for other write endpoints | Backend | The DELTA-019 bug (a DELETE route that had existed for a whole sprint but 500'd the first time it was actually exercised) suggests it's worth a quick pass checking every other table's `GRANT` list against what its controllers actually do (SELECT/INSERT/UPDATE/DELETE), rather than assuming a route existing means it was ever tested end-to-end. |
 
 Backend session prompt prefix:
 ```
@@ -785,3 +800,90 @@ errors. The code is ready; only the local DB migration may be pending.
 
 If a session hits 40k+ tokens and the screen isn't done, **stop**.
 Write a handoff note in this file under the screen's row, then start a new session.
+
+---
+
+## Feature Audit — 2026-07-17
+
+A feature-suggestion list (A–J) was audited against the actual code (`schema.sql`,
+`constants.js`, controllers/routes, and the corresponding frontend screens) rather than
+taken at face value. All ten verdicts matched the expected result; one (C) needed an
+accuracy correction on *how* it's done, not *whether*.
+
+| Feature | Status | Notes |
+|---|---|---|
+| A — Comprehensive EHR | Already done | Patient Profile's role-gated tabs (Medical Records, Appointments, Demographics, Invoices, Lab Results) plus the split-pane Medical Records screen cover this. |
+| B — Daily Patient Queue | Already done | Doctor Dashboard's today timeline + Staff Dashboard's read-only mirror. |
+| C — Clinical Notes | Already done, with a caveat | `medical_records` has real SOAP columns (`chief_complaint`/`objective`/`assessment`/`plan`/`vital_signs`/`visit_type`) and `medicalRecordsController.js` fully reads/writes them — but `CreateRecordDialog.tsx` and the split-pane form on `/records` still only expose the flatter `diagnosis`/`prescription`/`notes` fields `types/medicalRecord.ts` documents. The core job ("write a note quickly") is done; upgrading the form to the full SOAP fields is a real but separate frontend task, not part of this one. |
+| D — Internal Secure Messaging | Skipped — Phase 2 | No messaging table, no WebSocket/socket.io dependency anywhere in `package.json`. |
+| E — Quick Check-In | Implemented this session | See below. |
+| F — Smart Search | Already done | `PatientLookupPage.tsx`'s 300ms-debounced search against `GET /patients?q=` (national ID / name / phone). |
+| G — Real-Time Queue Dispatch | Skipped — Phase 2 | No WebSocket infrastructure. Quick Check-In (E) is the deliberate lightweight stand-in — the doctor dashboard already polls `GET /appointments` on its normal query interval and now highlights `arrived` rows, so "the doctor sees who's actually here" is solved without a push channel. |
+| H — Team & Shift Dashboard | Skipped — Phase 2 | No `shifts`/`schedules`/`on_call` table in `schema.sql`; would need a whole new module. |
+| I — Digital Consent Forms | Implemented this session | See below. |
+| J — Shift Report Generator | Skipped — Phase 2 | Depends on H, which doesn't exist. |
+
+### E — Quick Check-In
+
+- `appointments.status` CHECK constraint gained `'arrived'` — **not** `'pending'`/`'no_show'`
+  as the original suggestion assumed; this codebase's real initial status is `'scheduled'`
+  (see `APPOINTMENT_STATUS` in `constants.js`), and neither of those two values appears
+  anywhere else in the code. Adding them would have been silent, unrequested scope creep.
+- Added `appointments.updated_at` (was missing entirely). Note for future schema changes on
+  this table: **`CREATE TABLE IF NOT EXISTS` does not add columns to an already-existing
+  table** — the first pass at this added `updated_at` only inside that block and it silently
+  never applied to the local dev DB; the fix was a separate `ALTER TABLE ... ADD COLUMN IF
+  NOT EXISTS`, same idempotent pattern the `'arrived'` constraint change already used.
+  `patient_invoices.category` avoided this trap from the start.
+- New `PATCH /api/appointments/:appointmentId/checkin` (admin/superadmin only, matching the
+  upload-invoice role pair elsewhere in this file). Uses **409**, not 400, when the
+  appointment is already arrived/completed/cancelled — `confirmAppointment` and
+  `cancelAppointment` in the same controller both already use 409 for "valid request, wrong
+  resource state," so checkin follows that existing local convention instead of the generic
+  suggestion.
+- Fixed a real bug this change would otherwise have introduced: `Appointment.listForDoctor`
+  and `.listForPatient` both hard-filter `status IN ('scheduled', 'confirmed')`. Without
+  adding `'arrived'` to that list, a checked-in patient's appointment would have vanished
+  from the doctor's own queue (and the patient's own appointment list) the instant staff
+  checked them in — exactly backwards from the feature's purpose. `listForAdmin` has no
+  status filter and was unaffected.
+- Frontend colors: the brief specified raw `amber-50`/`amber-700` (button) and
+  `green-100`/`green-700` (badge). Both are pixel-identical to this project's existing
+  `warning`/`success` design-system tokens (`warning-600` = `#d97706` = Tailwind's default
+  `amber-600`; `success-600` = `#16a34a` = Tailwind's default `green-600`), so the
+  implementation uses `StatusBadge`'s existing `success` variant and `bg-warning-50
+  text-warning-600` rather than introducing new raw color classes — same visual result,
+  stays inside "use existing tokens only."
+- Verified live: staff checks in a `confirmed` appointment on the Staff Dashboard → badge
+  flips to green "Arrived" and the button disappears; the same appointment on the Doctor
+  Dashboard gets a green left border and a "● Here" dot next to the patient's name.
+- Security gate: patient → 403, doctor → 403 (admin/superadmin only), confirmed via curl
+  against the running dev server.
+
+### I — Digital Consent Forms
+
+- `patient_invoices` already existed (file-uploads session) — took the "preferred" path:
+  `ALTER TABLE patient_invoices ADD COLUMN IF NOT EXISTS category VARCHAR(50) NOT NULL
+  DEFAULT 'invoice' CHECK (category IN ('invoice','consent','other'))`, plus an index on
+  `category`. No new table.
+  `POST /patients/:id/invoices` and `GET /patients/:id/invoices` both extended with an
+  optional `category`; upload defaults to `'invoice'` when omitted (existing invoice-upload
+  callers are unaffected). All new/changed queries use `$1`/`$2`-style parameters — the one
+  dynamic piece (`listByPatient`'s optional category filter) builds the `$N` *placeholder
+  number* into the query text, never the value itself, matching the same technique
+  `Appointment.listForAdmin`/`listForDoctor` already use for their `from`/`to` filters.
+- Frontend: Patient Profile's Invoices tab gained a segmented control ("Invoices" /
+  "Consent Forms") rather than a second tab — both are "documents on file for this patient"
+  in the identical shape, just filtered differently. Consent upload hides the amount field
+  entirely and relabels "Description" → "Form type" (placeholder: "e.g. General Consent,
+  Privacy Notice"); also relabeled the date field generically ("Date" instead of "Invoice
+  date") for the consent view, a small polish beyond the original ask.
+- Verified live: uploaded one `category=invoice` and one `category=consent` row for the same
+  patient via authenticated API calls (Puppeteer can't drive a native file-picker dialog, so
+  this part of the smoke test used direct HTTP against the running dev server instead of
+  clicking through the file input) — the Invoices view shows only the invoice, the Consent
+  Forms view shows only the consent form, confirmed both directions with `?category=` query
+  params and in the actual UI after reload. Test rows removed from the local DB afterward.
+- Security gate: doctor → 403 on upload (admin/superadmin only, unchanged from the existing
+  invoice endpoint being reused), doctor → 200 on download (unchanged — download was already
+  admin/superadmin/doctor), both confirmed via curl.

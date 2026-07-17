@@ -28,7 +28,8 @@
       "noDiagnosis": "لا يوجد تشخيص مسجّل بعد",
       "diagnosisLoadError": "تعذّر التحميل",
       "allergyLoadError": "تعذّر التحقق من الحساسية — افتح الملف الطبي للتأكد",
-      "viewChart": "عرض الملف الطبي"
+      "viewChart": "عرض الملف الطبي",
+      "hereIndicator": "وصل"
     },
     "recentPatients": {
       "heading": "المرضى الأخيرون",

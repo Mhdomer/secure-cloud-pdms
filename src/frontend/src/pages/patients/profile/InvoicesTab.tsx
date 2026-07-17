@@ -15,21 +15,31 @@ import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
 import { useLanguage } from '@/hooks/useLanguage'
 import { invoicesApi } from '@/lib/api'
+import { cn } from '@/lib/utils'
+import type { InvoiceCategory } from '@/types/invoice'
 
 const ACCEPTED_FILE_TYPES = '.pdf,.jpg,.jpeg,.png'
 
-/** Doctor + admin view; only admin uploads (matches invoices.routes.js — upload is ADMIN/SUPERADMIN only). */
+/**
+ * Digital Consent Forms (Sprint 3c feature audit, Feature I) reuse this same
+ * tab and the same `patient_invoices` table/endpoint as billing invoices —
+ * only the `category` column differs. A segmented control switches between
+ * the two filtered views rather than showing two separate tabs, since both
+ * are "documents on file for this patient" in the same shape.
+ */
 export function InvoicesTab({ patientId, isAdmin }: { patientId: string; isAdmin: boolean }) {
   const { t } = useTranslation('patients')
   const { t: tCommon } = useTranslation('common')
   const { currentLang } = useLanguage()
+  const [view, setView] = useState<InvoiceCategory>('invoice')
   const [uploadOpen, setUploadOpen] = useState(false)
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['invoices', patientId],
-    queryFn: () => invoicesApi.listForPatient(patientId),
+    queryKey: ['invoices', patientId, view],
+    queryFn: () => invoicesApi.listForPatient(patientId, view),
   })
   const invoices = data?.invoices ?? []
+  const isConsentView = view === 'consent'
 
   const formatDate = (iso: string | null) => {
     if (!iso) return null
@@ -49,7 +59,9 @@ export function InvoicesTab({ patientId, isAdmin }: { patientId: string; isAdmin
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-foreground">{t('tabs.invoices')}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t('invoicesTab.description')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isConsentView ? t('invoicesTab.consentDescription') : t('invoicesTab.description')}
+          </p>
         </div>
         {isAdmin && (
           <Button
@@ -60,9 +72,30 @@ export function InvoicesTab({ patientId, isAdmin }: { patientId: string; isAdmin
             onClick={() => setUploadOpen((v) => !v)}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            {t('invoicesTab.uploadTrigger')}
+            {isConsentView ? t('invoicesTab.uploadConsentTrigger') : t('invoicesTab.uploadTrigger')}
           </Button>
         )}
+      </div>
+
+      <div className="inline-flex w-fit gap-1 rounded-lg border border-border bg-neutral-100 p-1">
+        {(['invoice', 'consent'] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => {
+              setView(option)
+              setUploadOpen(false)
+            }}
+            className={cn(
+              'rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 ease-out',
+              view === option
+                ? 'bg-card text-primary-700 shadow-card'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {option === 'invoice' ? t('invoicesTab.viewToggle.invoices') : t('invoicesTab.viewToggle.consent')}
+          </button>
+        ))}
       </div>
 
       {isAdmin && (
@@ -77,6 +110,7 @@ export function InvoicesTab({ patientId, isAdmin }: { patientId: string; isAdmin
             >
               <InvoiceUploadForm
                 patientId={patientId}
+                category={view}
                 onDone={() => setUploadOpen(false)}
               />
             </motion.div>
@@ -87,9 +121,14 @@ export function InvoicesTab({ patientId, isAdmin }: { patientId: string; isAdmin
       {isLoading ? (
         <LoadingSpinner label={tCommon('loading')} />
       ) : isError ? (
-        <p className="text-sm text-danger-600">{t('invoicesTab.loadError')}</p>
+        <p className="text-sm text-danger-600">
+          {isConsentView ? t('invoicesTab.consentLoadError') : t('invoicesTab.loadError')}
+        </p>
       ) : invoices.length === 0 ? (
-        <EmptyState icon={FileText} title={t('invoicesTab.empty')} />
+        <EmptyState
+          icon={FileText}
+          title={isConsentView ? t('invoicesTab.consentEmpty') : t('invoicesTab.empty')}
+        />
       ) : (
         <div className="flex flex-col divide-y divide-border">
           {invoices.map((invoice) => (
@@ -99,8 +138,8 @@ export function InvoicesTab({ patientId, isAdmin }: { patientId: string; isAdmin
                   {invoice.description || invoice.originalFilename}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {invoice.amount != null ? `${invoice.amount} SAR` : ''}
-                  {invoice.amount != null && formatDate(invoice.invoiceDate) ? ' · ' : ''}
+                  {!isConsentView && invoice.amount != null ? `${invoice.amount} SAR` : ''}
+                  {!isConsentView && invoice.amount != null && formatDate(invoice.invoiceDate) ? ' · ' : ''}
                   {formatDate(invoice.invoiceDate) ?? ''}
                 </span>
               </div>
@@ -120,9 +159,18 @@ export function InvoicesTab({ patientId, isAdmin }: { patientId: string; isAdmin
   )
 }
 
-function InvoiceUploadForm({ patientId, onDone }: { patientId: string; onDone: () => void }) {
+function InvoiceUploadForm({
+  patientId,
+  category,
+  onDone,
+}: {
+  patientId: string
+  category: InvoiceCategory
+  onDone: () => void
+}) {
   const { t } = useTranslation('patients')
   const queryClient = useQueryClient()
+  const isConsent = category === 'consent'
 
   const schema = useMemo(
     () =>
@@ -147,19 +195,21 @@ function InvoiceUploadForm({ patientId, onDone }: { patientId: string; onDone: (
       if (!file) throw new Error('no file')
       return invoicesApi.upload(patientId, {
         file,
-        amount: form.getValues('amount'),
+        // Consent forms have no monetary value — amount is never sent for them.
+        amount: isConsent ? undefined : form.getValues('amount'),
         description: form.getValues('description'),
         invoice_date: form.getValues('invoice_date'),
+        category,
       })
     },
     onSuccess: () => {
-      toast.success(t('invoicesTab.success'))
+      toast.success(isConsent ? t('invoicesTab.consentSuccess') : t('invoicesTab.success'))
       queryClient.invalidateQueries({ queryKey: ['invoices', patientId] })
       form.reset()
       setFile(null)
       onDone()
     },
-    onError: () => toast.error(t('invoicesTab.error')),
+    onError: () => toast.error(isConsent ? t('invoicesTab.consentError') : t('invoicesTab.error')),
   })
 
   const onSubmit = () => {
@@ -188,30 +238,32 @@ function InvoiceUploadForm({ patientId, onDone }: { patientId: string; onDone: (
           />
           {fileError && <p className="mt-1 text-sm font-medium text-danger-600">{fileError}</p>}
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <FormField
-            control={form.control}
-            name="amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('invoicesTab.amountLabel')}{' '}
-                  <span className="text-muted-foreground">({t('invoicesTab.amountOptional')})</span>
-                </FormLabel>
-                <FormControl>
-                  <Input type="number" step="0.01" dir="ltr" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className={cn('grid grid-cols-1 gap-4', isConsent ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
+          {!isConsent && (
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t('invoicesTab.amountLabel')}{' '}
+                    <span className="text-muted-foreground">({t('invoicesTab.amountOptional')})</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.01" dir="ltr" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           <FormField
             control={form.control}
             name="invoice_date"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  {t('invoicesTab.invoiceDateLabel')}{' '}
+                  {isConsent ? t('invoicesTab.formDateLabel') : t('invoicesTab.invoiceDateLabel')}{' '}
                   <span className="text-muted-foreground">({t('invoicesTab.invoiceDateOptional')})</span>
                 </FormLabel>
                 <FormControl>
@@ -227,11 +279,13 @@ function InvoiceUploadForm({ patientId, onDone }: { patientId: string; onDone: (
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  {t('invoicesTab.descriptionLabel')}{' '}
-                  <span className="text-muted-foreground">({t('invoicesTab.descriptionOptional')})</span>
+                  {isConsent ? t('invoicesTab.formTypeLabel') : t('invoicesTab.descriptionLabel')}{' '}
+                  <span className="text-muted-foreground">
+                    ({isConsent ? t('invoicesTab.formTypeOptional') : t('invoicesTab.descriptionOptional')})
+                  </span>
                 </FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input placeholder={isConsent ? t('invoicesTab.formTypePlaceholder') : undefined} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

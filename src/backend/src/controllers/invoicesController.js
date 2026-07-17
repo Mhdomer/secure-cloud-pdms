@@ -17,7 +17,7 @@ async function uploadInvoice(req, res) {
   }
 
   const { patientId } = req.params;
-  const { amount, description, invoice_date: invoiceDate } = req.body;
+  const { amount, description, invoice_date: invoiceDate, category } = req.body;
 
   try {
     const invoice = await withTransaction(req.rlsSession, async (client) => {
@@ -38,6 +38,7 @@ async function uploadInvoice(req, res) {
         amount,
         description,
         invoiceDate,
+        category,
       });
 
       await AuditLog.log(client, {
@@ -58,6 +59,7 @@ async function uploadInvoice(req, res) {
       amount: invoice.amount,
       description: invoice.description,
       invoiceDate: invoice.invoice_date,
+      category: invoice.category,
       createdAt: invoice.created_at,
       uploadedBy: invoice.uploaded_by,
     });
@@ -70,11 +72,14 @@ async function uploadInvoice(req, res) {
   }
 }
 
-/** Admin/superadmin/doctor: list invoices for a patient. */
+/** Admin/superadmin/doctor: list invoices for a patient. Optional ?category= narrows to 'invoice' | 'consent' | 'other'. */
 async function getInvoices(req, res) {
   const { patientId } = req.params;
+  const { category } = req.query;
 
-  const invoices = await withTransaction(req.rlsSession, (client) => PatientInvoice.listByPatient(client, patientId));
+  const invoices = await withTransaction(req.rlsSession, (client) =>
+    PatientInvoice.listByPatient(client, patientId, category)
+  );
 
   return res.status(200).json({
     invoices: invoices.map((inv) => ({
@@ -83,6 +88,7 @@ async function getInvoices(req, res) {
       amount: inv.amount,
       description: inv.description,
       invoiceDate: inv.invoice_date,
+      category: inv.category,
       createdAt: inv.created_at,
       uploadedBy: inv.uploaded_by,
     })),

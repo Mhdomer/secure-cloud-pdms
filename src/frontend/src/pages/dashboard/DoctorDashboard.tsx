@@ -210,12 +210,25 @@ function TimelineBlock({ appointment, top, height, expanded, onToggle }: Timelin
         aria-expanded={expanded}
         className={cn(
           'flex w-full flex-col gap-1.5 rounded-lg border-s-4 bg-card p-3 text-start shadow-card transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          TYPE_ACCENT[appointment.type],
+          // Quick Check-In (Feature E): a checked-in patient's presence
+          // overrides the type-accent border — this is the lightweight,
+          // no-WebSockets stand-in for a real-time queue (Feature G,
+          // deferred — see docs/psm2/sprint-3c-ui-overhaul.md's feature audit).
+          appointment.status === 'arrived' ? 'border-success-600' : TYPE_ACCENT[appointment.type],
         )}
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-semibold text-foreground">
-            {appointment.patientName ?? t('patient')}
+          <span className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold text-foreground">
+            <span className="truncate">{appointment.patientName ?? t('patient')}</span>
+            {appointment.status === 'arrived' && (
+              <span
+                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-success-600"
+                title={tDash('doctor.timeline.hereIndicator')}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-success-600" aria-hidden="true" />
+                {tDash('doctor.timeline.hereIndicator')}
+              </span>
+            )}
           </span>
           <StatusBadge status={appointment.status} />
         </div>

@@ -1,3 +1,10 @@
+/**
+ * A consent form is stored in this same table with `category: 'consent'`
+ * rather than a parallel table — see schema.sql's `patient_invoices`
+ * comment. 'other' exists for future document types.
+ */
+export type InvoiceCategory = 'invoice' | 'consent' | 'other'
+
 /** Matches `invoicesController.js` response shapes exactly. */
 export interface PatientInvoice {
   invoiceId: string
@@ -5,6 +12,7 @@ export interface PatientInvoice {
   amount: number | null
   description: string | null
   invoiceDate: string | null
+  category: InvoiceCategory
   createdAt: string
   uploadedBy: string
 }

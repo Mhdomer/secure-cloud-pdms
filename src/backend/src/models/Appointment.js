@@ -73,7 +73,10 @@ class Appointment {
   }
 
   static async listForDoctor(executor, doctorId, { limit, offset, from, to }) {
-    const conditions = ['doctor_id = $1', `status IN ('scheduled', 'confirmed')`];
+    // 'arrived' included so a checked-in patient doesn't vanish from the
+    // doctor's queue the moment staff checks them in — the doctor dashboard
+    // relies on seeing this exact row to render its "here" highlight.
+    const conditions = ['doctor_id = $1', `status IN ('scheduled', 'confirmed', 'arrived')`];
     const params = [doctorId];
     if (from) {
       params.push(from);
@@ -96,7 +99,9 @@ class Appointment {
   }
 
   static async listForPatient(executor, patientId, { limit, offset, from, to }) {
-    const conditions = ['patient_id = $1', `status IN ('scheduled', 'confirmed')`];
+    // Same reasoning as listForDoctor — a patient who has been checked in
+    // should still see their own appointment, not have it disappear.
+    const conditions = ['patient_id = $1', `status IN ('scheduled', 'confirmed', 'arrived')`];
     const params = [patientId];
     if (from) {
       params.push(from);
@@ -152,6 +157,17 @@ class Appointment {
     const result = await executor.query(
       `UPDATE appointments SET status = 'confirmed'
         WHERE appointment_id = $1 AND status = 'scheduled'
+        RETURNING appointment_id, status`,
+      [appointmentId]
+    );
+    return result.rows[0] || null;
+  }
+
+  /** Staff marks a scheduled/confirmed appointment as arrived (Quick Check-In, Feature E). */
+  static async checkin(executor, appointmentId) {
+    const result = await executor.query(
+      `UPDATE appointments SET status = 'arrived', updated_at = NOW()
+        WHERE appointment_id = $1 AND status IN ('scheduled', 'confirmed')
         RETURNING appointment_id, status`,
       [appointmentId]
     );

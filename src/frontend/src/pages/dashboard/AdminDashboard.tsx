@@ -1,11 +1,12 @@
 import { forwardRef, useMemo, type ButtonHTMLAttributes, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, type Variants } from 'framer-motion'
 import {
   CalendarClock,
   CalendarPlus,
   ChevronRight,
   Clock,
+  UserCheck,
   UserPlus,
   Users,
   type LucideIcon,
@@ -16,7 +17,9 @@ import { Link } from 'react-router-dom'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage, type SupportedLanguage } from '@/hooks/useLanguage'
 import { appointmentsApi } from '@/lib/api'
@@ -138,15 +141,29 @@ interface ReadOnlyTimelineBlockProps {
  * (time markers on the start edge, status pill, type tag) but it is never
  * interactive here — no expand, no allergies, no diagnosis fetch. Staff is
  * RBAC-blocked from clinical data server-side (`recordsApi.*` 403s an admin
- * session); this component must never call it.
+ * session); this component must never call it. The one interactive control
+ * is Quick Check-In (Feature E) — a staff-only status transition, not
+ * clinical data, so it doesn't violate that boundary.
  */
 function ReadOnlyTimelineBlock({ appointment, top, height, lang }: ReadOnlyTimelineBlockProps) {
   const { t } = useTranslation('appointments')
+  const queryClient = useQueryClient()
+
+  const checkinMutation = useMutation({
+    mutationFn: () => appointmentsApi.checkin(appointment.appointmentId),
+    onSuccess: () => {
+      toast.success(t('checkIn.success'))
+      queryClient.invalidateQueries({ queryKey: ['appointments'] })
+    },
+    onError: () => toast.error(t('checkIn.error')),
+  })
 
   const timeLabel = new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(appointment.scheduledAt))
+
+  const canCheckIn = appointment.status === 'scheduled' || appointment.status === 'confirmed'
 
   return (
     <div style={{ top, minHeight: height }} className="absolute start-0 end-0 px-2 pb-2">
@@ -166,9 +183,21 @@ function ReadOnlyTimelineBlock({ appointment, top, height, lang }: ReadOnlyTimel
           <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
           <span>{timeLabel}</span>
           {appointment.doctorName && <span className="truncate">{appointment.doctorName}</span>}
-          <Badge variant="secondary" className="ms-auto">
+          <Badge variant="secondary" className={canCheckIn ? undefined : 'ms-auto'}>
             {t(`types.${appointment.type}`)}
           </Badge>
+          {canCheckIn && (
+            <Button
+              type="button"
+              size="sm"
+              className="ms-auto h-6 gap-1 bg-warning-50 px-2 text-xs text-warning-600 hover:bg-warning-50/70"
+              disabled={checkinMutation.isPending}
+              onClick={() => checkinMutation.mutate()}
+            >
+              <UserCheck className="h-3 w-3" aria-hidden="true" />
+              {checkinMutation.isPending ? t('checkIn.checkingIn') : t('checkIn.trigger')}
+            </Button>
+          )}
         </div>
       </div>
     </div>

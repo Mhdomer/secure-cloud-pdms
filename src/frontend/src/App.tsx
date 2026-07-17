@@ -21,6 +21,7 @@ import DoctorDashboard from '@/pages/dashboard/DoctorDashboard'
 import PatientDashboard from '@/pages/dashboard/PatientDashboard'
 import SuperAdminDashboard from '@/pages/dashboard/SuperAdminDashboard'
 import AppointmentsPage from '@/pages/appointments/AppointmentsPage'
+import DoctorAvailabilityPage from '@/pages/doctors/DoctorAvailabilityPage'
 import PatientLookupPage from '@/pages/patients/PatientLookupPage'
 import PatientProfilePage from '@/pages/patients/PatientProfilePage'
 import MedicalRecordsPage from '@/pages/records/MedicalRecordsPage'
@@ -180,6 +181,16 @@ function App() {
                 <ProtectedRoute allowedRoles={['superadmin']}>
                   <AppShell>
                     <UserManagementPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/doctors/:doctorId/availability"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin']}>
+                  <AppShell>
+                    <DoctorAvailabilityPage />
                   </AppShell>
                 </ProtectedRoute>
               }

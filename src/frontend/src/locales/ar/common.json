@@ -15,6 +15,7 @@
     "scheduled": "مجدول",
     "confirmed": "مؤكد",
     "pending": "قيد الانتظار",
+    "arrived": "وصل",
     "cancelled": "ملغى",
     "completed": "مكتمل"
   },

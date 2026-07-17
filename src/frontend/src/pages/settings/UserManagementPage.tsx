@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Stethoscope, UserCog } from 'lucide-react'
+import { Clock, Plus, Stethoscope, UserCog } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { z } from 'zod'
 
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -418,6 +419,15 @@ function StaffDirectoryRow({
       <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
         {t('users.directory.createdOn', { date: joinedDate })}
       </span>
+
+      {user.role === 'doctor' && user.doctorId && (
+        <Button type="button" size="sm" variant="ghost" asChild>
+          <Link to={`/doctors/${user.doctorId}/availability`}>
+            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('users.directory.manageHours')}
+          </Link>
+        </Button>
+      )}
 
       <Button
         type="button"

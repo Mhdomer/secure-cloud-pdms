@@ -28,7 +28,8 @@
       "noDiagnosis": "No diagnosis on file yet",
       "diagnosisLoadError": "Couldn't load",
       "allergyLoadError": "Couldn't verify allergies — open the chart to check",
-      "viewChart": "View chart"
+      "viewChart": "View chart",
+      "hereIndicator": "Here"
     },
     "recentPatients": {
       "heading": "Recent Patients",

@@ -101,6 +101,17 @@ router.patch(
   asyncHandler(appointmentsController.confirmAppointment)
 );
 
+// Quick Check-In (Feature E) — staff marks a patient as physically present
+router.patch(
+  '/:appointmentId/checkin',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.SUPERADMIN),
+  [param('appointmentId').isUUID()],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(appointmentsController.checkinAppointment)
+);
+
 // UC-18 / UC-21 — Cancel Appointment (Admin: any; Patient: own only, checked in the controller)
 router.patch(
   '/:appointmentId/cancel',

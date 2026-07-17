@@ -50,8 +50,13 @@ import type {
   ListUsersResponse,
   UserStatusResponse,
 } from '@/types/user'
-import type { DoctorAvailabilityResponse, ListActiveDoctorsResponse } from '@/types/doctor'
-import type { InvoicesListResponse, UploadInvoiceResponse } from '@/types/invoice'
+import type {
+  DoctorAvailabilityResponse,
+  ListActiveDoctorsResponse,
+  UpsertAvailabilityPayload,
+  UpsertAvailabilityResponse,
+} from '@/types/doctor'
+import type { InvoiceCategory, InvoicesListResponse, UploadInvoiceResponse } from '@/types/invoice'
 import type { LabResultsListResponse, UploadLabResultResponse } from '@/types/labResult'
 
 const AUTH_LOGIN_PATH = '/auth/login'
@@ -154,6 +159,14 @@ export const doctorsApi = {
   /** Viewable by any authenticated role — backs the "what hours is this doctor available" hint on booking dialogs. */
   getAvailability: (doctorId: string) =>
     api.get<DoctorAvailabilityResponse>(`/doctors/${doctorId}/availability`).then((res) => res.data),
+  /** Superadmin or the doctor themselves — creates or replaces one day's working-hours slot. */
+  upsertAvailability: (doctorId: string, payload: UpsertAvailabilityPayload) =>
+    api
+      .post<UpsertAvailabilityResponse>(`/doctors/${doctorId}/availability`, payload)
+      .then((res) => res.data),
+  /** Superadmin or the doctor themselves — removes one day's working-hours slot entirely. */
+  removeAvailability: (doctorId: string, dayOfWeek: number) =>
+    api.delete<{ message: string }>(`/doctors/${doctorId}/availability/${dayOfWeek}`).then((res) => res.data),
 }
 
 // ── Patients ─────────────────────────────────────────────────────────────
@@ -244,6 +257,11 @@ export const appointmentsApi = {
     api
       .patch<AppointmentMutationResponse>(`/appointments/${appointmentId}/cancel`, payload)
       .then((res) => res.data),
+  /** Quick Check-In (Feature E) — admin/superadmin only, marks status 'arrived'. */
+  checkin: (appointmentId: string) =>
+    api
+      .patch<AppointmentMutationResponse>(`/appointments/${appointmentId}/checkin`)
+      .then((res) => res.data),
   /** UC-20 — Patient books their own appointment; patient_id is never sent, it's derived server-side from the session. */
   bookMine: (payload: BookOwnAppointmentPayload) =>
     api.post<BookOwnAppointmentResponse>('/appointments/mine', payload).then((res) => res.data),
@@ -258,11 +276,15 @@ export interface UploadInvoicePayload {
   amount?: string
   description?: string
   invoice_date?: string
+  category?: InvoiceCategory
 }
 
 export const invoicesApi = {
-  listForPatient: (patientId: string) =>
-    api.get<InvoicesListResponse>(`/patients/${patientId}/invoices`).then((res) => res.data),
+  /** Optional `category` narrows to 'invoice' | 'consent' | 'other' — omitted returns every category. */
+  listForPatient: (patientId: string, category?: InvoiceCategory) =>
+    api
+      .get<InvoicesListResponse>(`/patients/${patientId}/invoices`, { params: category ? { category } : undefined })
+      .then((res) => res.data),
   /** Admin/superadmin only — multipart/form-data, matches `uploadSingle` middleware's field name `file`. */
   upload: (patientId: string, payload: UploadInvoicePayload) => {
     const form = new FormData()
@@ -270,6 +292,7 @@ export const invoicesApi = {
     if (payload.amount) form.append('amount', payload.amount)
     if (payload.description) form.append('description', payload.description)
     if (payload.invoice_date) form.append('invoice_date', payload.invoice_date)
+    if (payload.category) form.append('category', payload.category)
     return api
       .post<UploadInvoiceResponse>(`/patients/${patientId}/invoices`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },

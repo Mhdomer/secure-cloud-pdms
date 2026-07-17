@@ -55,7 +55,8 @@
       "empty": "لا توجد حسابات موظفين أو أطباء بعد.",
       "statusActive": "نشط",
       "statusInactive": "معطّل",
-      "createdOn": "انضم في {{date}}"
+      "createdOn": "انضم في {{date}}",
+      "manageHours": "ساعات العمل"
     },
     "create": {
       "trigger": "إنشاء حساب",

@@ -1,5 +1,5 @@
 /** Matches `config/constants.js` `APPOINTMENT_STATUS` exactly. */
-export type AppointmentStatus = 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
+export type AppointmentStatus = 'scheduled' | 'confirmed' | 'arrived' | 'completed' | 'cancelled'
 
 /** Matches `config/constants.js` `APPOINTMENT_TYPES` exactly (snake_case value). */
 export type AppointmentType = 'consultation' | 'follow_up' | 'emergency' | 'checkup'

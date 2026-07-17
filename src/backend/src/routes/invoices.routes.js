@@ -1,7 +1,7 @@
 'use strict';
 
 const { Router } = require('express');
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 
 const validateRequest = require('../middleware/validateRequest');
 const { authenticateJWT } = require('../middleware/authMiddleware');
@@ -14,6 +14,9 @@ const { ROLES } = require('../config/constants');
 
 const router = Router();
 
+// Matches patient_invoices' `category` CHECK constraint in schema.sql exactly.
+const INVOICE_CATEGORIES = ['invoice', 'consent', 'other'];
+
 // Upload a billing invoice (staff only)
 router.post(
   '/patients/:patientId/invoices',
@@ -25,18 +28,19 @@ router.post(
     body('amount').optional({ nullable: true }).isFloat({ min: 0 }),
     body('description').optional({ nullable: true }).trim().isLength({ max: 2000 }),
     body('invoice_date').optional({ nullable: true }).isISO8601(),
+    body('category').optional({ nullable: true }).isIn(INVOICE_CATEGORIES),
   ],
   validateRequest,
   setupRLSContext,
   asyncHandler(invoicesController.uploadInvoice)
 );
 
-// List invoices for a patient (staff + doctors)
+// List invoices for a patient (staff + doctors) — ?category= optionally narrows the results
 router.get(
   '/patients/:patientId/invoices',
   authenticateJWT,
   authorizeRole(ROLES.ADMIN, ROLES.SUPERADMIN, ROLES.DOCTOR),
-  [param('patientId').isUUID()],
+  [param('patientId').isUUID(), query('category').optional({ nullable: true }).isIn(INVOICE_CATEGORIES)],
   validateRequest,
   setupRLSContext,
   asyncHandler(invoicesController.getInvoices)

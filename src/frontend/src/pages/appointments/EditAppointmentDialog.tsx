@@ -9,20 +9,11 @@ import { z } from 'zod'
 
 import { DoctorAvailabilityHint } from '@/components/shared/DoctorAvailabilityHint'
 import { DoctorSelect } from '@/components/shared/DoctorSelect'
+import { PatientSelect } from '@/components/shared/PatientSelect'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -30,6 +21,15 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toaster'
 import { appointmentsApi } from '@/lib/api'
@@ -144,7 +144,7 @@ export function EditAppointmentDialog({ appointment }: EditAppointmentDialogProp
   }
 
   return (
-    <Dialog
+    <Sheet
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen)
@@ -153,22 +153,22 @@ export function EditAppointmentDialog({ appointment }: EditAppointmentDialogProp
         }
       }}
     >
-      <DialogTrigger asChild>
+      <SheetTrigger asChild>
         <Button type="button" size="sm" variant="ghost">
           <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
           {t('editButton')}
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t('form.editTitle')}</DialogTitle>
-          <DialogDescription>{t('form.editDescription')}</DialogDescription>
-        </DialogHeader>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>{t('form.editTitle')}</SheetTitle>
+          <SheetDescription>{t('form.editDescription')}</SheetDescription>
+        </SheetHeader>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
             noValidate
-            className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pe-1"
+            className="flex flex-1 flex-col gap-4 overflow-y-auto pe-1"
           >
             <FormField
               control={form.control}
@@ -176,10 +176,15 @@ export function EditAppointmentDialog({ appointment }: EditAppointmentDialogProp
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('form.patientIdLabel')}</FormLabel>
-                  <FormControl>
-                    <Input dir="ltr" autoFocus {...field} />
-                  </FormControl>
-                  <FormDescription>{t('form.patientIdNote')}</FormDescription>
+                  <PatientSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    initialDisplayName={appointment.patientName ?? undefined}
+                    placeholder={t('form.patientSearchPlaceholder')}
+                    loadingLabel={t('form.patientSearchLoading')}
+                    emptyLabel={t('form.patientSearchEmpty')}
+                    loadErrorLabel={t('form.patientSearchError')}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -257,17 +262,17 @@ export function EditAppointmentDialog({ appointment }: EditAppointmentDialogProp
               )}
             />
 
-            <DialogFooter>
+            <SheetFooter>
               <Button
                 type="submit"
                 disabled={form.formState.isSubmitting || updateMutation.isPending}
               >
                 {updateMutation.isPending ? t('form.saving') : t('form.saveChanges')}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }

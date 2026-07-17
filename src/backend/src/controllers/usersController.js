@@ -192,6 +192,10 @@ async function listUsers(req, res) {
       createdAt: r.created_at,
       fullName: r.full_name,
       specialisation: r.specialisation,
+      // Doctor accounts only — null for admin/staff. Lets the frontend link
+      // straight to /doctors/:doctorId/availability without a separate
+      // lookup (doctors.doctor_id is a different UUID space from users.user_id).
+      doctorId: r.doctor_id,
     })),
   });
 }

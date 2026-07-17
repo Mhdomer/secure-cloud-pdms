@@ -17,6 +17,13 @@
   "actions": "Actions",
   "editButton": "Edit",
   "cancel": "Cancel appointment",
+  "checkIn": {
+    "trigger": "Check In",
+    "checkingIn": "Checking in…",
+    "success": "Patient checked in.",
+    "error": "Could not check in this appointment. Please try again.",
+    "hereIndicator": "Patient has arrived"
+  },
   "types": {
     "consultation": "Consultation",
     "follow_up": "Follow-up",
@@ -70,8 +77,11 @@
     "createDescription": "Book a new appointment for a patient with a doctor.",
     "editTitle": "Edit appointment",
     "editDescription": "Update this appointment's details.",
-    "patientIdLabel": "Patient ID",
-    "patientIdNote": "There is no patient picker in this system yet — paste the patient's ID from their profile page.",
+    "patientIdLabel": "Patient",
+    "patientSearchPlaceholder": "Search by national ID, name, or phone…",
+    "patientSearchLoading": "Searching…",
+    "patientSearchEmpty": "No matching patients",
+    "patientSearchError": "Could not search patients. Please try again.",
     "doctorLabel": "Doctor",
     "doctorPlaceholder": "Select a doctor",
     "doctorLoading": "Loading doctors…",

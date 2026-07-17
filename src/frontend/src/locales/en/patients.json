@@ -187,23 +187,38 @@
     }
   },
   "invoicesTab": {
+    "viewToggle": {
+      "invoices": "Invoices",
+      "consent": "Consent Forms"
+    },
     "description": "Billing documents on file for this patient.",
+    "consentDescription": "Signed consent and intake forms on file for this patient.",
     "empty": "No invoices uploaded yet.",
+    "consentEmpty": "No consent forms uploaded yet.",
     "loadError": "Could not load invoices for this patient.",
+    "consentLoadError": "Could not load consent forms for this patient.",
     "download": "Download",
     "uploadTrigger": "Upload invoice",
+    "uploadConsentTrigger": "Upload consent form",
     "uploadTitle": "Upload an invoice",
+    "uploadConsentTitle": "Upload a consent form",
     "fileLabel": "File (PDF or image)",
     "amountLabel": "Amount (SAR)",
     "amountOptional": "Optional",
     "descriptionLabel": "Description",
     "descriptionOptional": "Optional",
+    "formTypeLabel": "Form type",
+    "formTypePlaceholder": "e.g. General Consent, Privacy Notice",
+    "formTypeOptional": "Optional",
     "invoiceDateLabel": "Invoice date",
+    "formDateLabel": "Date",
     "invoiceDateOptional": "Optional",
     "submit": "Upload",
     "submitting": "Uploading…",
     "success": "Invoice uploaded.",
+    "consentSuccess": "Consent form uploaded.",
     "error": "Could not upload the invoice. Please try again.",
+    "consentError": "Could not upload the consent form. Please try again.",
     "validation": {
       "fileRequired": "A file is required"
     }

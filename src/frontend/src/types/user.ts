@@ -12,6 +12,8 @@ export interface StaffUser {
   /** Doctor accounts only — null for admin/staff. */
   fullName: string | null
   specialisation: string | null
+  /** Doctor accounts only — null for admin/staff. A different UUID space from `userId` (`doctors.doctor_id`, not `users.user_id`) — needed to link to availability management. */
+  doctorId: string | null
 }
 
 export interface ListUsersResponse {

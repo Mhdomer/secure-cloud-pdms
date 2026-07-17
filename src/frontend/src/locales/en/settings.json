@@ -47,7 +47,8 @@
       "empty": "No staff or doctor accounts yet.",
       "statusActive": "Active",
       "statusInactive": "Inactive",
-      "createdOn": "Joined {{date}}"
+      "createdOn": "Joined {{date}}",
+      "manageHours": "Working hours"
     },
     "create": {
       "trigger": "Create account",

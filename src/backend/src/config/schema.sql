@@ -102,8 +102,30 @@ CREATE TABLE IF NOT EXISTS appointments (
   created_at     TIMESTAMPTZ DEFAULT NOW(),
   duration_minutes  INT DEFAULT 30,
   cancelled_by      UUID REFERENCES users(user_id) ON DELETE SET NULL,
-  cancellation_note TEXT
+  cancellation_note TEXT,
+  updated_at        TIMESTAMPTZ
 );
+
+-- Quick Check-In (Feature E, Sprint 3c feature audit): staff marks a patient
+-- as physically present ("arrived") between confirmation and the doctor
+-- actually seeing them. This is the lightweight, no-infrastructure stand-in
+-- for a real-time queue dispatch (Feature G) — the doctor dashboard polls
+-- the same GET /appointments it already calls and highlights 'arrived' rows,
+-- no WebSockets needed. Re-declaring the full constraint (not just adding
+-- 'arrived') because Postgres has no ADD-VALUE-TO-CHECK shorthand — this
+-- DROP+ADD pair is idempotent and safe to re-run, matching the pattern
+-- schema-additions.sql already used to introduce 'confirmed'.
+-- Deliberately NOT adding 'pending'/'no_show' here — neither exists anywhere
+-- else in this codebase (APPOINTMENT_STATUS in constants.js, or any
+-- controller); 'scheduled' is this app's actual initial status.
+ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_status_check;
+ALTER TABLE appointments ADD CONSTRAINT appointments_status_check
+  CHECK (status IN ('scheduled','confirmed','arrived','completed','cancelled'));
+-- The `updated_at` column above only takes effect on a fresh install —
+-- `CREATE TABLE IF NOT EXISTS` is a no-op against an already-existing
+-- table, so this explicit ALTER is what actually adds it to any DB that
+-- already had `appointments` before this change.
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 
 -- ── doctor_availability ───────────────────────────────────────────────────
 -- Weekly working-hours schedule. Without this table the system can book
@@ -160,6 +182,16 @@ CREATE TABLE IF NOT EXISTS patient_invoices (
   invoice_date      DATE,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Digital Consent Forms (Feature I, Sprint 3c feature audit): a consent form
+-- is just a scanned PDF/image per patient, same shape as a billing invoice —
+-- reuses this table with a category column rather than a parallel table.
+-- 'other' exists for future document types without another migration.
+ALTER TABLE patient_invoices ADD COLUMN IF NOT EXISTS
+  category VARCHAR(50) NOT NULL DEFAULT 'invoice'
+  CHECK (category IN ('invoice','consent','other'));
+
+CREATE INDEX IF NOT EXISTS idx_patient_invoices_category ON patient_invoices(category);
 
 -- ── lab_results ──────────────────────────────────────────────────────────────
 -- Lab result files uploaded by doctors. RLS-protected (see the RLS section
@@ -427,7 +459,14 @@ END
 $$;
 
 GRANT USAGE ON SCHEMA public TO pdms_app;
-GRANT SELECT, INSERT, UPDATE ON users, doctors, patients, medical_records, appointments, doctor_availability, otp_verifications TO pdms_app;
+GRANT SELECT, INSERT, UPDATE ON users, doctors, patients, medical_records, appointments, otp_verifications TO pdms_app;
+-- doctor_availability gets its own DELETE grant — DoctorAvailability.remove()
+-- issues a real DELETE (one row per doctor_id+day_of_week, not a soft-delete
+-- flag), which the combined grant above never covered. Found via a live
+-- "remove a day's hours" smoke test 500'ing with "permission denied for
+-- table doctor_availability" — the DELETE route/controller/model all
+-- existed already but had never actually been exercised end-to-end.
+GRANT SELECT, INSERT, UPDATE, DELETE ON doctor_availability TO pdms_app;
 GRANT SELECT, INSERT ON audit_log TO pdms_app; -- append-only: no UPDATE/DELETE grant, even to the app role
 GRANT SELECT, INSERT ON patient_invoices, lab_results TO pdms_app; -- upload-only: no UPDATE/DELETE, files are immutable once uploaded
 GRANT SELECT, INSERT, UPDATE ON password_setup_tokens TO pdms_app; -- UPDATE needed to mark used_at

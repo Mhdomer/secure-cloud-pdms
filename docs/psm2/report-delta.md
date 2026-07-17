@@ -529,6 +529,91 @@ always have a legible anchor to open from. Logo swapped to the real clinic logo 
 
 ---
 
+## Sprint 3c — Appointment Booking UX + Doctor Scheduling
+
+---
+
+### [DELTA-018] Patient picker extended to appointment booking; Create/Edit Appointment converted to slide-in panels
+
+| Field | Value |
+|---|---|
+| **Category** | UI / Functionality |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — verified live via Puppeteer (search → select → schedule, in Arabic) |
+
+**What changed:**
+DELTA-012/013 gave the app a doctor picker (`DoctorSelect`) and an admin-facing
+patient search screen (`PatientLookupPage`), but the `patient_id` field inside
+`CreateAppointmentDialog`/`EditAppointmentDialog` was never migrated off the
+original "paste the patient's UUID from their profile page" text input — spotted
+by inspecting the actual booking flow, not by reading a status doc. New
+`components/shared/PatientSelect.tsx` is a debounced search-as-you-type combobox
+(same `GET /patients?q=` endpoint `PatientLookupPage` already uses — national ID,
+name, or phone), wired into both dialogs; a patient UUID is now never typed or
+pasted anywhere in the system. Editing an existing appointment pre-fills the
+search box with `appointment.patientName` (already present in the list response)
+rather than re-fetching.
+
+Both dialogs were also converted from centered `Dialog` modals to the slide-in
+`Sheet` pattern (`components/ui/sheet.tsx`, introduced in the User Management
+rebuild) — closing a gap in `ui-brief.md`'s Appointments screen brief ("Create
+appointment: slide-in panel from the right, not a modal") that the original
+Sprint 3c UI pass never actually implemented.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Extend the DELTA-012 FR ("select a doctor by name, never by ID") to explicitly cover patients too |
+| Chapter 4 | §4.x UI Design / Screen Designs | Update the appointment scheduling/editing screen description: slide-in panel (not modal), patient search combobox (not a UUID field) |
+
+---
+
+### [DELTA-019] Doctor working-hours (availability) management screen — the write side never had a UI
+
+| Field | Value |
+|---|---|
+| **Category** | UI / Functionality / DB Schema / Security |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — live smoke test caught and fixed a real DB permission bug (below) |
+
+**What changed:**
+DELTA-009 added the `doctor_availability` table and its full backend API
+(`GET/POST/DELETE /doctors/:doctorId/availability`, authorized for superadmin or
+the doctor themselves — `doctorAvailabilityController.js`), but no frontend
+screen was ever built against the write endpoints. The working-hours rows that
+gate every appointment booking (`utils/availability.js`'s `isSlotAvailable`) only
+ever existed because a developer inserted them directly via SQL during seeding —
+raised by the user logging into the superadmin account and finding no way to
+create them. New `/doctors/:doctorId/availability` page (superadmin only for
+now — the backend's doctor-self-service path has no frontend entry point yet,
+a natural follow-up) lists all 7 days, with inline add/edit (start time, end
+time, slot length) and a confirm-before-remove per day. Reached via a new
+"Working hours" link on doctor rows in User Management, which required adding
+`doctorId` to the `GET /users` response (`users.user_id` and `doctors.doctor_id`
+are different UUID spaces — the staff directory previously only exposed the
+former).
+
+**Bug found and fixed during live smoke testing:** removing a day's hours 500'd
+with `permission denied for table doctor_availability`. DELTA-009's original
+`GRANT` only gave the `pdms_app` role `SELECT, INSERT, UPDATE` on that table —
+`DELETE` was never added, even though `DoctorAvailability.remove()` issues a
+real `DELETE` (one row per doctor + day, not a soft-delete flag) and the
+DELETE route/controller/model had all existed since DELTA-009. The write path
+had evidently never been exercised end-to-end before this session. Fixed by
+splitting `doctor_availability` into its own `GRANT ... DELETE` in `schema.sql`
+and re-applying it to the local dev DB.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "Superadmin shall be able to create, edit, and remove a doctor's weekly working hours" |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the Doctor Working Hours screen description |
+| Chapter 4 | §4.x Security Design / DB Grants | Note the corrected `pdms_app` grant on `doctor_availability` (adds `DELETE`) — worth a sentence on why a grant gap like this can ship silently: the write path has no automated test, only manual/live verification catches it |
+
+---
+
 ## How to use this file
 
 1. After each sprint ends, check this file before editing the report.
@@ -538,4 +623,4 @@ always have a legible anchor to open from. Logo swapped to the real clinic logo 
 
 ---
 
-*Last updated: Sprint 3c (2026-07-16)*
+*Last updated: Sprint 3c (2026-07-17)*

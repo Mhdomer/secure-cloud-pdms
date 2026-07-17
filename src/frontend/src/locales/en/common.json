@@ -15,6 +15,7 @@
     "scheduled": "Scheduled",
     "confirmed": "Confirmed",
     "pending": "Pending",
+    "arrived": "Arrived",
     "cancelled": "Cancelled",
     "completed": "Completed"
   },

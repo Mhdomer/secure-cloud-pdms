@@ -1,0 +1,38 @@
+{
+  "availabilityPage": {
+    "title": "Working Hours",
+    "backToUsers": "Back to staff accounts",
+    "notFoundTitle": "Doctor not found",
+    "notFoundDescription": "This doctor account does not exist or could not be loaded.",
+    "loadError": "Could not load this doctor's schedule.",
+    "description": "The weekly hours patients and staff can book appointments with this doctor. Clinic days are Sunday through Thursday by default.",
+    "days": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    },
+    "notSet": "No hours set",
+    "addHours": "Add hours",
+    "editHours": "Edit",
+    "remove": "Remove",
+    "startTimeLabel": "Start time",
+    "endTimeLabel": "End time",
+    "slotMinutesLabel": "Appointment length (minutes)",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancelEdit": "Cancel",
+    "saveSuccess": "Working hours saved.",
+    "saveError": "Could not save working hours. Please try again.",
+    "removeConfirmTitle": "Remove hours for {{day}}?",
+    "removeConfirmDescription": "Patients and staff will no longer be able to book appointments with this doctor on this day.",
+    "removeSuccess": "Working hours removed.",
+    "removeError": "Could not remove working hours. Please try again.",
+    "validation": {
+      "startBeforeEnd": "Start time must be before end time"
+    }
+  }
+}

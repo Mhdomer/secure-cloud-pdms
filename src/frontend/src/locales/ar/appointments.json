@@ -17,6 +17,13 @@
   "actions": "الإجراءات",
   "editButton": "تعديل",
   "cancel": "إلغاء الموعد",
+  "checkIn": {
+    "trigger": "تسجيل الوصول",
+    "checkingIn": "جارٍ تسجيل الوصول…",
+    "success": "تم تسجيل وصول المريض.",
+    "error": "تعذّر تسجيل وصول المريض لهذا الموعد. الرجاء المحاولة مجدداً.",
+    "hereIndicator": "المريض وصل"
+  },
   "types": {
     "consultation": "استشارة",
     "follow_up": "متابعة",
@@ -70,8 +77,11 @@
     "createDescription": "احجز موعداً جديداً لمريض مع طبيب.",
     "editTitle": "تعديل الموعد",
     "editDescription": "تحديث تفاصيل هذا الموعد.",
-    "patientIdLabel": "معرّف المريض",
-    "patientIdNote": "لا يوجد أداة اختيار مريض في هذا النظام حالياً — الصق معرّف المريض من صفحة ملفه الشخصي.",
+    "patientIdLabel": "المريض",
+    "patientSearchPlaceholder": "ابحث بالهوية الوطنية أو الاسم أو الجوال…",
+    "patientSearchLoading": "جارٍ البحث…",
+    "patientSearchEmpty": "لا يوجد مرضى مطابقون",
+    "patientSearchError": "تعذّر البحث عن المرضى. الرجاء المحاولة مجدداً.",
     "doctorLabel": "الطبيب",
     "doctorPlaceholder": "اختر طبيباً",
     "doctorLoading": "جارٍ تحميل الأطباء…",

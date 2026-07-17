@@ -191,23 +191,38 @@
     }
   },
   "invoicesTab": {
+    "viewToggle": {
+      "invoices": "الفواتير",
+      "consent": "نماذج الموافقة"
+    },
     "description": "المستندات المالية المسجّلة لهذا المريض.",
+    "consentDescription": "نماذج الموافقة والاستمارات الموقّعة المسجّلة لهذا المريض.",
     "empty": "لا توجد فواتير مرفوعة بعد.",
+    "consentEmpty": "لا توجد نماذج موافقة مرفوعة بعد.",
     "loadError": "تعذّر تحميل فواتير هذا المريض.",
+    "consentLoadError": "تعذّر تحميل نماذج الموافقة لهذا المريض.",
     "download": "تنزيل",
     "uploadTrigger": "رفع فاتورة",
+    "uploadConsentTrigger": "رفع نموذج موافقة",
     "uploadTitle": "رفع فاتورة",
+    "uploadConsentTitle": "رفع نموذج موافقة",
     "fileLabel": "الملف (PDF أو صورة)",
     "amountLabel": "المبلغ (ريال سعودي)",
     "amountOptional": "اختياري",
     "descriptionLabel": "الوصف",
     "descriptionOptional": "اختياري",
+    "formTypeLabel": "نوع النموذج",
+    "formTypePlaceholder": "مثال: موافقة عامة، إشعار الخصوصية",
+    "formTypeOptional": "اختياري",
     "invoiceDateLabel": "تاريخ الفاتورة",
+    "formDateLabel": "التاريخ",
     "invoiceDateOptional": "اختياري",
     "submit": "رفع",
     "submitting": "جارٍ الرفع…",
     "success": "تم رفع الفاتورة.",
+    "consentSuccess": "تم رفع نموذج الموافقة.",
     "error": "تعذّر رفع الفاتورة. الرجاء المحاولة مجدداً.",
+    "consentError": "تعذّر رفع نموذج الموافقة. الرجاء المحاولة مجدداً.",
     "validation": {
       "fileRequired": "الملف مطلوب"
     }

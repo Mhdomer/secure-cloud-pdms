@@ -9,20 +9,11 @@ import { z } from 'zod'
 
 import { DoctorAvailabilityHint } from '@/components/shared/DoctorAvailabilityHint'
 import { DoctorSelect } from '@/components/shared/DoctorSelect'
+import { PatientSelect } from '@/components/shared/PatientSelect'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -30,6 +21,15 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toaster'
 import { appointmentsApi } from '@/lib/api'
@@ -48,7 +48,7 @@ interface CreateAppointmentDialogProps {
   trigger?: ReactNode
 }
 
-/** Admin-only "schedule a new appointment" flow. Same missing-directory caveat as patients/records forms — patient and doctor IDs are plain UUID text fields. */
+/** Admin-only "schedule a new appointment" flow. Patient and doctor are both picked by name/search — see `PatientSelect`/`DoctorSelect` — never a pasted UUID. */
 export function CreateAppointmentDialog({ trigger }: CreateAppointmentDialogProps = {}) {
   const { t } = useTranslation('appointments')
   const [open, setOpen] = useState(false)
@@ -135,7 +135,7 @@ export function CreateAppointmentDialog({ trigger }: CreateAppointmentDialogProp
   }
 
   return (
-    <Dialog
+    <Sheet
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen)
@@ -144,24 +144,24 @@ export function CreateAppointmentDialog({ trigger }: CreateAppointmentDialogProp
         }
       }}
     >
-      <DialogTrigger asChild>
+      <SheetTrigger asChild>
         {trigger ?? (
           <Button>
             <CalendarPlus className="h-4 w-4" aria-hidden="true" />
             {t('new')}
           </Button>
         )}
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t('form.createTitle')}</DialogTitle>
-          <DialogDescription>{t('form.createDescription')}</DialogDescription>
-        </DialogHeader>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>{t('form.createTitle')}</SheetTitle>
+          <SheetDescription>{t('form.createDescription')}</SheetDescription>
+        </SheetHeader>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
             noValidate
-            className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pe-1"
+            className="flex flex-1 flex-col gap-4 overflow-y-auto pe-1"
           >
             <FormField
               control={form.control}
@@ -169,10 +169,14 @@ export function CreateAppointmentDialog({ trigger }: CreateAppointmentDialogProp
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('form.patientIdLabel')}</FormLabel>
-                  <FormControl>
-                    <Input dir="ltr" autoFocus {...field} />
-                  </FormControl>
-                  <FormDescription>{t('form.patientIdNote')}</FormDescription>
+                  <PatientSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder={t('form.patientSearchPlaceholder')}
+                    loadingLabel={t('form.patientSearchLoading')}
+                    emptyLabel={t('form.patientSearchEmpty')}
+                    loadErrorLabel={t('form.patientSearchError')}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -250,17 +254,17 @@ export function CreateAppointmentDialog({ trigger }: CreateAppointmentDialogProp
               )}
             />
 
-            <DialogFooter>
+            <SheetFooter>
               <Button
                 type="submit"
                 disabled={form.formState.isSubmitting || createMutation.isPending}
               >
                 {createMutation.isPending ? t('form.submitting') : t('form.submit')}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }
