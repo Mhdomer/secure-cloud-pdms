@@ -46,12 +46,26 @@ router.get(
   asyncHandler(invoicesController.getInvoices)
 );
 
-// Download an invoice file (staff + doctors) — auth is checked before any
-// file access; this is never served as a static route.
+// List the signed-in patient's own invoices — patientId is derived from the
+// session, never a route param, so a patient can never request another
+// patient's invoices by changing a URL.
+router.get(
+  '/invoices/mine',
+  authenticateJWT,
+  authorizeRole(ROLES.PATIENT),
+  [query('category').optional({ nullable: true }).isIn(INVOICE_CATEGORIES)],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(invoicesController.getMyInvoices)
+);
+
+// Download an invoice file (staff + doctors: any patient's; patient: only
+// their own, checked in the controller) — auth is checked before any file
+// access; this is never served as a static route.
 router.get(
   '/invoices/:invoiceId/file',
   authenticateJWT,
-  authorizeRole(ROLES.ADMIN, ROLES.SUPERADMIN, ROLES.DOCTOR),
+  authorizeRole(ROLES.ADMIN, ROLES.SUPERADMIN, ROLES.DOCTOR, ROLES.PATIENT),
   [param('invoiceId').isUUID()],
   validateRequest,
   setupRLSContext,

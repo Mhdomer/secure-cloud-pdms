@@ -1,29 +1,40 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion, type Variants } from 'framer-motion'
 import {
   AlarmClock,
   AlertTriangle,
   CalendarClock,
+  CalendarPlus,
   CheckCircle2,
   ChevronRight,
   Clock,
+  DoorOpen,
+  FlaskConical,
+  Pill,
+  RefreshCw,
+  StickyNote,
   Timer,
-  type LucideIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
+import { CountUpNumber } from '@/components/shared/CountUpNumber'
+import { DashboardHeroBanner } from '@/components/shared/DashboardHeroBanner'
+import { DashboardStatCard } from '@/components/shared/DashboardStatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { appointmentsApi, patientsApi, recordsApi } from '@/lib/api'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
+import { getClinicWindow, minutesFromWindowStart } from '@/lib/clinicHours'
 import { todayWindowIso } from '@/lib/dateRange'
 import { cn } from '@/lib/utils'
+import { useDoctorRoomSettingsStore } from '@/store/doctorRoomSettingsStore'
 import type { Appointment, AppointmentType } from '@/types/appointment'
 import type { Patient } from '@/types/patient'
 
@@ -36,14 +47,10 @@ const sectionFade: Variants = {
   visible: { opacity: 1, y: 0 },
 }
 
-// Clinic hours the timeline covers. Appointments outside this window are
-// clamped to the nearest edge rather than dropped — better to see them
-// squashed at the top/bottom than to silently disappear.
-const WINDOW_START_HOUR = 8
-const WINDOW_END_HOUR = 20
+// Pixels per hour on the timeline — the clinic's actual open hours (which
+// vary by day) are computed per-render via getClinicWindow(now), not a
+// fixed constant; see lib/clinicHours.ts.
 const PX_PER_HOUR = 80
-const WINDOW_HOURS = WINDOW_END_HOUR - WINDOW_START_HOUR
-const TIMELINE_HEIGHT = WINDOW_HOURS * PX_PER_HOUR
 
 const TYPE_ACCENT: Record<AppointmentType, string> = {
   consultation: 'border-primary-600',
@@ -51,12 +58,6 @@ const TYPE_ACCENT: Record<AppointmentType, string> = {
   emergency: 'border-danger-600',
   checkup: 'border-slate-400',
 }
-
-const TONE_STYLES = {
-  primary: { iconBg: 'bg-primary-50', iconText: 'text-primary-600' },
-  success: { iconBg: 'bg-success-50', iconText: 'text-success-600' },
-  warning: { iconBg: 'bg-warning-50', iconText: 'text-warning-600' },
-} as const
 
 function isSameCalendarDay(a: Date, b: Date) {
   return (
@@ -66,17 +67,12 @@ function isSameCalendarDay(a: Date, b: Date) {
   )
 }
 
-function minutesFromWindowStart(date: Date) {
-  return (date.getHours() - WINDOW_START_HOUR) * 60 + date.getMinutes()
-}
-
-function topPxFor(date: Date) {
-  return Math.min(Math.max((minutesFromWindowStart(date) / 60) * PX_PER_HOUR, 0), TIMELINE_HEIGHT)
-}
-
+// `hour` can exceed 23 here (e.g. 25 = 1 AM the next day) since the clinic's
+// window is expressed as one continuous range past midnight — mod 24 so the
+// clock-face label still reads "1 AM", not "25:00".
 function formatHourLabel(hour: number, lang: 'ar' | 'en') {
   const marker = new Date()
-  marker.setHours(hour, 0, 0, 0)
+  marker.setHours(hour % 24, 0, 0, 0)
   return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric' }).format(
     marker,
   )
@@ -92,60 +88,115 @@ function formatCountdown(target: Date, now: Date, lang: 'ar' | 'en', startingNow
   return rtf.format(Math.round(diffMinutes / 60), 'hour')
 }
 
-/** Counts up from 0 to `value` once, on mount/value change — matches the landing page's stat treatment. */
-function CountUpNumber({ value }: { value: number }) {
-  const [display, setDisplay] = useState(0)
-
-  useEffect(() => {
-    const durationMs = 700
-    const stepMs = 30
-    const totalSteps = Math.max(1, Math.round(durationMs / stepMs))
-    let step = 0
-
-    const interval = setInterval(() => {
-      step += 1
-      setDisplay(Math.round(value * Math.min(step / totalSteps, 1)))
-      if (step >= totalSteps) clearInterval(interval)
-    }, stepMs)
-
-    return () => clearInterval(interval)
-  }, [value])
-
-  return <>{display}</>
+function calculateAge(dateOfBirth: string): number {
+  const dob = new Date(dateOfBirth)
+  const today = new Date()
+  let age = today.getFullYear() - dob.getFullYear()
+  const monthDiff = today.getMonth() - dob.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age -= 1
+  }
+  return age
 }
 
-interface DashboardStatCardProps {
-  icon: LucideIcon
-  tone: keyof typeof TONE_STYLES
-  label: string
-  isLoading: boolean
-  children: ReactNode
-}
+/** The right-column companion to the timeline — the doctor's next scheduled patient at a glance, without clicking into the chart. */
+function PatientSummaryCard({ patientId }: { patientId: string }) {
+  const { t } = useTranslation('dashboard')
+  const { t: tCommon } = useTranslation('common')
+  const { currentLang } = useLanguage()
 
-function DashboardStatCard({ icon: Icon, tone, label, isLoading, children }: DashboardStatCardProps) {
-  const styles = TONE_STYLES[tone]
+  const {
+    data: patient,
+    isLoading: patientLoading,
+    isError: patientError,
+  } = useQuery<Patient>({
+    queryKey: ['patients', 'get', patientId],
+    queryFn: () => patientsApi.get(patientId),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: history, isLoading: historyLoading } = useQuery({
+    queryKey: ['records', 'patient', patientId, 'latest'],
+    queryFn: () => recordsApi.listForPatient(patientId, { limit: 1 }),
+    staleTime: 60_000,
+  })
+
+  if (patientLoading || historyLoading) {
+    return (
+      <div className="flex flex-col gap-2">
+        <span className="h-14 w-full animate-pulse rounded-lg bg-neutral-200" aria-hidden="true" />
+        <span className="h-4 w-2/3 animate-pulse rounded bg-neutral-200" aria-hidden="true" />
+      </div>
+    )
+  }
+
+  if (patientError || !patient) {
+    return <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
+  }
+
+  const lastVisitRecord = history?.records[0]
+  const lastVisitLabel = lastVisitRecord
+    ? new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-US', {
+        month: 'short',
+        day: 'numeric',
+      }).format(new Date(lastVisitRecord.createdAt))
+    : t('doctor.patientSummary.noVisits')
 
   return (
-    <motion.div variants={sectionFade} className="h-full">
-      <Card className="flex h-full items-center justify-between gap-3 p-5 transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-card-hover">
-        <div className="flex min-w-0 flex-col gap-1">
-          {isLoading ? (
-            <span className="h-7 w-14 animate-pulse rounded bg-neutral-200" aria-hidden="true" />
-          ) : (
-            children
-          )}
-          <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
         <span
           className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
-            styles.iconBg,
+            'flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold',
+            avatarClassesFor(patient.patientId),
           )}
+          aria-hidden="true"
         >
-          <Icon className={cn('h-5 w-5', styles.iconText)} aria-hidden="true" />
+          {initialsFor(patient.fullName)}
         </span>
-      </Card>
-    </motion.div>
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-base font-semibold text-foreground" dir="auto">
+            {patient.fullName}
+          </span>
+          <span className="truncate text-xs text-muted-foreground" dir="ltr">
+            {t('doctor.patientSummary.mrn', { id: patient.nationalId ?? '—' })}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-700">
+          {t('doctor.patientSummary.ageYears', { age: calculateAge(patient.dateOfBirth) })}
+        </span>
+        <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-700">
+          {patient.bloodType ?? t('doctor.patientSummary.bloodTypeUnknown')}
+        </span>
+      </div>
+
+      {/* Allergies stay visible here for the same patient-safety reason PatientSummary.tsx documents on the profile page — never hidden behind a click. */}
+      <div
+        className={cn(
+          'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium',
+          patient.allergies ? 'bg-warning-50 text-warning-600' : 'bg-neutral-100 text-muted-foreground',
+        )}
+      >
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate">{patient.allergies ?? t('doctor.patientSummary.noAllergies')}</span>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
+        <span className="text-muted-foreground">{t('doctor.patientSummary.lastVisit')}</span>
+        <span className="font-medium text-foreground">{lastVisitLabel}</span>
+      </div>
+
+      <Link
+        to={`/patients/${patient.patientId}`}
+        className="inline-flex items-center gap-0.5 self-start rounded text-sm font-medium text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
+        {t('doctor.patientSummary.viewChart')}
+        <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden="true" />
+      </Link>
+    </div>
   )
 }
 
@@ -301,6 +352,23 @@ export default function DoctorDashboard() {
   const now = useMemo(() => new Date(), [])
   const { from, to } = useMemo(() => todayWindowIso(now), [now])
 
+  // Clinic hours vary by day (Friday opens at noon, every other day at
+  // 8 AM; every day closes at 1 AM the next calendar day) — see
+  // lib/clinicHours.ts. Appointments outside this window are clamped to the
+  // nearest edge rather than dropped.
+  const { startHour, windowHours } = useMemo(() => getClinicWindow(now), [now])
+  const timelineHeight = windowHours * PX_PER_HOUR
+  const topPxFor = (date: Date) =>
+    Math.min(Math.max((minutesFromWindowStart(date, startHour) / 60) * PX_PER_HOUR, 0), timelineHeight)
+
+  // Stopgap until room_name_1/room_name_2 exist server-side (D-2) — see
+  // store/doctorRoomSettingsStore.ts. Falls back to the translated defaults.
+  const roomSettings = useDoctorRoomSettingsStore((state) => state.settings)
+  const room1Name = roomSettings?.room1Name || t('doctor.hero.consultationRoom')
+  const room1Number = roomSettings?.room1Number || t('doctor.hero.consultationRoomNumber')
+  const room2Name = roomSettings?.room2Name || t('doctor.hero.treatmentRoom')
+  const room2Number = roomSettings?.room2Number || t('doctor.hero.treatmentRoomNumber')
+
   const {
     data: appointmentsPage,
     isLoading: appointmentsLoading,
@@ -323,8 +391,7 @@ export default function DoctorDashboard() {
     [appointments, now],
   )
   const statToday = todaysAppointments.length
-  const statConfirmed = todaysAppointments.filter((a) => a.status === 'confirmed').length
-  const statAwaiting = todaysAppointments.filter((a) => a.status === 'scheduled').length
+  const statFollowUps = todaysAppointments.filter((a) => a.type === 'follow_up').length
   const nextAppointment = useMemo(
     () => appointments.find((a) => new Date(a.scheduledAt).getTime() > now.getTime()) ?? null,
     [appointments, now],
@@ -341,6 +408,20 @@ export default function DoctorDashboard() {
     // list-my-patients endpoint; see docs/psm2 known-gaps notes).
     queryFn: () => recordsApi.list({ limit: 20 }),
   })
+
+  // "Patients Seen" can't come from appointment status: listForDoctor (the
+  // query above) only ever returns scheduled/confirmed/arrived rows, never
+  // 'completed' (see that query's own comment) — filtering on status here
+  // would always read 0. A written medical record is a real, direct signal
+  // a visit happened, so this counts today's records instead — same
+  // already-fetched `recentRecordsPage`, no extra request.
+  const statPatientsSeen = useMemo(
+    () =>
+      (recentRecordsPage?.records ?? []).filter((record) =>
+        isSameCalendarDay(new Date(record.createdAt), now),
+      ).length,
+    [recentRecordsPage, now],
+  )
 
   const recentPatientEntries = useMemo(() => {
     const records = recentRecordsPage?.records ?? []
@@ -375,14 +456,49 @@ export default function DoctorDashboard() {
     day: 'numeric',
   }).format(now)
 
-  const nowOffsetMinutes = minutesFromWindowStart(now)
-  const showNowLine = nowOffsetMinutes >= 0 && nowOffsetMinutes <= WINDOW_HOURS * 60
+  const nowOffsetMinutes = minutesFromWindowStart(now, startHour)
+  const showNowLine = nowOffsetMinutes >= 0 && nowOffsetMinutes <= windowHours * 60
   const sweepStyle: CSSProperties = {
-    ['--sweep-distance' as string]: `${TIMELINE_HEIGHT}px`,
+    ['--sweep-distance' as string]: `${timelineHeight}px`,
     animationDelay: `-${nowOffsetMinutes * 60}s`,
   }
 
-  const hourMarks = Array.from({ length: WINDOW_HOURS + 1 }, (_, i) => WINDOW_START_HOUR + i)
+  const hourMarks = Array.from({ length: windowHours + 1 }, (_, i) => startHour + i)
+
+  // Quick Actions are plain navigation, not new API calls — the note/
+  // prescription destinations reuse MedicalRecordsPage's existing
+  // `?patientId=` convention (see DoctorPatientRecordsSplitView), and
+  // "Request Lab" opens the patient's own Lab Results tab since doctors
+  // upload results there today (there's no separate lab-request flow to
+  // link to). All four fall back to a patient-less destination when there's
+  // no next appointment to scope them to.
+  const quickActionPatientId = nextAppointment?.patientId
+  const quickActions = [
+    {
+      key: 'newNote',
+      icon: StickyNote,
+      label: t('doctor.quickActions.newNote'),
+      to: `/records${quickActionPatientId ? `?patientId=${quickActionPatientId}` : ''}`,
+    },
+    {
+      key: 'requestLab',
+      icon: FlaskConical,
+      label: t('doctor.quickActions.requestLab'),
+      to: quickActionPatientId ? `/patients/${quickActionPatientId}` : '/patients',
+    },
+    {
+      key: 'newPrescription',
+      icon: Pill,
+      label: t('doctor.quickActions.newPrescription'),
+      to: `/records${quickActionPatientId ? `?patientId=${quickActionPatientId}` : ''}`,
+    },
+    {
+      key: 'addFollowUp',
+      icon: CalendarPlus,
+      label: t('doctor.quickActions.addFollowUp'),
+      to: '/appointments',
+    },
+  ]
 
   return (
     <motion.div
@@ -405,6 +521,50 @@ export default function DoctorDashboard() {
         </p>
       </motion.div>
 
+      <motion.div variants={sectionFade}>
+        {/* header-doctor.png is a single photo with both rooms already side
+            by side — the literal left-3/right-3 below (instead of logical
+            start/end) is a deliberate exception to the logical-properties
+            rule: these two caption pills are pinned to the two physical
+            halves of that photo, so they must not swap sides when the app
+            switches to Arabic. Physical left/right CSS is direction-
+            independent, so no dir override is needed on the container. */}
+        <DashboardHeroBanner>
+          <img
+            src="/clinic/header-doctor.png"
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover object-center"
+          />
+          <div className="absolute bottom-3 left-3 flex max-w-[46%] items-center gap-2 rounded-lg bg-white/85 px-2.5 py-2 shadow-card backdrop-blur-sm">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white">
+              <DoorOpen className="h-4 w-4 text-primary-600" aria-hidden="true" />
+            </span>
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate text-sm font-semibold text-neutral-800">
+                {room1Name}
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
+                {room1Number}
+              </span>
+            </span>
+          </div>
+          <div className="absolute bottom-3 right-3 flex max-w-[46%] items-center gap-2 rounded-lg bg-white/85 px-2.5 py-2 shadow-card backdrop-blur-sm">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white">
+              <DoorOpen className="h-4 w-4 text-primary-600" aria-hidden="true" />
+            </span>
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate text-sm font-semibold text-neutral-800">
+                {room2Name}
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
+                {room2Number}
+              </span>
+            </span>
+          </div>
+        </DashboardHeroBanner>
+      </motion.div>
+
       {appointmentsError ? (
         <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
       ) : (
@@ -412,7 +572,7 @@ export default function DoctorDashboard() {
           initial="hidden"
           animate="visible"
           variants={sectionStagger}
-          className="grid grid-cols-2 gap-4 lg:grid-cols-4"
+          className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5"
         >
           <DashboardStatCard
             icon={CalendarClock}
@@ -428,24 +588,31 @@ export default function DoctorDashboard() {
           <DashboardStatCard
             icon={CheckCircle2}
             tone="success"
-            label={t('doctor.stats.confirmed')}
-            isLoading={appointmentsLoading}
+            label={t('doctor.stats.patientsSeen')}
+            isLoading={appointmentsLoading || recordsLoading}
           >
             <span className="text-2xl font-bold tracking-tight text-foreground">
-              <CountUpNumber value={statConfirmed} />
+              <CountUpNumber value={statPatientsSeen} />
             </span>
           </DashboardStatCard>
 
-          <DashboardStatCard
-            icon={AlarmClock}
-            tone="warning"
-            label={t('doctor.stats.awaitingConfirmation')}
-            isLoading={appointmentsLoading}
-          >
-            <span className="text-2xl font-bold tracking-tight text-foreground">
-              <CountUpNumber value={statAwaiting} />
-            </span>
-          </DashboardStatCard>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <DashboardStatCard
+                    icon={AlarmClock}
+                    tone="warning"
+                    label={t('doctor.stats.pendingNotes')}
+                    isLoading={appointmentsLoading}
+                  >
+                    <span className="text-2xl font-bold tracking-tight text-foreground">0</span>
+                  </DashboardStatCard>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">{t('doctor.stats.pendingNotesComingSoon')}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <DashboardStatCard
             icon={Timer}
@@ -473,6 +640,17 @@ export default function DoctorDashboard() {
               </span>
             )}
           </DashboardStatCard>
+
+          <DashboardStatCard
+            icon={RefreshCw}
+            tone="warning"
+            label={t('doctor.stats.followUps')}
+            isLoading={appointmentsLoading}
+          >
+            <span className="text-2xl font-bold tracking-tight text-foreground">
+              <CountUpNumber value={statFollowUps} />
+            </span>
+          </DashboardStatCard>
         </motion.div>
       )}
 
@@ -494,7 +672,7 @@ export default function DoctorDashboard() {
                 description={t('doctor.timeline.emptyDescription')}
               />
             ) : (
-              <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
+              <div className="relative" style={{ height: timelineHeight }}>
                 {hourMarks.map((hour, idx) => (
                   <div
                     key={hour}
@@ -524,7 +702,7 @@ export default function DoctorDashboard() {
                       key={appointment.appointmentId}
                       appointment={appointment}
                       top={topPxFor(new Date(appointment.scheduledAt))}
-                      height={Math.max((appointment.durationMinutes / 60) * PX_PER_HOUR, 56)}
+                      height={Math.max((appointment.durationMinutes / 60) * PX_PER_HOUR, PX_PER_HOUR)}
                       expanded={expandedId === appointment.appointmentId}
                       onToggle={() =>
                         setExpandedId((current) =>
@@ -539,10 +717,25 @@ export default function DoctorDashboard() {
           </div>
         </Card>
 
-        <Card className="p-5">
-          <SectionHeading>{t('doctor.recentPatients.heading')}</SectionHeading>
+        <div className="flex flex-col gap-6">
+          <Card className="p-5">
+            <SectionHeading>{t('doctor.patientSummary.heading')}</SectionHeading>
+            <div className="mt-4">
+              {nextAppointment ? (
+                <PatientSummaryCard patientId={nextAppointment.patientId} />
+              ) : (
+                <EmptyState
+                  title={t('doctor.patientSummary.emptyTitle')}
+                  description={t('doctor.patientSummary.emptyDescription')}
+                />
+              )}
+            </div>
+          </Card>
 
-          <div className="mt-4 flex flex-col gap-1">
+          <Card className="p-5">
+            <SectionHeading>{t('doctor.recentPatients.heading')}</SectionHeading>
+
+            <div className="mt-4 flex flex-col gap-1">
             {recordsLoading ? (
               [0, 1, 2].map((i) => (
                 <span key={i} className="h-14 w-full animate-pulse rounded-lg bg-neutral-200" />
@@ -601,8 +794,27 @@ export default function DoctorDashboard() {
                 )
               })
             )}
-          </div>
-        </Card>
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <SectionHeading>{t('doctor.quickActions.heading')}</SectionHeading>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {quickActions.map((action) => (
+                <Link
+                  key={action.key}
+                  to={action.to}
+                  className="flex flex-col items-center gap-2 rounded-lg border border-border p-3 text-center transition-colors duration-150 ease-out hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-50">
+                    <action.icon className="h-4 w-4 text-primary-600" aria-hidden="true" />
+                  </span>
+                  <span className="text-xs font-medium text-foreground">{action.label}</span>
+                </Link>
+              ))}
+            </div>
+          </Card>
+        </div>
       </motion.div>
     </motion.div>
   )

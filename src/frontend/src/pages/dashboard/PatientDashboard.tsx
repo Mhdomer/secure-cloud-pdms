@@ -1,11 +1,22 @@
 import { useMemo } from 'react'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { motion, type Variants } from 'framer-motion'
-import { CalendarPlus, ChevronRight, FileText, Pill } from 'lucide-react'
+import {
+  CalendarPlus,
+  ChevronRight,
+  ClipboardCheck,
+  FileText,
+  Heart,
+  LifeBuoy,
+  Phone,
+  Pill,
+  Stethoscope,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import type { ReactNode } from 'react'
 
+import { DashboardHeroBanner } from '@/components/shared/DashboardHeroBanner'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Badge } from '@/components/ui/badge'
@@ -131,6 +142,15 @@ export default function PatientDashboard() {
     recordsLoading ||
     (recordSummaries.length > 0 && prescriptionDetailQueries.some((query) => query.isLoading))
 
+  // Purely informational — no data dependency, just orients a patient to
+  // what happens around a visit. Not a status tracker for a specific booking.
+  const careJourneySteps = [
+    { key: 'book', icon: CalendarPlus, label: t('patient.careJourney.book') },
+    { key: 'checkIn', icon: ClipboardCheck, label: t('patient.careJourney.checkIn') },
+    { key: 'consultation', icon: Stethoscope, label: t('patient.careJourney.consultation') },
+    { key: 'support', icon: LifeBuoy, label: t('patient.careJourney.support') },
+  ]
+
   return (
     <motion.div
       initial="hidden"
@@ -142,80 +162,126 @@ export default function PatientDashboard() {
         {t('greeting', { name: user?.username })}
       </motion.h1>
 
-      {/* rounded-xl is an intentional one-off exception to the app-wide
-          rounded-lg rule — this card is the screen's one bold visual idea
-          per ui-brief.md; everything below it stays quiet. */}
+      <motion.div variants={sectionFade}>
+        <DashboardHeroBanner>
+          <img
+            src="/clinic/header-patient.png"
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover object-center"
+          />
+          <div className="absolute bottom-4 start-4 flex max-w-[calc(100%-2rem)] items-center gap-3 rounded-2xl bg-white/85 p-4 shadow-card backdrop-blur-sm sm:max-w-xs">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning-50">
+              <Heart className="h-5 w-5 text-warning-600" aria-hidden="true" fill="currentColor" />
+            </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate text-sm font-semibold text-foreground">
+                {t('patient.hero.welcome', { name: user?.username })}
+              </span>
+              <span className="text-xs text-muted-foreground">{t('patient.hero.subtitle')}</span>
+            </div>
+          </div>
+        </DashboardHeroBanner>
+      </motion.div>
+
       <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="mx-auto w-full max-w-md"
+        initial="hidden"
+        animate="visible"
+        variants={sectionStagger}
+        className="grid grid-cols-1 gap-6 lg:grid-cols-2"
       >
-        <div className="rounded-xl border-s-4 border-primary-600 bg-white p-6 shadow-card">
-          {appointmentsLoading ? (
-            <div className="flex flex-col gap-3">
-              <span className="h-3 w-32 animate-pulse rounded bg-neutral-200" aria-hidden="true" />
-              <span className="h-5 w-44 animate-pulse rounded bg-neutral-200" aria-hidden="true" />
-              <span className="h-8 w-24 animate-pulse rounded bg-neutral-200" aria-hidden="true" />
-              <span className="h-10 w-full animate-pulse rounded-lg bg-neutral-200" aria-hidden="true" />
-            </div>
-          ) : appointmentsError ? (
-            <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
-          ) : nextAppointment ? (
-            <div className="flex flex-col gap-4">
-              {/* No tracking-wide here — letter-spacing is banned on Arabic
-                  text per the design system's non-negotiable typography rule,
-                  and this label renders in both languages. */}
-              <span className="text-xs font-medium uppercase text-muted-foreground">
-                {t('patient.upcomingAppointments')}
-              </span>
-              <div dir="auto" className="flex flex-col gap-1">
-                <span className="text-lg font-bold text-foreground">
-                  {formatFullDate(new Date(nextAppointment.scheduledAt), currentLang)}
-                </span>
-                <span className="text-2xl font-bold text-primary-600">
-                  {formatTime(new Date(nextAppointment.scheduledAt), currentLang)}
-                </span>
+        {/* rounded-xl is an intentional one-off exception to the app-wide
+            rounded-lg rule — this card is the screen's one bold visual idea
+            per ui-brief.md; everything below it stays quiet. */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+        >
+          <div className="h-full rounded-xl border-s-4 border-primary-600 bg-white p-6 shadow-card">
+            {appointmentsLoading ? (
+              <div className="flex flex-col gap-3">
+                <span className="h-3 w-32 animate-pulse rounded bg-neutral-200" aria-hidden="true" />
+                <span className="h-5 w-44 animate-pulse rounded bg-neutral-200" aria-hidden="true" />
+                <span className="h-8 w-24 animate-pulse rounded bg-neutral-200" aria-hidden="true" />
               </div>
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
-                    avatarClassesFor(nextAppointment.doctorId),
-                  )}
+            ) : appointmentsError ? (
+              <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
+            ) : nextAppointment ? (
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 flex-1 flex-col gap-4">
+                  {/* No tracking-wide here — letter-spacing is banned on Arabic
+                      text per the design system's non-negotiable typography rule,
+                      and this label renders in both languages. */}
+                  <span className="text-xs font-medium uppercase text-muted-foreground">
+                    {t('patient.upcomingAppointments')}
+                  </span>
+                  <div dir="auto" className="flex flex-col gap-1">
+                    <span className="text-lg font-bold text-foreground">
+                      {formatFullDate(new Date(nextAppointment.scheduledAt), currentLang)}
+                    </span>
+                    <span className="text-2xl font-bold text-primary-600">
+                      {formatTime(new Date(nextAppointment.scheduledAt), currentLang)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={cn(
+                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+                        avatarClassesFor(nextAppointment.doctorId),
+                      )}
+                      aria-hidden="true"
+                    >
+                      {initialsFor(nextAppointment.doctorName ?? tAppt('doctor'))}
+                    </span>
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {nextAppointment.doctorName ?? tAppt('doctor')}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{tAppt(`types.${nextAppointment.type}`)}</Badge>
+                    <StatusBadge status={nextAppointment.status} />
+                  </div>
+                </div>
+                <img
+                  src="/clinic/real-general-clinic-2.png"
+                  alt=""
                   aria-hidden="true"
-                >
-                  {initialsFor(nextAppointment.doctorName ?? tAppt('doctor'))}
+                  className="hidden h-24 w-24 shrink-0 rounded-lg object-cover shadow-card sm:block"
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3 py-2 text-center">
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50">
+                  <CalendarPlus className="h-6 w-6 text-primary-600" aria-hidden="true" />
                 </span>
-                <span className="truncate text-sm font-medium text-foreground">
-                  {nextAppointment.doctorName ?? tAppt('doctor')}
-                </span>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {t('patient.noUpcomingAppointments')}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('patient.nextAppointmentCard.emptyDescription')}
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{tAppt(`types.${nextAppointment.type}`)}</Badge>
-                <StatusBadge status={nextAppointment.status} />
-              </div>
-              <div className="flex justify-end border-t border-border pt-3">
-                <BookAppointmentDialog />
-              </div>
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div variants={sectionFade}>
+          <Card className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50">
+              <CalendarPlus className="h-6 w-6 text-primary-600" aria-hidden="true" />
+            </span>
+            <div className="flex flex-col gap-1">
+              <h3 className="text-base font-semibold text-foreground">
+                {t('patient.quickBook.heading')}
+              </h3>
+              <p className="text-sm text-muted-foreground">{t('patient.quickBook.description')}</p>
             </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3 py-2 text-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50">
-                <CalendarPlus className="h-6 w-6 text-primary-600" aria-hidden="true" />
-              </span>
-              <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium text-foreground">
-                  {t('patient.noUpcomingAppointments')}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {t('patient.nextAppointmentCard.emptyDescription')}
-                </p>
-              </div>
-              <BookAppointmentDialog />
-            </div>
-          )}
-        </div>
+            <BookAppointmentDialog />
+          </Card>
+        </motion.div>
       </motion.div>
 
       <motion.div
@@ -309,6 +375,54 @@ export default function PatientDashboard() {
             </div>
           </Card>
         </motion.div>
+      </motion.div>
+
+      <motion.div variants={sectionFade} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="p-6 lg:col-span-2">
+          <div className="flex flex-col gap-1 text-center sm:text-start">
+            <h2 className="text-base font-semibold text-foreground">
+              {t('patient.careJourney.heading')}
+            </h2>
+            <p className="text-sm text-muted-foreground">{t('patient.careJourney.subtitle')}</p>
+          </div>
+          <div className="mt-6 flex flex-wrap items-start justify-center gap-x-3 gap-y-6 sm:flex-nowrap sm:justify-between">
+            {careJourneySteps.map((step, idx) => (
+              <div key={step.key} className="flex items-center gap-3">
+                <div className="flex w-24 flex-col items-center gap-2 text-center">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-50">
+                    <step.icon className="h-5 w-5 text-primary-600" aria-hidden="true" />
+                  </span>
+                  <span className="text-xs font-medium text-foreground">{step.label}</span>
+                </div>
+                {idx < careJourneySteps.length - 1 && (
+                  <ChevronRight
+                    className="hidden h-4 w-4 shrink-0 text-neutral-300 rtl:rotate-180 sm:block"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50">
+            <Phone className="h-6 w-6 text-primary-600" aria-hidden="true" />
+          </span>
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-semibold text-foreground">
+              {t('patient.needHelp.heading')}
+            </h3>
+            <p className="text-sm text-muted-foreground">{t('patient.needHelp.description')}</p>
+          </div>
+          <a
+            href="tel:+966114222000"
+            dir="ltr"
+            className="text-sm font-semibold text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            {t('patient.needHelp.phone')}
+          </a>
+        </Card>
       </motion.div>
     </motion.div>
   )

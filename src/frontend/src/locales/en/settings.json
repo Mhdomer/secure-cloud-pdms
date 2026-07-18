@@ -12,6 +12,16 @@
     "english": "English",
     "arabic": "Arabic"
   },
+  "roomLabels": {
+    "title": "Room labels",
+    "description": "Shown on your dashboard's hero banner. Saved to this browser only.",
+    "room1Name": "Room 1 name",
+    "room1Number": "Room 1 subtitle",
+    "room2Name": "Room 2 name",
+    "room2Number": "Room 2 subtitle",
+    "save": "Save labels",
+    "success": "Room labels updated."
+  },
   "password": {
     "title": "Change password",
     "description": "Choose a new password for your own account.",

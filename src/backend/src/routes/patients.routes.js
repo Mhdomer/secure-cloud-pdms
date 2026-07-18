@@ -120,6 +120,44 @@ router.patch(
   asyncHandler(patientsController.assignDoctor)
 );
 
+// UC-09b — List care team members for a patient (admin + doctor)
+router.get(
+  '/:patientId/care-team',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.DOCTOR),
+  [param('patientId').isUUID()],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(patientsController.getCareTeam)
+);
+
+// UC-09b — Add a doctor to a patient's care team (admin only)
+router.post(
+  '/:patientId/care-team',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN),
+  [
+    param('patientId').isUUID(),
+    body('doctor_id').isUUID(),
+    body('speciality').optional({ nullable: true }).trim().isLength({ max: 100 }),
+    body('is_primary').optional().isBoolean(),
+  ],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(patientsController.addToCareTeam)
+);
+
+// UC-09b — Remove a doctor from a patient's care team (admin only)
+router.delete(
+  '/:patientId/care-team/:assignmentId',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN),
+  [param('patientId').isUUID(), param('assignmentId').isUUID()],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(patientsController.removeFromCareTeam)
+);
+
 // Regenerate a patient's password-setup QR (e.g. lost before scanning)
 router.post(
   '/:patientId/regenerate-qr',

@@ -5,7 +5,7 @@ import {
   CalendarClock,
   CalendarPlus,
   ChevronRight,
-  Clock,
+  Megaphone,
   UserCheck,
   UserPlus,
   Users,
@@ -14,9 +14,11 @@ import {
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
+import { CountUpNumber } from '@/components/shared/CountUpNumber'
+import { DashboardHeroBanner } from '@/components/shared/DashboardHeroBanner'
+import { DashboardStatCard } from '@/components/shared/DashboardStatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { toast } from '@/components/ui/toaster'
@@ -40,20 +42,11 @@ const sectionFade: Variants = {
   visible: { opacity: 1, y: 0 },
 }
 
-// Same clinic-hours window as the Doctor Dashboard timeline — appointments
-// outside 8am–8pm are clamped to the nearest edge rather than dropped, so
-// nothing silently disappears off-screen.
-const WINDOW_START_HOUR = 8
-const WINDOW_END_HOUR = 20
-const PX_PER_HOUR = 80
-const WINDOW_HOURS = WINDOW_END_HOUR - WINDOW_START_HOUR
-const TIMELINE_HEIGHT = WINDOW_HOURS * PX_PER_HOUR
-
-const TYPE_ACCENT: Record<AppointmentType, string> = {
-  consultation: 'border-primary-600',
-  follow_up: 'border-warning-600',
-  emergency: 'border-danger-600',
-  checkup: 'border-slate-400',
+const TYPE_DOT: Record<AppointmentType, string> = {
+  consultation: 'bg-primary-600',
+  follow_up: 'bg-warning-600',
+  emergency: 'bg-danger-600',
+  checkup: 'bg-slate-400',
 }
 
 function isSameCalendarDay(a: Date, b: Date) {
@@ -61,22 +54,6 @@ function isSameCalendarDay(a: Date, b: Date) {
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
-  )
-}
-
-function minutesFromWindowStart(date: Date) {
-  return (date.getHours() - WINDOW_START_HOUR) * 60 + date.getMinutes()
-}
-
-function topPxFor(date: Date) {
-  return Math.min(Math.max((minutesFromWindowStart(date) / 60) * PX_PER_HOUR, 0), TIMELINE_HEIGHT)
-}
-
-function formatHourLabel(hour: number, lang: SupportedLanguage) {
-  const marker = new Date()
-  marker.setHours(hour, 0, 0, 0)
-  return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric' }).format(
-    marker,
   )
 }
 
@@ -88,6 +65,33 @@ function SectionHeading({ children, action }: { children: ReactNode; action?: Re
         <span aria-hidden="true" className="block h-0.5 w-8 rounded-full bg-primary-600" />
       </div>
       {action}
+    </div>
+  )
+}
+
+function FlowPill({
+  step,
+  label,
+  count,
+  image,
+}: {
+  step: number
+  label: string
+  count: number
+  image: string
+}) {
+  return (
+    <div className="relative flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card">
+      <div className="relative h-16 w-full">
+        <img src={image} alt="" aria-hidden="true" className="h-full w-full object-cover" />
+        <span className="absolute -bottom-3 start-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white shadow-card">
+          {step}
+        </span>
+      </div>
+      <div className="flex flex-col items-center gap-1 px-3 pb-3 pt-5 text-center">
+        <span className="text-xl font-bold text-foreground">{count}</span>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      </div>
     </div>
   )
 }
@@ -129,23 +133,21 @@ const AdminActionTile = forwardRef<HTMLButtonElement, AdminActionTileProps>(
 )
 AdminActionTile.displayName = 'AdminActionTile'
 
-interface ReadOnlyTimelineBlockProps {
+interface ScheduleTableRowProps {
   appointment: Appointment
-  top: number
-  height: number
   lang: SupportedLanguage
 }
 
 /**
- * Staff sees the same appointment-timeline shape as the Doctor Dashboard
- * (time markers on the start edge, status pill, type tag) but it is never
- * interactive here — no expand, no allergies, no diagnosis fetch. Staff is
- * RBAC-blocked from clinical data server-side (`recordsApi.*` 403s an admin
- * session); this component must never call it. The one interactive control
- * is Quick Check-In (Feature E) — a staff-only status transition, not
- * clinical data, so it doesn't violate that boundary.
+ * Staff sees the same appointment data as the Doctor Dashboard (time, type,
+ * status) but as a scannable table row, never interactive beyond check-in —
+ * no expand, no allergies, no diagnosis fetch. Staff is RBAC-blocked from
+ * clinical data server-side (`recordsApi.*` 403s an admin session); this
+ * component must never call it. The one interactive control is Quick
+ * Check-In (Feature E) — a staff-only status transition, not clinical data,
+ * so it doesn't violate that boundary.
  */
-function ReadOnlyTimelineBlock({ appointment, top, height, lang }: ReadOnlyTimelineBlockProps) {
+function ScheduleTableRow({ appointment, lang }: ScheduleTableRowProps) {
   const { t } = useTranslation('appointments')
   const queryClient = useQueryClient()
 
@@ -166,41 +168,37 @@ function ReadOnlyTimelineBlock({ appointment, top, height, lang }: ReadOnlyTimel
   const canCheckIn = appointment.status === 'scheduled' || appointment.status === 'confirmed'
 
   return (
-    <div style={{ top, minHeight: height }} className="absolute start-0 end-0 px-2 pb-2">
-      <div
-        className={cn(
-          'flex h-full flex-col justify-center gap-1.5 rounded-lg border-s-4 bg-card p-3 shadow-card',
-          TYPE_ACCENT[appointment.type],
+    <tr className="border-b border-border last:border-0 hover:bg-primary-50">
+      <td className="whitespace-nowrap py-3 ps-1 pe-3 text-sm text-foreground">{timeLabel}</td>
+      <td className="max-w-0 py-3 pe-3 text-sm font-medium text-foreground">
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_DOT[appointment.type])}
+            aria-hidden="true"
+          />
+          <span className="truncate">{appointment.patientName ?? t('patient')}</span>
+        </span>
+      </td>
+      <td className="max-w-0 truncate py-3 pe-3 text-sm text-muted-foreground">{t(`types.${appointment.type}`)}</td>
+      <td className="max-w-0 truncate py-3 pe-3 text-sm text-muted-foreground">{appointment.doctorName ?? '—'}</td>
+      <td className="py-3 pe-3">
+        <StatusBadge status={appointment.status} />
+      </td>
+      <td className="py-3 ps-1 text-end">
+        {canCheckIn && (
+          <Button
+            type="button"
+            size="sm"
+            className="h-7 gap-1 bg-warning-50 px-2 text-xs text-warning-600 hover:bg-warning-50/70"
+            disabled={checkinMutation.isPending}
+            onClick={() => checkinMutation.mutate()}
+          >
+            <UserCheck className="h-3 w-3" aria-hidden="true" />
+            {checkinMutation.isPending ? t('checkIn.checkingIn') : t('checkIn.trigger')}
+          </Button>
         )}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-semibold text-foreground">
-            {appointment.patientName ?? t('patient')}
-          </span>
-          <StatusBadge status={appointment.status} />
-        </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
-          <span>{timeLabel}</span>
-          {appointment.doctorName && <span className="truncate">{appointment.doctorName}</span>}
-          <Badge variant="secondary" className={canCheckIn ? undefined : 'ms-auto'}>
-            {t(`types.${appointment.type}`)}
-          </Badge>
-          {canCheckIn && (
-            <Button
-              type="button"
-              size="sm"
-              className="ms-auto h-6 gap-1 bg-warning-50 px-2 text-xs text-warning-600 hover:bg-warning-50/70"
-              disabled={checkinMutation.isPending}
-              onClick={() => checkinMutation.mutate()}
-            >
-              <UserCheck className="h-3 w-3" aria-hidden="true" />
-              {checkinMutation.isPending ? t('checkIn.checkingIn') : t('checkIn.trigger')}
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
+      </td>
+    </tr>
   )
 }
 
@@ -256,6 +254,7 @@ function RecentRegistrationCard({
 export default function AdminDashboard() {
   const { t } = useTranslation('dashboard')
   const { t: tCommon } = useTranslation('common')
+  const { t: tAppt } = useTranslation('appointments')
   const { user } = useAuth()
   const { currentLang } = useLanguage()
 
@@ -282,6 +281,36 @@ export default function AdminDashboard() {
     () => appointments.filter((a) => isSameCalendarDay(new Date(a.scheduledAt), now)),
     [appointments, now],
   )
+  const sortedTodaysAppointments = useMemo(
+    () =>
+      [...todaysAppointments].sort(
+        (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+      ),
+    [todaysAppointments],
+  )
+
+  // 3-step patient flow pills below the hero banner — pulled from today's
+  // appointment statuses already fetched above, no new endpoint. The API has
+  // no distinct "in progress" state (see `Status` in StatusBadge.tsx), so
+  // "In Consultation" uses `completed` as the closest existing proxy for
+  // "already seen today".
+  const queueCount = todaysAppointments.filter(
+    (a) => a.status === 'scheduled' || a.status === 'confirmed',
+  ).length
+  const checkedInCount = todaysAppointments.filter((a) => a.status === 'arrived').length
+  const inConsultationCount = todaysAppointments.filter((a) => a.status === 'completed').length
+
+  // Top stat row — same today's-appointments data as the flow pills below,
+  // just summarized differently: a live count ("Patients Waiting" = who's
+  // physically arrived right now) next to a running daily total
+  // ("Completed Check-ins" = arrived + completed, i.e. everyone who has
+  // been through check-in today, whether their visit is finished or not).
+  const statConfirmedToday = todaysAppointments.filter((a) => a.status === 'confirmed').length
+  const statCompletedCheckins = checkedInCount + inConsultationCount
+  const statCompletedCheckinsPct =
+    todaysAppointments.length > 0
+      ? Math.round((statCompletedCheckins / todaysAppointments.length) * 100)
+      : 0
 
   // Session-local registration trail — see store/recentRegistrationsStore.ts
   // for why this isn't a network fetch (`GET /patients` has no "list all" or
@@ -306,10 +335,6 @@ export default function AdminDashboard() {
     day: 'numeric',
   }).format(now)
 
-  const nowOffsetMinutes = minutesFromWindowStart(now)
-  const showNowLine = nowOffsetMinutes >= 0 && nowOffsetMinutes <= WINDOW_HOURS * 60
-  const hourMarks = Array.from({ length: WINDOW_HOURS + 1 }, (_, i) => WINDOW_START_HOUR + i)
-
   return (
     <motion.div
       initial="hidden"
@@ -329,6 +354,99 @@ export default function AdminDashboard() {
           <span className="mx-1.5 text-neutral-300">·</span>
           <span className="text-neutral-400">{dateInOtherLang}</span>
         </p>
+      </motion.div>
+
+      <motion.div variants={sectionFade}>
+        <DashboardHeroBanner>
+          <img
+            src="/clinic/header-staff.png"
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover object-center"
+          />
+        </DashboardHeroBanner>
+      </motion.div>
+
+      {appointmentsError ? (
+        <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
+      ) : (
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={sectionStagger}
+          className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+        >
+          <DashboardStatCard
+            icon={CalendarClock}
+            tone="primary"
+            label={t('admin.stats.appointmentsToday')}
+            isLoading={appointmentsLoading}
+          >
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold tracking-tight text-foreground">
+                <CountUpNumber value={todaysAppointments.length} />
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
+                {t('admin.stats.confirmedCount', { count: statConfirmedToday })}
+              </span>
+            </div>
+          </DashboardStatCard>
+
+          <DashboardStatCard
+            icon={Users}
+            tone="warning"
+            label={t('admin.stats.patientsWaiting')}
+            isLoading={appointmentsLoading}
+          >
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold tracking-tight text-foreground">
+                <CountUpNumber value={checkedInCount} />
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
+                {t('admin.stats.inQueueCount', { count: queueCount })}
+              </span>
+            </div>
+          </DashboardStatCard>
+
+          <DashboardStatCard
+            icon={UserCheck}
+            tone="success"
+            label={t('admin.stats.completedCheckins')}
+            isLoading={appointmentsLoading}
+          >
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold tracking-tight text-foreground">
+                <CountUpNumber value={statCompletedCheckins} />
+              </span>
+              <span className="truncate text-xs text-muted-foreground">
+                {t('admin.stats.pctOfToday', { pct: statCompletedCheckinsPct })}
+              </span>
+            </div>
+          </DashboardStatCard>
+        </motion.div>
+      )}
+
+      <motion.div variants={sectionFade} className="flex items-center gap-2">
+        <FlowPill
+          step={1}
+          label={t('admin.hero.queue')}
+          count={queueCount}
+          image="/clinic/real-waiting-area.png"
+        />
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180" aria-hidden="true" />
+        <FlowPill
+          step={2}
+          label={t('admin.hero.checkedIn')}
+          count={checkedInCount}
+          image="/clinic/real-reception.png"
+        />
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180" aria-hidden="true" />
+        <FlowPill
+          step={3}
+          label={t('admin.hero.inConsultation')}
+          count={inConsultationCount}
+          image="/clinic/real-general-clinic.png"
+        />
       </motion.div>
 
       {/* The two things staff do all day — full-width stack on mobile,
@@ -354,8 +472,8 @@ export default function AdminDashboard() {
         />
       </motion.div>
 
-      <motion.div variants={sectionFade}>
-        <Card className="p-5">
+      <motion.div variants={sectionFade} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="p-5 lg:col-span-2">
           <SectionHeading
             action={
               <Link
@@ -386,62 +504,70 @@ export default function AdminDashboard() {
                 description={t('admin.timeline.emptyDescription')}
               />
             ) : (
-              <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
-                {hourMarks.map((hour, idx) => (
-                  <div
-                    key={hour}
-                    className="absolute start-0 end-0 border-t border-border"
-                    style={{ top: idx * PX_PER_HOUR }}
-                  >
-                    <span className="relative -top-2 inline-block bg-card pe-2 text-xs text-muted-foreground">
-                      {formatHourLabel(hour, currentLang)}
-                    </span>
-                  </div>
-                ))}
-
-                {showNowLine && (
-                  <div className="absolute start-12 end-0 z-20" style={{ top: topPxFor(now) }}>
-                    <div className="relative h-0.5 bg-danger-600">
-                      <span className="absolute -top-1 -start-1 h-2.5 w-2.5 rounded-full bg-danger-600" />
-                    </div>
-                  </div>
-                )}
-
-                <div className="absolute inset-y-0 start-12 end-0">
-                  {todaysAppointments.map((appointment) => (
-                    <ReadOnlyTimelineBlock
-                      key={appointment.appointmentId}
-                      appointment={appointment}
-                      top={topPxFor(new Date(appointment.scheduledAt))}
-                      height={Math.max((appointment.durationMinutes / 60) * PX_PER_HOUR, 56)}
-                      lang={currentLang}
-                    />
-                  ))}
-                </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-border text-xs font-medium text-muted-foreground">
+                      <th className="py-2 ps-1 pe-3 text-start font-medium">{tAppt('time')}</th>
+                      <th className="py-2 pe-3 text-start font-medium">{tAppt('patient')}</th>
+                      <th className="py-2 pe-3 text-start font-medium">{tAppt('type')}</th>
+                      <th className="py-2 pe-3 text-start font-medium">{tAppt('doctor')}</th>
+                      <th className="py-2 pe-3 text-start font-medium">{tAppt('status')}</th>
+                      <th className="py-2 ps-1" aria-hidden="true" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedTodaysAppointments.map((appointment) => (
+                      <ScheduleTableRow
+                        key={appointment.appointmentId}
+                        appointment={appointment}
+                        lang={currentLang}
+                      />
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
         </Card>
-      </motion.div>
 
-      <motion.div variants={sectionFade}>
-        <Card className="p-5">
-          <SectionHeading>{t('admin.recentRegistrations.heading')}</SectionHeading>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {recentRegistrations.length === 0 ? (
-              <EmptyState
-                icon={Users}
-                title={t('admin.recentRegistrations.emptyTitle')}
-                description={t('admin.recentRegistrations.emptyDescription')}
-                className="w-full"
-              />
-            ) : (
-              recentRegistrations.map((entry) => (
-                <RecentRegistrationCard key={entry.patientId} entry={entry} lang={currentLang} />
-              ))
-            )}
-          </div>
-        </Card>
+        <div className="flex flex-col gap-6">
+          <Card className="p-5">
+            <SectionHeading>{t('admin.announcements.heading')}</SectionHeading>
+            <div className="mt-4 flex flex-col gap-3">
+              {(
+                [
+                  t('admin.announcements.teamMeeting'),
+                  t('admin.announcements.holidayHours'),
+                ] as const
+              ).map((text) => (
+                <div key={text} className="flex items-start gap-3 rounded-lg border border-border p-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50">
+                    <Megaphone className="h-4 w-4 text-primary-600" aria-hidden="true" />
+                  </span>
+                  <p className="text-sm text-foreground">{text}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <SectionHeading>{t('admin.recentRegistrations.heading')}</SectionHeading>
+            <div className="mt-4 flex flex-col gap-3">
+              {recentRegistrations.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title={t('admin.recentRegistrations.emptyTitle')}
+                  description={t('admin.recentRegistrations.emptyDescription')}
+                />
+              ) : (
+                recentRegistrations.map((entry) => (
+                  <RecentRegistrationCard key={entry.patientId} entry={entry} lang={currentLang} />
+                ))
+              )}
+            </div>
+          </Card>
+        </div>
       </motion.div>
     </motion.div>
   )

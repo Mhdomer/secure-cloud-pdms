@@ -1,14 +1,19 @@
 import { useEffect, useRef, useState, type ComponentType, type FormEvent } from 'react'
-import { motion, useInView, type Variants } from 'framer-motion'
+import { AnimatePresence, motion, useInView } from 'framer-motion'
 import {
   ArrowRight,
+  Baby,
   Calendar,
   ChevronDown,
+  ChevronRight,
   Clock,
+  FlaskConical,
   LayoutGrid,
   MapPin,
   Phone,
   Search,
+  Smile,
+  Sparkles,
   Star,
   Stethoscope,
   Users,
@@ -50,9 +55,9 @@ export default function LandingPage() {
       <QuickAccessSection />
       <TrustSection />
       <OfferingsTeaserSection />
+      <SpecialtyCentresSection />
       <DoctorsSection />
       <TestimonialsSection />
-      <EmergencyBanner />
       <HowItWorksSection />
       <ContactSection />
       <LandingFooter />
@@ -326,9 +331,8 @@ function OfferingsTeaserSection() {
   const { t } = useTranslation('landing')
   const navigate = useNavigate()
 
-  const offerings: Array<{ key: 'facilities' | 'patientInfo'; image: string; to: string }> = [
+  const offerings: Array<{ key: 'facilities'; image: string; to: string }> = [
     { key: 'facilities', image: '/clinic/branch-2.png', to: '/facilities' },
-    { key: 'patientInfo', image: '/clinic/patient-visual.jpg', to: '/patient-info' },
   ]
 
   return (
@@ -422,7 +426,122 @@ function OfferingsTeaserSection() {
               </div>
             </motion.button>
           ))}
+
+          <motion.button
+            type="button"
+            variants={fadeUp}
+            transition={{ duration: 0.45 }}
+            whileHover={{ y: -6 }}
+            onClick={() => navigate('/patient-info')}
+            className="group relative aspect-[16/9] overflow-hidden rounded-2xl bg-[#e4dfd0] text-start shadow-card transition-shadow duration-150 ease-out hover:shadow-card-hover sm:aspect-[3/4]"
+          >
+            <img
+              src="/clinic/patient-visitor-guide.png"
+              alt={t('offerings.patientInfo.title')}
+              className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+            />
+          </motion.button>
         </motion.div>
+      </div>
+    </section>
+  )
+}
+
+const SPECIALTY_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  dental: Smile,
+  'general-medicine': Stethoscope,
+  laboratory: FlaskConical,
+  pediatrics: Baby,
+  dermatology: Sparkles,
+}
+
+const SPECIALTY_IMAGES: Record<string, string> = {
+  dental: '/clinic/spec-dental.png',
+  'general-medicine': '/clinic/spec-general-medicine.png',
+  laboratory: '/clinic/spec-laboratory.png',
+  pediatrics: '/clinic/spec-pediatrics.png',
+  dermatology: '/clinic/spec-dermatology.png',
+}
+
+function SpecialtyCentresSection() {
+  const { t } = useTranslation('landing')
+  const specialties = t('specialtyCentres.list', { returnObjects: true }) as Array<{ key: string; name: string }>
+  const [activeKey, setActiveKey] = useState('dental')
+
+  const activeIndex = Math.max(
+    0,
+    specialties.findIndex((item) => item.key === activeKey),
+  )
+  const nextSpecialty = specialties[(activeIndex + 1) % specialties.length]
+  const subtitle = specialties.map((item) => item.name).join(' • ')
+
+  return (
+    <section className="bg-neutral-50 px-4 py-24 sm:px-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-[42%_1fr]">
+          <div className="rounded-2xl bg-white p-8 shadow-sm">
+            <h2 className="text-2xl font-bold text-brand-charcoal">{t('specialtyCentres.heading')}</h2>
+            <span aria-hidden="true" className="mb-6 mt-2 block h-0.5 w-8 bg-brand-gold" />
+            <p className="text-sm text-gray-400">{subtitle}</p>
+
+            <div className="mt-2 flex flex-col">
+              {specialties.map((item) => {
+                const Icon = SPECIALTY_ICONS[item.key] ?? Stethoscope
+                const isActive = item.key === activeKey
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setActiveKey(item.key)}
+                    style={{ borderInlineStart: isActive ? '2px solid #f59e0b' : '2px solid transparent' }}
+                    className={cn(
+                      'flex items-center border-b border-gray-100 py-4 ps-3 pe-2 text-start transition-colors duration-150 ease-out',
+                      isActive ? 'bg-amber-50/30' : 'hover:bg-amber-50/10',
+                    )}
+                  >
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-50">
+                      <Icon className="h-5 w-5 text-amber-600" aria-hidden="true" />
+                    </span>
+                    <span className="font-medium ms-3 text-brand-charcoal">{item.name}</span>
+                    <ChevronRight className="ms-auto h-4 w-4 shrink-0 text-amber-500 rtl:rotate-180" aria-hidden="true" />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex h-[460px] gap-4">
+            <div className="relative h-full w-full max-w-[460px] flex-1 overflow-hidden rounded-2xl">
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={activeKey}
+                  src={SPECIALTY_IMAGES[activeKey]}
+                  alt={specialties[activeIndex]?.name ?? ''}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              </AnimatePresence>
+            </div>
+
+            {nextSpecialty && (
+              <button
+                type="button"
+                onClick={() => setActiveKey(nextSpecialty.key)}
+                aria-label={nextSpecialty.name}
+                className="relative hidden h-full w-32 shrink-0 overflow-hidden rounded-2xl transition-opacity duration-200 ease-out hover:opacity-90 sm:block sm:w-40"
+              >
+                <img
+                  src={SPECIALTY_IMAGES[nextSpecialty.key]}
+                  alt={nextSpecialty.name}
+                  className="h-full w-full object-cover"
+                />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -536,41 +655,6 @@ function TestimonialsSection() {
   )
 }
 
-function EmergencyBanner() {
-  const { t } = useTranslation('landing')
-
-  return (
-    <section className="bg-danger-600 px-4 py-10 sm:px-6">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 md:flex-row">
-        <div className="text-center md:text-start">
-          <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
-            <h2 className="text-xl font-bold text-white">{t('emergency.heading')}</h2>
-            <span className="rounded-full bg-black/20 px-2.5 py-1 text-xs font-semibold text-white">
-              {t('emergency.badge')}
-            </span>
-          </div>
-          <p className="mt-2 max-w-lg text-white/80">{t('emergency.description')}</p>
-        </div>
-
-        <div className="flex flex-col items-center gap-2 md:items-end">
-          <span className="text-sm text-white/70">{t('emergency.hotlineLabel')}</span>
-          <motion.span
-            dir="auto"
-            className="text-3xl font-bold text-white"
-            animate={{ scale: [1, 1.02, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            {t('contact.phone')}
-          </motion.span>
-          <Button asChild size="lg" className="mt-1 bg-white font-semibold text-danger-600 hover:bg-white/90">
-            <a href={EMERGENCY_TEL}>{t('emergency.cta')}</a>
-          </Button>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function HowItWorksSection() {
   const { t } = useTranslation('landing')
   const steps = t('howItWorks.steps', { returnObjects: true }) as Array<{
@@ -663,12 +747,15 @@ function ContactSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="flex min-h-[280px] items-center justify-center rounded-2xl bg-neutral-100"
+          className="min-h-[280px] overflow-hidden rounded-2xl bg-neutral-100"
         >
-          <div className="flex flex-col items-center gap-2 text-neutral-500">
-            <MapPin className="h-8 w-8" aria-hidden="true" />
-            <span className="text-sm font-medium">{t('contact.mapLabel')}</span>
-          </div>
+          <iframe
+            title={t('contact.mapLabel')}
+            src={`https://www.google.com/maps?q=${encodeURIComponent(t('contact.address'))}&output=embed`}
+            className="h-full min-h-[280px] w-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
         </motion.div>
       </div>
     </section>

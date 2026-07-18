@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   doctor_id      UUID REFERENCES doctors(doctor_id)   ON DELETE SET NULL,
   scheduled_at   TIMESTAMPTZ NOT NULL,
   status         VARCHAR(20) DEFAULT 'scheduled'
-                   CHECK (status IN ('scheduled','confirmed','completed','cancelled')),
+                   CHECK (status IN ('scheduled','confirmed','arrived','completed','cancelled')),
   type           VARCHAR(20) DEFAULT 'consultation'
                    CHECK (type IN ('consultation','follow_up','emergency','checkup')),
   notes          TEXT,
@@ -167,8 +167,10 @@ CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_verifications(phone_number);
 
 -- ── patient_invoices ─────────────────────────────────────────────────────────
 -- Billing documents uploaded by staff. No RLS — access is role-gated only
--- (admin/superadmin upload, admin/superadmin/doctor view, patient never),
--- not scoped per-doctor like medical_records/lab_results.
+-- (admin/superadmin upload; admin/superadmin/doctor view any patient's;
+-- patient views only their own, enforced in the app layer via the session's
+-- own patient_id rather than a client-supplied :patientId — see
+-- invoicesController.getMyInvoices), not scoped per-doctor like lab_results.
 CREATE TABLE IF NOT EXISTS patient_invoices (
   invoice_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id        UUID NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
@@ -209,6 +211,14 @@ CREATE TABLE IF NOT EXISTS lab_results (
   notes             TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Doctor-controlled patient visibility: a result is invisible to the patient
+-- until their doctor explicitly releases it (NULL released_at = not yet
+-- released) — results shouldn't surface before a doctor has had a chance to
+-- explain them, and this also lets a doctor hold back an abnormal result
+-- pending a follow-up call rather than the patient finding out cold.
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS released_at TIMESTAMPTZ;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS released_by UUID REFERENCES users(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_patient_invoices_patient ON patient_invoices(patient_id);
 CREATE INDEX IF NOT EXISTS idx_lab_results_patient      ON lab_results(patient_id);
@@ -394,13 +404,39 @@ CREATE POLICY patient_self_assign_doctor ON patients
   WITH CHECK (user_id = NULLIF(current_setting('app.current_user_id', true), '')::UUID);
 
 -- ── lab_results policies ─────────────────────────────────────────────────
--- RESTRICTIVE + no FOR clause = applies to every command (SELECT/INSERT/
--- UPDATE/DELETE) and is AND-combined with every permissive policy below —
--- this is what actually keeps admin/superadmin/patient sessions out, not
--- just the absence of a permissive policy for them.
+-- Two RESTRICTIVE gates instead of one blanket "doctor only": patients now
+-- need SELECT access to their own released results, but must never be able
+-- to write to this table under any circumstance. Each RESTRICTIVE policy is
+-- AND-combined with every PERMISSIVE policy that applies to the same
+-- command, so these are what actually keep admin/superadmin out entirely
+-- and keep patient to read-only, not just the absence of a permissive policy.
 DROP POLICY IF EXISTS doctor_only_lab_results ON lab_results;
-CREATE POLICY doctor_only_lab_results ON lab_results
+
+DROP POLICY IF EXISTS doctor_or_patient_read_lab_results ON lab_results;
+CREATE POLICY doctor_or_patient_read_lab_results ON lab_results
   AS RESTRICTIVE
+  FOR SELECT
+  USING (current_setting('app.current_role', true) IN ('doctor', 'patient'));
+
+-- `FOR ALL` here would be a bug, not a simplification: a RESTRICTIVE policy
+-- with no command-specific FOR clause applies to SELECT too, and would
+-- silently AND itself against doctor_or_patient_read_lab_results above,
+-- blocking every patient SELECT regardless of the permissive policy below
+-- (found by testing the release flow end-to-end — the patient saw released_at
+-- set in the row but still got an empty list). INSERT/UPDATE only, one
+-- policy each since a single CREATE POLICY takes exactly one FOR command.
+DROP POLICY IF EXISTS doctor_only_write_lab_results ON lab_results;
+
+DROP POLICY IF EXISTS doctor_only_insert_lab_results ON lab_results;
+CREATE POLICY doctor_only_insert_lab_results ON lab_results
+  AS RESTRICTIVE
+  FOR INSERT
+  WITH CHECK (current_setting('app.current_role', true) = 'doctor');
+
+DROP POLICY IF EXISTS doctor_only_update_lab_results ON lab_results;
+CREATE POLICY doctor_only_update_lab_results ON lab_results
+  AS RESTRICTIVE
+  FOR UPDATE
   USING (current_setting('app.current_role', true) = 'doctor')
   WITH CHECK (current_setting('app.current_role', true) = 'doctor');
 
@@ -423,6 +459,31 @@ CREATE POLICY doctor_insert_lab_results ON lab_results
     SELECT patient_id FROM patients
      WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
   ));
+
+-- Doctor: release a result to the patient (sets released_at/released_by in
+-- the controller) — same assigned-patient scoping as select/insert above.
+-- There was no UPDATE policy on this table before the release feature; a
+-- doctor could upload but never modify a row.
+DROP POLICY IF EXISTS doctor_release_lab_results ON lab_results;
+CREATE POLICY doctor_release_lab_results ON lab_results
+  FOR UPDATE
+  USING (patient_id IN (
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ))
+  WITH CHECK (patient_id IN (
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ));
+
+-- Patient: only their own results, and only once a doctor has released them.
+DROP POLICY IF EXISTS patient_select_released_lab_results ON lab_results;
+CREATE POLICY patient_select_released_lab_results ON lab_results
+  FOR SELECT
+  USING (
+    patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::UUID
+    AND released_at IS NOT NULL
+  );
 
 -- ── Admin bootstrap ─────────────────────────────────────────────────────────
 -- There is deliberately NO seeded admin user in this file. A hardcoded
@@ -468,7 +529,8 @@ GRANT SELECT, INSERT, UPDATE ON users, doctors, patients, medical_records, appoi
 -- existed already but had never actually been exercised end-to-end.
 GRANT SELECT, INSERT, UPDATE, DELETE ON doctor_availability TO pdms_app;
 GRANT SELECT, INSERT ON audit_log TO pdms_app; -- append-only: no UPDATE/DELETE grant, even to the app role
-GRANT SELECT, INSERT ON patient_invoices, lab_results TO pdms_app; -- upload-only: no UPDATE/DELETE, files are immutable once uploaded
+GRANT SELECT, INSERT ON patient_invoices TO pdms_app; -- upload-only: no UPDATE/DELETE, files are immutable once uploaded
+GRANT SELECT, INSERT, UPDATE ON lab_results TO pdms_app; -- UPDATE needed for the doctor-release-to-patient action
 GRANT SELECT, INSERT, UPDATE ON password_setup_tokens TO pdms_app; -- UPDATE needed to mark used_at
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO pdms_app;
 
@@ -478,3 +540,107 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO pdms_app;
 ALTER TABLE medical_records OWNER TO CURRENT_USER;
 ALTER TABLE patients        OWNER TO CURRENT_USER;
 ALTER TABLE lab_results     OWNER TO CURRENT_USER;
+
+-- ── patient_care_team ─────────────────────────────────────────────────────
+-- Multi-doctor patient model: one row per doctor–patient assignment.
+-- assigned_doctor_id on patients still marks the "primary/registration" doctor;
+-- every doctor in this table has access to the patient's records.
+CREATE TABLE IF NOT EXISTS patient_care_team (
+  assignment_id UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id    UUID        NOT NULL REFERENCES patients(patient_id)  ON DELETE CASCADE,
+  doctor_id     UUID        NOT NULL REFERENCES doctors(doctor_id)    ON DELETE CASCADE,
+  speciality    VARCHAR(100),
+  is_primary    BOOLEAN     NOT NULL DEFAULT false,
+  assigned_by   UUID        REFERENCES users(user_id) ON DELETE SET NULL,
+  assigned_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (patient_id, doctor_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_care_team_patient ON patient_care_team(patient_id);
+CREATE INDEX IF NOT EXISTS idx_care_team_doctor  ON patient_care_team(doctor_id);
+
+-- One-time data migration: backfill existing single-doctor assignments.
+-- Safe to re-run (ON CONFLICT DO NOTHING) — idempotent.
+INSERT INTO patient_care_team (patient_id, doctor_id, is_primary, speciality)
+SELECT patient_id, assigned_doctor_id, true, 'General'
+  FROM patients
+ WHERE assigned_doctor_id IS NOT NULL
+ON CONFLICT (patient_id, doctor_id) DO NOTHING;
+
+-- Grant the app role access to the new table.
+-- UPDATE is required here (not just SELECT/INSERT/DELETE) because
+-- CareTeam.add uses ON CONFLICT (patient_id, doctor_id) DO UPDATE to upsert
+-- speciality/is_primary when a doctor is re-added to a care team; Postgres
+-- enforces UPDATE privilege on the target table for the DO UPDATE branch of
+-- an upsert even though the statement is syntactically an INSERT.
+GRANT SELECT, INSERT, UPDATE, DELETE ON patient_care_team TO pdms_app;
+
+-- ── Update RLS: doctors now see patients in their care team ───────────────
+-- Replaces the single assigned_doctor_id check with a care team lookup.
+-- The OR keeps working even before the data migration runs.
+DROP POLICY IF EXISTS doctor_select_assigned ON patients;
+CREATE POLICY doctor_select_assigned ON patients
+  FOR SELECT
+  USING (
+    assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    OR
+    patient_id IN (
+      SELECT patient_id FROM patient_care_team
+       WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    )
+  );
+
+-- Update medical_records: doctor sees all records for any care team patient,
+-- not only the records they personally wrote.
+DROP POLICY IF EXISTS doctor_select_records ON medical_records;
+CREATE POLICY doctor_select_records ON medical_records
+  FOR SELECT
+  USING (
+    doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    OR
+    patient_id IN (
+      SELECT patient_id FROM patient_care_team
+       WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    )
+  );
+
+-- Update lab_results: care team doctors can select/insert/release results.
+DROP POLICY IF EXISTS doctor_select_lab_results ON lab_results;
+CREATE POLICY doctor_select_lab_results ON lab_results
+  FOR SELECT
+  USING (patient_id IN (
+    SELECT patient_id FROM patient_care_team
+     WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ));
+
+DROP POLICY IF EXISTS doctor_insert_lab_results ON lab_results;
+CREATE POLICY doctor_insert_lab_results ON lab_results
+  FOR INSERT
+  WITH CHECK (patient_id IN (
+    SELECT patient_id FROM patient_care_team
+     WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ));
+
+DROP POLICY IF EXISTS doctor_release_lab_results ON lab_results;
+CREATE POLICY doctor_release_lab_results ON lab_results
+  FOR UPDATE
+  USING (patient_id IN (
+    SELECT patient_id FROM patient_care_team
+     WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ))
+  WITH CHECK (patient_id IN (
+    SELECT patient_id FROM patient_care_team
+     WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ));

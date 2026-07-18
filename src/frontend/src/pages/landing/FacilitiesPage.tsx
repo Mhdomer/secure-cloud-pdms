@@ -1,5 +1,16 @@
 import { motion } from 'framer-motion'
-import { MapPin, Navigation, Pill } from 'lucide-react'
+import {
+  Armchair,
+  Building2,
+  ConciergeBell,
+  FlaskConical,
+  MapPin,
+  Navigation,
+  Pill,
+  Stethoscope,
+  Syringe,
+  type LucideIcon,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -12,6 +23,15 @@ import {
   staggerContainer,
   useScrollToHash,
 } from '@/pages/landing/shared'
+
+const GALLERY_ITEMS: Array<{ key: string; image: string; icon: LucideIcon; tall?: boolean }> = [
+  { key: 'reception', image: '/clinic/reception.png', icon: ConciergeBell, tall: true },
+  { key: 'consultationRoom', image: '/clinic/exam-room.png', icon: Stethoscope },
+  { key: 'treatmentRoom', image: '/clinic/dermatology.png', icon: Syringe },
+  { key: 'laboratory', image: '/clinic/laboratory.png', icon: FlaskConical, tall: true },
+  { key: 'waitingArea', image: '/clinic/waiting-area.png', icon: Armchair },
+  { key: 'mainHall', image: '/clinic/main-hall-2.png', icon: Building2 },
+]
 
 /**
  * Standalone Medical Facilities + Pharmacy page — reached from the nav
@@ -76,6 +96,56 @@ export default function FacilitiesPage() {
                 </div>
               </motion.div>
             ))}
+          </motion.div>
+        </div>
+      </section>
+
+      <section className="bg-white px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-6xl">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-3xl font-bold text-neutral-900">{t('facilities.galleryHeading')}</h2>
+            <span aria-hidden="true" className="mt-3 block h-0.5 w-8 bg-brand-gold" />
+            <p className="mt-3 max-w-xl text-neutral-500">{t('facilities.gallerySub')}</p>
+          </motion.div>
+
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.15 }}
+            variants={staggerContainer}
+            className="mt-10 grid grid-flow-row-dense grid-cols-2 gap-4 md:grid-cols-4 md:auto-rows-[160px]"
+          >
+            {GALLERY_ITEMS.map((item) => {
+              const Icon = item.icon
+              return (
+                <motion.div
+                  key={item.key}
+                  variants={fadeUp}
+                  transition={{ duration: 0.45 }}
+                  className={`group relative overflow-hidden rounded-2xl shadow-card ${item.tall ? 'row-span-2 aspect-[3/4] md:aspect-auto' : 'aspect-[4/3] md:aspect-auto'}`}
+                >
+                  <img
+                    src={item.image}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                  />
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 bg-gradient-to-t from-neutral-900/60 via-transparent to-transparent"
+                  />
+                  <span className="absolute bottom-3 start-3 inline-flex items-center gap-1.5 rounded-full bg-brand-gold/90 px-3 py-1.5 text-xs font-medium text-white shadow-sm">
+                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t(`facilities.gallery.${item.key}`)}
+                  </span>
+                </motion.div>
+              )
+            })}
           </motion.div>
         </div>
       </section>

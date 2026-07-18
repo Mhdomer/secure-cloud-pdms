@@ -614,6 +614,232 @@ and re-applying it to the local dev DB.
 
 ---
 
+### [DELTA-020] Patient can view their own invoices and lab results — lab results gated behind a doctor "release" step
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI / Security / DB Schema / API |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — backend smoke-tested via curl (with an RLS bug caught and fixed), frontend verified live in-browser in AR and EN |
+
+**What changed:**
+Patient Profile's Invoices and Lab Results tabs (added earlier this sprint,
+see the "Backend Edit Sessions" table in `sprint-3c-ui-overhaul.md`) were
+staff/doctor-only — a patient had no way to see their own bill or their own
+lab results at all, which the user flagged as wrong for invoices ("he
+absolutely needs to see it, he's the one paying") and asked for a
+compromise on lab results rather than blanket access.
+
+**Invoices** — a patient now sees their own via a new `GET /invoices/mine`
+(patientId derived from the session, never a URL param, so there's nothing
+to spoof). `patient_invoices` carries no RLS, so `downloadInvoice` gained an
+explicit ownership check for patient sessions (`invoice.patient_id !==
+session.patientId` → 404) — the only thing standing between a patient
+session and someone else's invoice on that table.
+
+**Lab results** — rather than blanket patient access, the user's suggestion
+was adopted: a doctor must explicitly "release" a result before the patient
+can see it (`released_at`/`released_by` columns, both null by default, so
+every existing result stays hidden until acted on). New `PATCH
+/lab-results/:resultId/release` (doctor, must be assigned to the patient)
+and `GET /lab-results/mine` (patient, released-only). The doctor's existing
+Lab Results tab gained a "Release to patient" button per unreleased result,
+swapping to a "Released" badge once done — there is no "unrelease" action.
+
+**Bug found and fixed during backend testing:** the first-draft RLS policy
+restricting lab_results writes to doctors used `FOR ALL`, which — being a
+RESTRICTIVE policy — also covers SELECT, and silently blocked every patient
+read regardless of the permissive policy meant to allow it (RESTRICTIVE
+policies AND together). The release call itself succeeded and set
+`released_at`, but the patient's list stayed empty. Split into separate
+INSERT-only and UPDATE-only restrictive policies to fix.
+
+Frontend: the patient's existing `/records` page (already "my medical
+stuff") gained a tabbed layout — Medical Records / Invoices / Lab Results —
+rather than a new nav item, with two new read-only tab components mirroring
+the staff-facing ones minus the upload form.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "A patient shall be able to view their own billing invoices" and "A patient shall be able to view their own lab results once released by their doctor" |
+| Chapter 4 | §4.x RBAC / Access Control Design | Add the patient row for invoices (own only, app-layer ownership check) and lab results (own + released only, RLS-enforced); note the doctor-only "release" gate as a deliberate clinical-workflow control, not just an access-control one — results shouldn't surface before a doctor has had a chance to explain them |
+| Chapter 4 | §4.x ER Diagram | Add `released_at`/`released_by` to the `lab_results` entity |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the patient's tabbed Medical Records/Invoices/Lab Results view; note the doctor's Lab Results tab now has a release action per result |
+| Chapter 4 | §4.x Security Design | Worth a short case study: the RESTRICTIVE-policy `FOR ALL` bug above, as an example of why RLS policy changes need an actual opposite-role read test, not just confirming the write succeeded |
+
+---
+
+## Sprint 3c — Landing Page Visual Refresh (Specialty Centres, Services, Facilities, FAQ)
+
+---
+
+### [DELTA-021] Specialty Centres section added; Services/Facilities/FAQ gained photo treatments
+
+| Field | Value |
+|---|---|
+| **Category** | UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — verified live in-browser, both languages, desktop + mobile |
+
+**What changed:**
+Four visual additions to the public site built in DELTA-016's 4-route structure:
+
+- **New "Our Specialty Centres" section on `/`** — inserted between the "What We
+  Offer" teaser and the Doctors section. Left panel: a clickable list of 5
+  specialties (Dentistry, General Medicine, Laboratory, Pediatrics, Dermatology).
+  Right panel: a pre-designed marketing card image per specialty
+  (`public/clinic/spec-*.png` — photo, gradient, "Overview" label, title,
+  description, and a "Learn More" button already baked into the image pixels,
+  not recreated as HTML/CSS), crossfading on selection, with a visible (not
+  faded) preview of the next specialty in the list shown beside it — clicking
+  the preview also advances to it.
+- **`/services` cards redesigned** — icon + real clinic room photo (top,
+  `h-44`) + title + description (unchanged copy), all 8 services now have a
+  photo (`shared.tsx`'s `SERVICE_IMAGES` previously only covered 6 of the 8
+  service keys; Digital Records and Preventive Care had none).
+- **`/facilities` gained a "Take a Look Inside" photo gallery** — 6 labeled
+  real clinic room photos (Reception, Consultation Room, Treatment Room,
+  Laboratory, Waiting Area, Main Hall) in a mosaic grid, each with an
+  icon+label pill badge.
+- **`/patient-info`'s FAQ section gained a photo accent** — two-column split
+  on desktop (accordion + a real clinic photo with a faint logo watermark
+  behind it and a gold accent dot above the accordion); accordion-only on
+  mobile.
+
+**Known limitation worth documenting:** the 5 specialty-centre images are
+pre-designed graphics with English-only text baked into the pixels — they do
+not translate when the site switches to Arabic, since it's a raster image,
+not localizable HTML. Accepted as-is; every other new element on this page
+goes through `useTranslation()` as normal.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the Specialty Centres section to the `/` page breakdown (after DELTA-016); update the `/services`, `/facilities`, `/patient-info` descriptions with their new photo treatments |
+| Chapter 4 | §4.x UI Design | Note the specialty-centre images as an exception to the "all text is translatable" rule — pre-designed graphics with baked-in English copy, a deliberate trade-off for visual polish over full localization on that one element |
+
+---
+
+## Sprint 3c — Dashboard Hero Banners + Canva-Reference Widget Upgrades
+
+---
+
+### [DELTA-022] Role dashboards gained real-photo hero banners and per-role widget upgrades matching the Canva reference mockups
+
+| Field | Value |
+|---|---|
+| **Category** | UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — verified live in-browser, both languages, desktop + mobile |
+
+**What changed:**
+All three role dashboards (`DoctorDashboard.tsx`, `AdminDashboard.tsx`,
+`PatientDashboard.tsx`) gained a full-width real-photo banner below the page
+title (new shared `components/shared/DashboardHeroBanner.tsx`), then a
+follow-up pass compared each dashboard against its Canva reference mockup
+(`docs/Modern_Hospital_Landing_Visuals/dashboard_reff/`) and closed the gaps
+that were achievable with data already available — nothing here required a
+new table or column.
+
+- **Doctor Dashboard** — banner is a single diptych photo
+  (`header-doctor.png`) that already has both rooms side by side; two
+  frosted caption pills ("Consultation Room" / "Treatment Room") are pinned
+  to the photo's two physical halves with literal `left`/`right` (not
+  logical `start`/`end`) since they must not swap sides in Arabic — a
+  documented, deliberate exception to the logical-properties rule. Below the
+  existing 4 stats, added a 5th "Follow-Ups" card (count of today's
+  `follow_up`-type appointments) and a new "Next Patient" summary card
+  (avatar, MRN, age, blood type, always-visible allergy badge, last visit
+  date, view-chart link) bound to the day's next scheduled appointment.
+- **Staff Dashboard** — banner is a plain lobby photo (no captions). Added
+  numbered Queue → Checked-In → In-Consultation flow pills below it (reusing
+  already-fetched appointment-status counts — no new endpoint; "In
+  Consultation" uses `completed` as the closest existing status proxy, since
+  the API has no distinct in-progress state). The read-only vertical
+  timeline was replaced with a sortable Time/Patient/Type/Doctor/Status
+  table, matching the reference more closely and easier to scan at a glance
+  than the timeline was. A "Quick Actions" list from the reference (New
+  Appointment, Add Patient, etc.) was deliberately **not** added — it would
+  duplicate the two existing bold primary-600 action tiles that are already
+  this screen's one bold visual idea.
+- **Patient Dashboard** — banner has a frosted "Welcome back, {name}" card
+  (gold/`warning-600` heart icon in a circular chip — `brand.gold` is
+  scoped to auth/marketing surfaces only, so the closest already-approved
+  authenticated-app token was used instead of a new raw color). The single
+  appointment card (which previously embedded its own "Book" button in both
+  populated and empty states) was split into two cards: "Upcoming
+  Appointment" (informational only) and an always-visible "Quick Book" card,
+  so a patient can still book a second visit even with one already upcoming.
+  Added a static, non-data-bound "Your Care Journey" 4-step visual
+  (Book → Check-In → Consultation → Support) at the bottom.
+
+**Explicitly deferred / not built** (flagged during the reference review,
+scoped out by the user before work began):
+- **Room availability status** (Doctor reference's 4-room Available/In-Use
+  grid) — no `rooms` table exists; faking live occupancy in a real clinical
+  system would be misleading data, not a stub worth shipping.
+- **Messaging widgets** (both Staff and Patient references show a Messages
+  card) — Internal Secure Messaging was already marked "Skipped — Phase 2"
+  in the 2026-07-17 feature audit (no messaging table, no socket.io
+  anywhere in the stack); out of scope here too.
+- **Billing/Test Results on the Patient Dashboard** — checked
+  `invoices.routes.js`/`labResults.routes.js`: both are
+  admin/superadmin/doctor-only today, with no patient self-service
+  endpoint. A real backend gap, not a UI gap.
+- **Doctor Lab Results widget** ("recent lab results across my patients") —
+  `labResultsController.js` only supports a per-patient lookup; a
+  doctor-scoped list needs a new endpoint. Flagged as a follow-up rather
+  than built as a surprise backend addition alongside a UI-focused pass.
+
+**Follow-up round (same day) — closed most of the remaining gaps above without touching the backend:**
+- New shared `components/shared/DashboardStatCard.tsx` and `CountUpNumber.tsx`
+  (extracted from Doctor Dashboard, now used by both Doctor and Staff) — the
+  first genuine 2-consumer case for either, not a speculative abstraction.
+- **Doctor** — "Confirmed"/"Awaiting Confirmation" stat cards replaced with
+  "Patients Seen" and "Pending Notes". "Patients Seen" deliberately does
+  **not** filter appointments by `status === 'completed'`: `listForDoctor`
+  (the query backing this whole screen) only ever returns
+  scheduled/confirmed/arrived rows, so that filter would always read 0. It
+  counts today's *written medical records* instead (already-fetched data,
+  no new request) — a completed record is real, direct evidence a visit
+  happened. "Pending Notes" stays a `0` placeholder with a tooltip ("Coming
+  soon") rather than a fabricated number, since `medical_records` has no
+  draft/incomplete concept to count. Added a 4-button Quick Actions grid
+  (New Note, Request Lab, New Prescription, Add Follow-Up) — plain
+  navigation links, no new API calls; New Note/New Prescription reuse
+  `MedicalRecordsPage`'s existing `?patientId=` convention, Request Lab
+  opens the patient's profile (doctors upload results there, there's no
+  separate "request" flow to link to), Add Follow-Up opens `/appointments`
+  (doctors can't create appointments themselves — `CreateAppointmentDialog`
+  is admin-only — so this navigates rather than pretends to book).
+- **Staff** — added a 3-card stat row (Appointments Today, Patients
+  Waiting, Completed Check-ins) above the flow pills, and real photo
+  thumbnails on the flow pills themselves (`real-waiting-area.png`,
+  `real-reception.png`, `real-general-clinic.png` — already-existing assets
+  from the landing-page photo set, not new uploads). Restructured into a
+  2-column layout: schedule table (start, wider) + a new static
+  Announcements card and the existing Recently Registered card (end,
+  narrower). Quick Actions was reconsidered and still not added — it would
+  duplicate the two existing bold action tiles.
+- **Patient** — added a small real-photo thumbnail
+  (`real-general-clinic-2.png`) to the populated Upcoming Appointment card,
+  and a static "Need Help?" card next to Care Journey with the clinic's
+  real phone number (`+966 11 422 2000`, copied from `landing.json`'s
+  `contact.phone` — not a new/fabricated number).
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the hero banner treatment (all 3 dashboards) and the per-role widget changes: Doctor's 5-stat row (incl. Patients Seen/Pending Notes) + Next Patient summary card + Quick Actions grid, Staff's stat row + photo flow pills + 2-column schedule/announcements layout, Patient's split appointment/Quick Book cards + appointment thumbnail + Care Journey + Need Help |
+| Chapter 4 | §4.x UI Design | Note the three documented exceptions to system-wide rules: Doctor Dashboard's literal left/right caption pins (photo-content-anchored, not text-flow), the `warning-600` reuse in place of `brand.gold` (scoped to auth/marketing surfaces per the Login Page decision already in this file), and the "Patients Seen" stat sourcing from medical records rather than appointment status (a backend data-shape constraint, not a design choice) |
+| Chapter 5 / Future Work | Recommendations | List the remaining deferred items (room availability, messaging, patient billing/lab-results self-service, doctor-scoped lab results list) as scoped-out follow-ups with the reason each was deferred |
+
+---
+
 ## How to use this file
 
 1. After each sprint ends, check this file before editing the report.
@@ -623,4 +849,4 @@ and re-applying it to the local dev DB.
 
 ---
 
-*Last updated: Sprint 3c (2026-07-17)*
+*Last updated: Sprint 3c (2026-07-18)*

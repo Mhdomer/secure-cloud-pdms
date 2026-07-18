@@ -55,12 +55,14 @@ export function doctorEmojiFor(name: string) {
 }
 
 export const SERVICE_IMAGES = {
-  generalMedicine: '/clinic/exam-room.png',
+  generalMedicine: '/clinic/general-medicine.png',
   pediatrics: '/clinic/pediatrics.png',
-  internalMedicine: '/clinic/waiting-area.png',
+  internalMedicine: '/clinic/reception.png',
   dental: '/clinic/dental.png',
   dermatology: '/clinic/dermatology.png',
   laboratory: '/clinic/laboratory.png',
+  digitalRecords: '/clinic/exam-room.png',
+  preventiveCare: '/clinic/waiting-area.png',
 } as const
 
 export const FACILITY_IMAGES = ['/clinic/main-hall.png', '/clinic/branch-2.png']

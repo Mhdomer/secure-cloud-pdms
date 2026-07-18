@@ -8,6 +8,7 @@ const AuditLog = require('../models/AuditLog');
 const { AUDIT_ACTIONS, ROLES } = require('../config/constants');
 const { parsePagination } = require('../utils/pagination');
 const { isSlotAvailable } = require('../utils/availability');
+const { sendAppointmentConfirmation } = require('../services/whatsapp');
 
 const DEFAULT_DURATION_MINUTES = 30;
 
@@ -63,6 +64,8 @@ async function scheduleAppointment(req, res) {
   } = req.body;
   const effectiveDuration = durationMinutes || DEFAULT_DURATION_MINUTES;
 
+  let confirmationContext = null;
+
   try {
     const result = await withTransaction(
       req.rlsSession,
@@ -116,10 +119,23 @@ async function scheduleAppointment(req, res) {
           ipAddress: req.ip,
         });
 
+        confirmationContext = { patient, doctor };
         return appointment;
       },
       { isolationLevel: 'SERIALIZABLE' }
     );
+
+    // Fire-and-forget — not awaited, so a slow/failed WhatsApp send never
+    // delays or fails the API response. See src/services/whatsapp.js.
+    if (confirmationContext) {
+      sendAppointmentConfirmation({
+        appointmentId: result.appointment_id,
+        patientName: confirmationContext.patient.full_name,
+        patientPhone: confirmationContext.patient.contact_number,
+        doctorName: confirmationContext.doctor.full_name,
+        scheduledAt: result.scheduled_at,
+      });
+    }
 
     return res.status(201).json({
       appointmentId: result.appointment_id,
@@ -157,6 +173,8 @@ async function bookOwnAppointment(req, res) {
   const { doctor_id: doctorId, scheduled_at: scheduledAt, type, notes, duration_minutes: durationMinutes } = req.body;
   const patientId = req.rlsSession.patientId;
   const effectiveDuration = durationMinutes || DEFAULT_DURATION_MINUTES;
+
+  let confirmationContext = null;
 
   try {
     const result = await withTransaction(
@@ -215,10 +233,23 @@ async function bookOwnAppointment(req, res) {
           ipAddress: req.ip,
         });
 
+        confirmationContext = { patient, doctor };
         return appointment;
       },
       { isolationLevel: 'SERIALIZABLE' }
     );
+
+    // Fire-and-forget — not awaited, so a slow/failed WhatsApp send never
+    // delays or fails the API response. See src/services/whatsapp.js.
+    if (confirmationContext) {
+      sendAppointmentConfirmation({
+        appointmentId: result.appointment_id,
+        patientName: confirmationContext.patient.full_name,
+        patientPhone: confirmationContext.patient.contact_number,
+        doctorName: confirmationContext.doctor.full_name,
+        scheduledAt: result.scheduled_at,
+      });
+    }
 
     return res.status(201).json({
       appointmentId: result.appointment_id,

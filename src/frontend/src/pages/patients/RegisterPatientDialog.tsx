@@ -66,13 +66,26 @@ export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = 
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState<RegisterPatientResponse | null>(null)
 
+  // Caps the native date picker so a future date of birth can't be picked
+  // in the first place, instead of only being rejected after submit.
+  const maxDateOfBirth = useMemo(() => {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  }, [])
+
   // Rebuilt when language changes so validation messages stay in sync, same
   // pattern as LoginPage's schema.
   const registerSchema = useMemo(
     () =>
       z.object({
         full_name: z.string().trim().min(1, t('register.validation.fullNameRequired')),
-        date_of_birth: z.string().min(1, t('register.validation.dateOfBirthRequired')),
+        date_of_birth: z
+          .string()
+          .min(1, t('register.validation.dateOfBirthRequired'))
+          .refine((value) => new Date(value).getTime() < Date.now(), {
+            message: t('register.validation.dateOfBirthFuture'),
+          }),
         gender: z.union([z.enum(['male', 'female']), z.literal(GENDER_UNSPECIFIED)]),
         contact_number: z
           .string()
@@ -119,12 +132,19 @@ export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = 
         registeredAt: new Date().toISOString(),
       })
     },
-    onError: (error: AxiosError<{ error?: string }>) => {
+    onError: (error: AxiosError<{ error?: string; details?: Record<string, string> }>) => {
       // Surfaces the backend's message as-is, e.g. the 409 "A patient with
       // this ID number is already registered" — same convention as the
       // appointment dialogs' conflict handling.
       const conflictMessage = error.response?.status === 409 ? error.response.data?.error : null
-      toast.error(conflictMessage ?? t('register.error'))
+      // A 422 (express-validator) carries field-level detail in `details` —
+      // e.g. { date_of_birth: "date_of_birth cannot be in the future" }.
+      // Without this, every validation failure surfaced as the same
+      // generic "could not register" toast with no way to tell what was
+      // actually wrong with the submitted data.
+      const validationDetails = error.response?.status === 422 ? error.response.data?.details : null
+      const validationMessage = validationDetails ? Object.values(validationDetails).join(' ') : null
+      toast.error(conflictMessage ?? validationMessage ?? t('register.error'))
     },
   })
 
@@ -209,7 +229,7 @@ export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = 
                     <FormItem>
                       <FormLabel>{t('register.dateOfBirthLabel')}</FormLabel>
                       <FormControl>
-                        <Input type="date" dir="ltr" {...field} />
+                        <Input type="date" dir="ltr" max={maxDateOfBirth} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

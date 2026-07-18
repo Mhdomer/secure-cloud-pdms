@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toaster'
 import { useLanguage } from '@/hooks/useLanguage'
 import { patientsApi } from '@/lib/api'
-import { AssignDoctorForm } from '@/pages/patients/AssignDoctorForm'
+import { CareTeamPanel } from '@/pages/patients/CareTeamPanel'
 import { RegenerateQrCard } from '@/pages/patients/RegenerateQrCard'
 import type { BloodType, Patient, PreferredLanguage, UpdatePatientPayload } from '@/types/patient'
 
@@ -65,7 +65,7 @@ export function DemographicsTab({ patient, isAdmin, isEditing, onDoneEditing }: 
     return (
       <div className="flex flex-col gap-6">
         <DemographicsEditForm patient={patient} onSaved={onDoneEditing} />
-        <AssignDoctorForm patient={patient} />
+        <CareTeamPanel patient={patient} />
         <RegenerateQrCard patient={patient} />
       </div>
     )

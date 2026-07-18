@@ -212,7 +212,7 @@ export default function LoginPage() {
             chandeliers, the gold logo on the reception wall) read clearly. */}
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/images/auth-hero.png')" }}
+          style={{ backgroundImage: "url('/clinic/login-hero.png')" }}
         />
         {/* Gentle warm-dark color grade, not a crush — ties the photo's
             existing warm tones to the brand palette without hiding it. */}

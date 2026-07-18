@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Download, FlaskConical, Plus } from 'lucide-react'
+import { Download, FlaskConical, Plus, Send } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
 import { EmptyState } from '@/components/shared/EmptyState'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
@@ -25,11 +26,22 @@ export function LabResultsTab({ patientId }: { patientId: string }) {
   const { currentLang } = useLanguage()
   const [uploadOpen, setUploadOpen] = useState(false)
 
+  const queryClient = useQueryClient()
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['lab-results', patientId],
     queryFn: () => labResultsApi.listForPatient(patientId),
   })
   const results = data?.results ?? []
+
+  const releaseMutation = useMutation({
+    mutationFn: (resultId: string) => labResultsApi.release(resultId),
+    onSuccess: () => {
+      toast.success(t('labResultsTab.releaseSuccess'))
+      queryClient.invalidateQueries({ queryKey: ['lab-results', patientId] })
+    },
+    onError: () => toast.error(t('labResultsTab.releaseError')),
+  })
 
   const formatDate = (iso: string | null) => {
     if (!iso) return null
@@ -93,6 +105,23 @@ export function LabResultsTab({ patientId }: { patientId: string }) {
                 </span>
                 <span className="text-xs text-muted-foreground">{formatDate(result.resultDate) ?? ''}</span>
               </div>
+              {result.releasedAt ? (
+                <Badge variant="success">{t('labResultsTab.released')}</Badge>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  disabled={releaseMutation.isPending}
+                  onClick={() => releaseMutation.mutate(result.resultId)}
+                >
+                  <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                  {releaseMutation.isPending && releaseMutation.variables === result.resultId
+                    ? t('labResultsTab.releasing')
+                    : t('labResultsTab.releaseButton')}
+                </Button>
+              )}
               <a
                 href={labResultsApi.fileUrl(result.resultId)}
                 download

@@ -92,7 +92,17 @@
     "sub": "A quick look at everything Alamin Clinic provides.",
     "services": { "title": "Our Services", "desc": "General medicine to dermatology, all under one roof.", "cta": "Browse Services" },
     "facilities": { "title": "Medical Facilities", "desc": "2 branches and an on-site pharmacy across Riyadh.", "cta": "View Locations" },
-    "patientInfo": { "title": "Patient & Visitor", "desc": "Your rights, insurance, and answers to common questions.", "cta": "Learn More" }
+    "patientInfo": { "title": "Patient & Visitor" }
+  },
+  "specialtyCentres": {
+    "heading": "Our Specialty Centres",
+    "list": [
+      { "key": "dental", "name": "Dentistry" },
+      { "key": "general-medicine", "name": "General Medicine" },
+      { "key": "laboratory", "name": "Laboratory" },
+      { "key": "pediatrics", "name": "Pediatrics" },
+      { "key": "dermatology", "name": "Dermatology" }
+    ]
   },
   "facilities": {
     "heading": "Our Medical Facilities",
@@ -101,7 +111,17 @@
     "list": [
       { "name": "Alamin Medical Complex — Namar", "address": "Dirab Branch Road, Namar, Riyadh 14961, Saudi Arabia" },
       { "name": "Alamin Medical Complex 2 — Dirab", "address": "Dirab Branch Rd, Dirab, Riyadh 14969, Saudi Arabia" }
-    ]
+    ],
+    "galleryHeading": "Take a Look Inside",
+    "gallerySub": "A tour of our spaces — built for comfort and confidence.",
+    "gallery": {
+      "reception": "Reception",
+      "consultationRoom": "Consultation Room",
+      "treatmentRoom": "Treatment Room",
+      "laboratory": "Laboratory",
+      "waitingArea": "Waiting Area",
+      "mainHall": "Main Hall"
+    }
   },
   "pharmacy": {
     "heading": "Alamin Pharmacy",
@@ -150,13 +170,6 @@
       { "name": "Reem A.", "quote": "Been coming here since I was a child. Now I bring my own kids. It still feels like a family clinic.", "rating": 5 }
     ]
   },
-  "emergency": {
-    "heading": "Medical Emergency?",
-    "description": "Our emergency line is staffed around the clock. If it's urgent, call — don't wait for an appointment.",
-    "badge": "24/7",
-    "hotlineLabel": "Emergency Hotline",
-    "cta": "Call Now"
-  },
   "howItWorks": {
     "heading": "How It Works",
     "steps": [
@@ -172,7 +185,7 @@
       { "q": "Is my medical data secure?", "a": "Yes. Records are stored on AWS with AES-256 encryption, accessible only by your doctor and yourself." },
       { "q": "Can I access my records online?", "a": "Once registered, you receive login credentials to view your records securely from any device." },
       { "q": "What insurance providers do you accept?", "a": "We work with major Saudi insurance providers. Contact us to confirm your coverage before your visit." },
-      { "q": "What are your clinic hours?", "a": "Saturday through Thursday, 8 AM to 10 PM. Emergency services are available 24/7." }
+      { "q": "What are your clinic hours?", "a": "Saturday through Thursday, 8 AM to 1 PM. Emergency services are available 24/7." }
     ]
   },
   "contact": {
@@ -180,7 +193,7 @@
     "address": "Dirab Branch Road, Namar, Riyadh 14961, Saudi Arabia",
     "mapLabel": "Riyadh, Saudi Arabia",
     "phone": "+966 11 422 2000",
-    "hours": "Sat – Thu: 8 AM – 10 PM"
+    "hours": "Sat – Thu: 8 AM – 1 PM"
   },
   "footer": {
     "about": "A polyclinic in Riyadh serving the community since 1986 — trusted care, modern and secure digital records.",

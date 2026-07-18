@@ -7,18 +7,44 @@
     "todaysAppointments": "Today's Appointments",
     "upcomingAppointments": "Upcoming Appointments",
     "recentRecords": "Recent Records",
-    "quickActions": "Quick Actions",
     "newRecord": "New Record",
     "greetingMorning": "Good morning, Dr. {{name}}",
     "greetingAfternoon": "Good afternoon, Dr. {{name}}",
     "greetingEvening": "Good evening, Dr. {{name}}",
+    "hero": {
+      "consultationRoom": "Consultation Room",
+      "consultationRoomNumber": "Room 2",
+      "treatmentRoom": "Treatment Room",
+      "treatmentRoomNumber": "Room 3"
+    },
     "stats": {
       "today": "Today's Appointments",
-      "confirmed": "Confirmed",
-      "awaitingConfirmation": "Awaiting Confirmation",
+      "patientsSeen": "Patients Seen",
+      "pendingNotes": "Pending Notes",
+      "pendingNotesComingSoon": "Coming soon",
       "nextAppointment": "Next Appointment",
       "noNextAppointment": "Nothing else today",
-      "startingNow": "Starting now"
+      "startingNow": "Starting now",
+      "followUps": "Follow-Ups"
+    },
+    "quickActions": {
+      "heading": "Quick Actions",
+      "newNote": "New Note",
+      "requestLab": "Request Lab",
+      "newPrescription": "New Prescription",
+      "addFollowUp": "Add Follow-Up"
+    },
+    "patientSummary": {
+      "heading": "Next Patient",
+      "mrn": "MRN: {{id}}",
+      "ageYears": "{{age}} yrs",
+      "bloodTypeUnknown": "Blood type unknown",
+      "noAllergies": "No known allergies",
+      "lastVisit": "Last visit",
+      "noVisits": "No previous visits",
+      "viewChart": "View chart",
+      "emptyTitle": "No upcoming patient",
+      "emptyDescription": "Your next scheduled patient will appear here."
     },
     "timeline": {
       "heading": "Today's Schedule",
@@ -40,6 +66,24 @@
   },
   "admin": {
     "todaysSchedule": "Today's Schedule",
+    "hero": {
+      "queue": "Queue",
+      "checkedIn": "Checked In",
+      "inConsultation": "In Consultation"
+    },
+    "stats": {
+      "appointmentsToday": "Appointments Today",
+      "confirmedCount": "{{count}} confirmed",
+      "patientsWaiting": "Patients Waiting",
+      "inQueueCount": "{{count}} in queue",
+      "completedCheckins": "Completed Check-ins",
+      "pctOfToday": "{{pct}}% of today's appointments"
+    },
+    "announcements": {
+      "heading": "Announcements",
+      "teamMeeting": "Team meeting today at 2:00 PM in the conference room.",
+      "holidayHours": "Reminder: the clinic closes early this Thursday for staff training."
+    },
     "actions": {
       "registerPatient": "Register New Patient",
       "registerPatientHint": "Add a new patient and assign a doctor",
@@ -59,6 +103,10 @@
     }
   },
   "patient": {
+    "hero": {
+      "welcome": "Welcome back, {{name}}",
+      "subtitle": "We're here to care for you"
+    },
     "upcomingAppointments": "Upcoming Appointments",
     "recentRecords": "Recent Records",
     "recordsLinkHint": "View your full visit history and clinical notes.",
@@ -66,6 +114,23 @@
     "noUpcomingAppointments": "No upcoming appointments",
     "nextAppointmentCard": {
       "emptyDescription": "Book an appointment to see it here."
+    },
+    "quickBook": {
+      "heading": "Quick Book",
+      "description": "Need to see a doctor? Book your next appointment in just a few steps."
+    },
+    "careJourney": {
+      "heading": "Your Care Journey",
+      "subtitle": "We're with you every step of the way",
+      "book": "Book Appointment",
+      "checkIn": "Check-In at Clinic",
+      "consultation": "Consultation with Doctor",
+      "support": "Get Care & Support"
+    },
+    "needHelp": {
+      "heading": "Need Help?",
+      "description": "Our front desk is here for you.",
+      "phone": "+966 11 422 2000"
     },
     "prescriptions": {
       "heading": "Active Prescriptions",

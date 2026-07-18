@@ -15,8 +15,11 @@ import type {
   VerifyOtpResponse,
 } from '@/types/auth'
 import type {
+  AddToCareTeamPayload,
+  AddToCareTeamResponse,
   AssignDoctorPayload,
   AssignDoctorResponse,
+  CareTeamResponse,
   CreatePatientPayload,
   Patient,
   RegenerateQrResponse,
@@ -57,7 +60,7 @@ import type {
   UpsertAvailabilityResponse,
 } from '@/types/doctor'
 import type { InvoiceCategory, InvoicesListResponse, UploadInvoiceResponse } from '@/types/invoice'
-import type { LabResultsListResponse, UploadLabResultResponse } from '@/types/labResult'
+import type { LabResultsListResponse, ReleaseLabResultResponse, UploadLabResultResponse } from '@/types/labResult'
 
 const AUTH_LOGIN_PATH = '/auth/login'
 // UC-19 step 3 can 401 for "registration token expired/invalid" — a
@@ -195,6 +198,21 @@ export const patientsApi = {
     api.post<RegenerateQrResponse>(`/patients/${patientId}/regenerate-qr`).then((res) => res.data),
 }
 
+// UC-09b — Care team (multi-doctor patient assignment). Viewable by admin +
+// doctor; add/remove are admin only (see patients.routes.js).
+export const careTeamApi = {
+  list: (patientId: string) =>
+    api.get<CareTeamResponse>(`/patients/${patientId}/care-team`).then((res) => res.data),
+  add: (patientId: string, payload: AddToCareTeamPayload) =>
+    api
+      .post<AddToCareTeamResponse>(`/patients/${patientId}/care-team`, payload)
+      .then((res) => res.data),
+  remove: (patientId: string, assignmentId: string) =>
+    api
+      .delete<{ message: string }>(`/patients/${patientId}/care-team/${assignmentId}`)
+      .then((res) => res.data),
+}
+
 // ── Medical records ──────────────────────────────────────────────────────
 // NOTE: an Admin session gets 403 from every one of these by design (RLS
 // blocks admin from clinical data even server-side). Never call these from
@@ -301,6 +319,9 @@ export const invoicesApi = {
   },
   /** Not fetched via axios — this is a plain `<a href download>` target so the browser handles the file, same-origin cookie rides along automatically. */
   fileUrl: (invoiceId: string) => `${API_BASE_URL}/invoices/${invoiceId}/file`,
+  /** Patient only — their own invoices, patientId derived server-side from the session. */
+  mine: (category?: InvoiceCategory) =>
+    api.get<InvoicesListResponse>('/invoices/mine', { params: category ? { category } : undefined }).then((res) => res.data),
 }
 
 // ── Lab results (doctor uploads, doctor-only view) ─────────────────────────
@@ -328,4 +349,9 @@ export const labResultsApi = {
       .then((res) => res.data)
   },
   fileUrl: (resultId: string) => `${API_BASE_URL}/lab-results/${resultId}/file`,
+  /** Doctor only, must be assigned to the patient — makes a result visible to them via `mine` below. */
+  release: (resultId: string) =>
+    api.patch<ReleaseLabResultResponse>(`/lab-results/${resultId}/release`).then((res) => res.data),
+  /** Patient only — their own released results, patientId derived server-side from the session. */
+  mine: () => api.get<LabResultsListResponse>('/lab-results/mine').then((res) => res.data),
 }

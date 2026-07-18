@@ -1,9 +1,31 @@
 import { motion } from 'framer-motion'
+import {
+  Baby,
+  FileText,
+  FlaskConical,
+  HeartPulse,
+  Shield,
+  Smile,
+  Sparkles,
+  Stethoscope,
+  type LucideIcon,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
 import { fadeUp, LandingFooter, LandingNav, PageHeader, SERVICE_IMAGES, staggerContainer } from '@/pages/landing/shared'
+
+const SERVICE_ICONS: Record<keyof typeof SERVICE_IMAGES, LucideIcon> = {
+  generalMedicine: Stethoscope,
+  pediatrics: Baby,
+  internalMedicine: HeartPulse,
+  dental: Smile,
+  dermatology: Sparkles,
+  laboratory: FlaskConical,
+  digitalRecords: FileText,
+  preventiveCare: Shield,
+}
 
 /**
  * Standalone services/departments page — reached from the nav mega-menu
@@ -29,27 +51,33 @@ export default function ServicesPage() {
             variants={staggerContainer}
             className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {serviceKeys.map((key) => (
-              <motion.div
-                key={key}
-                variants={fadeUp}
-                transition={{ duration: 0.45 }}
-                whileHover={{ y: -6 }}
-                className="group relative aspect-[4/3] overflow-hidden rounded-2xl shadow-card transition-shadow duration-200 ease-out hover:shadow-card-hover"
-              >
-                <img
-                  src={SERVICE_IMAGES[key]}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-neutral-900/80 via-neutral-900/20 to-transparent" />
-                <div className="absolute bottom-0 start-0 p-5 text-white">
-                  <h2 className="text-lg font-semibold">{t(`services.${key}.title`)}</h2>
-                  <p className="mt-1 text-white/75">{t(`services.${key}.desc`)}</p>
-                </div>
-              </motion.div>
-            ))}
+            {serviceKeys.map((key) => {
+              const Icon = SERVICE_ICONS[key]
+              return (
+                <motion.div
+                  key={key}
+                  variants={fadeUp}
+                  transition={{ duration: 0.45 }}
+                  className="group overflow-hidden rounded-2xl bg-white shadow-card transition-all duration-200 ease-out hover:scale-[1.02] hover:shadow-md"
+                >
+                  <div className="h-44 overflow-hidden">
+                    <img
+                      src={SERVICE_IMAGES[key]}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  </div>
+                  <div className="p-5">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-gold/10">
+                      <Icon className="h-5 w-5 text-brand-gold-600" aria-hidden="true" />
+                    </span>
+                    <h2 className="mt-3 text-lg font-semibold text-neutral-900">{t(`services.${key}.title`)}</h2>
+                    <p className="mt-1 text-neutral-500">{t(`services.${key}.desc`)}</p>
+                  </div>
+                </motion.div>
+              )
+            })}
           </motion.div>
 
           <motion.div

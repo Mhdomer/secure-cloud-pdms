@@ -7,6 +7,7 @@ const { withTransaction } = require('../config/database');
 const User = require('../models/User');
 const Doctor = require('../models/Doctor');
 const Patient = require('../models/Patient');
+const CareTeam = require('../models/CareTeam');
 const AuditLog = require('../models/AuditLog');
 const { AUDIT_ACTIONS, ROLES } = require('../config/constants');
 const { parsePagination } = require('../utils/pagination');
@@ -371,4 +372,115 @@ async function regenerateQR(req, res) {
   });
 }
 
-module.exports = { registerPatient, searchPatients, viewPatient, updatePatient, assignDoctor, regenerateQR };
+/** UC-09b — List a patient's care team (Admin: any; Doctor: own assigned/care-team patients only, via RLS). */
+async function getCareTeam(req, res) {
+  const { patientId } = req.params;
+
+  const patient = await withTransaction(req.rlsSession, (client) => Patient.findById(client, patientId));
+  if (!patient) {
+    return res.status(404).json({ error: 'Patient not found' });
+  }
+
+  const rows = await withTransaction(req.rlsSession, (client) => CareTeam.listByPatient(client, patientId));
+
+  return res.status(200).json({
+    patientId,
+    careTeam: rows.map((row) => ({
+      assignmentId: row.assignment_id,
+      doctorId: row.doctor_id,
+      doctorName: row.doctor_name,
+      specialisation: row.specialisation,
+      speciality: row.speciality,
+      isPrimary: row.is_primary,
+      assignedBy: row.assigned_by,
+      assignedAt: row.assigned_at,
+    })),
+  });
+}
+
+/** UC-09b — Add a doctor to a patient's care team (Admin only). */
+async function addToCareTeam(req, res) {
+  const { patientId } = req.params;
+  const { doctor_id: doctorId, speciality, is_primary: isPrimary } = req.body;
+
+  const assignment = await withTransaction(req.rlsSession, async (client) => {
+    const patient = await Patient.findById(client, patientId);
+    if (!patient) {
+      const err = new Error('Patient not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const doctor = await Doctor.findActiveById(client, doctorId);
+    if (!doctor) {
+      const err = new Error('Doctor not found or inactive');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const created = await CareTeam.add(client, {
+      patientId,
+      doctorId,
+      speciality,
+      isPrimary,
+      assignedBy: req.user.userId,
+    });
+
+    await AuditLog.log(client, {
+      userId: req.user.userId,
+      action: AUDIT_ACTIONS.ADD_CARE_TEAM_MEMBER,
+      resource: 'patient_care_team',
+      recordId: created.assignment_id,
+      ipAddress: req.ip,
+    });
+
+    return created;
+  });
+
+  return res.status(201).json({
+    assignmentId: assignment.assignment_id,
+    patientId: assignment.patient_id,
+    doctorId: assignment.doctor_id,
+    speciality: assignment.speciality,
+    isPrimary: assignment.is_primary,
+    assignedBy: assignment.assigned_by,
+    assignedAt: assignment.assigned_at,
+    message: 'Doctor added to care team successfully',
+  });
+}
+
+/** UC-09b — Remove a doctor from a patient's care team (Admin only). */
+async function removeFromCareTeam(req, res) {
+  const { patientId, assignmentId } = req.params;
+
+  await withTransaction(req.rlsSession, async (client) => {
+    const removed = await CareTeam.remove(client, patientId, assignmentId);
+    if (!removed) {
+      const err = new Error('Assignment not found or cannot remove the primary doctor');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    await AuditLog.log(client, {
+      userId: req.user.userId,
+      action: AUDIT_ACTIONS.REMOVE_CARE_TEAM_MEMBER,
+      resource: 'patient_care_team',
+      recordId: assignmentId,
+      ipAddress: req.ip,
+    });
+  });
+
+  return res.status(200).json({ message: 'Doctor removed from care team successfully' });
+}
+
+module.exports = {
+  registerPatient,
+  searchPatients,
+  viewPatient,
+  updatePatient,
+  assignDoctor,
+  regenerateQR,
+  getCareTeam,
+  addToCareTeam,
+  removeFromCareTeam,
+};

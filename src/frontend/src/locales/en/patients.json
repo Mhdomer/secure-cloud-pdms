@@ -72,6 +72,7 @@
     "validation": {
       "fullNameRequired": "Full name is required",
       "dateOfBirthRequired": "Date of birth is required",
+      "dateOfBirthFuture": "Date of birth cannot be in the future",
       "nationalIdRequired": "National ID / iqama / passport number is required",
       "doctorRequired": "Assigned doctor is required",
       "contactNumberInvalid": "Enter a valid contact number"
@@ -128,6 +129,25 @@
     "validation": {
       "doctorRequired": "Please select a doctor"
     }
+  },
+  "careTeam": {
+    "title": "Care Team",
+    "description": "Doctors currently assigned to this patient. The primary doctor cannot be removed.",
+    "loading": "Loading care team…",
+    "empty": "No doctors assigned yet.",
+    "primaryBadge": "Primary",
+    "doctorLabel": "Doctor",
+    "specialityLabel": "Specialty / Department",
+    "specialityPlaceholder": "e.g. Dentistry",
+    "addDoctor": "Add Doctor",
+    "addButton": "Add",
+    "adding": "Adding…",
+    "cancel": "Cancel",
+    "remove": "Remove from care team",
+    "addSuccess": "Doctor added to care team",
+    "addError": "Failed to add doctor",
+    "removeSuccess": "Doctor removed from care team",
+    "removeError": "Failed to remove doctor"
   },
   "profileErrors": {
     "notFoundTitle": "Patient not found",
@@ -228,6 +248,11 @@
     "empty": "No lab results uploaded yet.",
     "loadError": "Could not load lab results for this patient.",
     "download": "Download",
+    "releaseButton": "Release to patient",
+    "releasing": "Releasing…",
+    "released": "Released",
+    "releaseSuccess": "Lab result released to the patient.",
+    "releaseError": "Could not release the lab result. Please try again.",
     "uploadTrigger": "Upload lab result",
     "uploadTitle": "Upload a lab result",
     "testNameLabel": "Test name",

@@ -82,54 +82,74 @@ export default function PatientInfoPage() {
         </div>
       </section>
 
-      <section id="faq" className="bg-white px-4 py-24 sm:px-6">
-        <div className="mx-auto max-w-3xl">
-          <motion.h2
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
-            transition={{ duration: 0.5 }}
-            className="text-center text-3xl font-bold text-neutral-900"
-          >
-            {t('faq.heading')}
-          </motion.h2>
+      <section id="faq" className="relative overflow-hidden bg-white px-4 py-24 sm:px-6">
+        <div className="relative mx-auto max-w-3xl lg:max-w-5xl">
+          <div className="md:grid md:grid-cols-[60%_40%] md:items-center md:gap-12">
+            <div>
+              <motion.h2
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.5 }}
+                className="text-center text-3xl font-bold text-neutral-900 md:text-start"
+              >
+                {t('faq.heading')}
+              </motion.h2>
+              <span aria-hidden="true" className="mx-auto mt-4 block h-2 w-2 rounded-full bg-amber-500 md:mx-0" />
 
-          <div className="mt-12">
-            {faqs.map((item, index) => {
-              const isOpen = openIndex === index
-              return (
-                <div key={item.q} className="border-b border-neutral-200">
-                  <button
-                    type="button"
-                    onClick={() => setOpenIndex(isOpen ? -1 : index)}
-                    className="flex w-full items-center justify-between gap-4 py-5 text-start"
-                    aria-expanded={isOpen}
-                  >
-                    <span className="font-medium text-neutral-900">{item.q}</span>
-                    <motion.span
-                      animate={{ rotate: isOpen ? 180 : 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="shrink-0 text-neutral-400"
-                    >
-                      <ChevronDown className="h-5 w-5" aria-hidden="true" />
-                    </motion.span>
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {isOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2, ease: 'easeInOut' }}
-                        className="overflow-hidden"
+              <div className="mt-8">
+                {faqs.map((item, index) => {
+                  const isOpen = openIndex === index
+                  return (
+                    <div key={item.q} className="border-b border-neutral-200">
+                      <button
+                        type="button"
+                        onClick={() => setOpenIndex(isOpen ? -1 : index)}
+                        className="flex w-full items-center justify-between gap-4 py-5 text-start"
+                        aria-expanded={isOpen}
                       >
-                        <p className="pb-5 text-neutral-600">{item.a}</p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )
-            })}
+                        <span className="font-medium text-neutral-900">{item.q}</span>
+                        <motion.span
+                          animate={{ rotate: isOpen ? 180 : 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="shrink-0 text-neutral-400"
+                        >
+                          <ChevronDown className="h-5 w-5" aria-hidden="true" />
+                        </motion.span>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                            className="overflow-hidden"
+                          >
+                            <p className="pb-5 text-neutral-600">{item.a}</p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="relative mt-10 hidden md:mt-0 md:block">
+              <img
+                src="/clinic/logo.png"
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-0 start-0 h-[120px] w-[120px] select-none object-contain opacity-5"
+              />
+              <img
+                src="/clinic/dental.png"
+                alt=""
+                aria-hidden="true"
+                className="relative h-80 w-full rounded-3xl object-cover shadow-card"
+              />
+            </div>
           </div>
         </div>
       </section>

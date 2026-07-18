@@ -42,12 +42,35 @@ router.get(
   asyncHandler(labResultsController.getLabResults)
 );
 
-// Download a lab result file (doctor only) — auth is checked before any
-// file access; this is never served as a static route.
+// List the signed-in patient's own released lab results — patientId is
+// derived from the session, never a route param.
+router.get(
+  '/lab-results/mine',
+  authenticateJWT,
+  authorizeRole(ROLES.PATIENT),
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(labResultsController.getMyLabResults)
+);
+
+// Doctor releases a result to the patient (must be assigned to the patient)
+router.patch(
+  '/lab-results/:resultId/release',
+  authenticateJWT,
+  authorizeRole(ROLES.DOCTOR),
+  [param('resultId').isUUID()],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(labResultsController.releaseLabResult)
+);
+
+// Download a lab result file (doctor: must be assigned; patient: only their
+// own, and only once released — enforced by RLS + the controller) — auth is
+// checked before any file access; this is never served as a static route.
 router.get(
   '/lab-results/:resultId/file',
   authenticateJWT,
-  authorizeRole(ROLES.DOCTOR),
+  authorizeRole(ROLES.DOCTOR, ROLES.PATIENT),
   [param('resultId').isUUID()],
   validateRequest,
   setupRLSContext,

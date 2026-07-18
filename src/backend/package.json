@@ -24,6 +24,7 @@
     "multer": "^2.2.0",
     "pg": "^8.12.0",
     "qrcode": "^1.5.4",
+    "twilio": "^6.0.2",
     "winston": "^3.14.2"
   },
   "devDependencies": {

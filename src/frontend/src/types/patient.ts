@@ -141,3 +141,48 @@ export interface AssignDoctorResponse {
   previousDoctorId: string | null
   message: string
 }
+
+/** One row from GET /api/patients/:patientId/care-team — matches `patientsController.getCareTeam` exactly. */
+export interface CareTeamMember {
+  assignmentId: string
+  doctorId: string
+  doctorName: string
+  specialisation: string | null
+  speciality: string | null
+  isPrimary: boolean
+  assignedBy: string | null
+  assignedAt: string
+}
+
+/** Response body for GET /api/patients/:patientId/care-team. */
+export interface CareTeamResponse {
+  patientId: string
+  careTeam: CareTeamMember[]
+}
+
+/**
+ * Body for POST /api/patients/:patientId/care-team (admin only). Re-posting
+ * the same doctor_id upserts speciality/is_primary rather than erroring —
+ * see `CareTeam.add`'s ON CONFLICT DO UPDATE.
+ */
+export interface AddToCareTeamPayload {
+  doctor_id: string
+  speciality?: string
+  is_primary?: boolean
+}
+
+/**
+ * Response body for POST /api/patients/:patientId/care-team — matches
+ * `patientsController.addToCareTeam` exactly: a flat, camelCase object,
+ * not nested under an `assignment` key.
+ */
+export interface AddToCareTeamResponse {
+  assignmentId: string
+  patientId: string
+  doctorId: string
+  speciality: string | null
+  isPrimary: boolean
+  assignedBy: string | null
+  assignedAt: string
+  message: string
+}

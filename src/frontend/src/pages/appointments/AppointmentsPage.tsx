@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { appointmentsApi } from '@/lib/api'
+import { getClinicWindow, minutesFromWindowStart } from '@/lib/clinicHours'
 import { todayWindowIso } from '@/lib/dateRange'
 import { cn } from '@/lib/utils'
 import { BookAppointmentDialog } from '@/pages/appointments/BookAppointmentDialog'
@@ -29,15 +30,16 @@ import { EditAppointmentDialog } from '@/pages/appointments/EditAppointmentDialo
 import type { Appointment, AppointmentType } from '@/types/appointment'
 
 const PAGE_LIMIT = 10
+const LIST_FETCH_LIMIT = 100
 
-// Day view clinic window (8 AM–10 PM per ui-brief.md) — same hour-grid
-// timeline pattern as DoctorDashboard/AdminDashboard, so "list view = the
-// same card language as the dashboards" holds across the whole app.
-const WINDOW_START_HOUR = 8
-const WINDOW_END_HOUR = 22
+type FilterTab = 'all' | 'today' | 'upcoming' | 'past' | 'cancelled'
+const FILTER_TABS: FilterTab[] = ['all', 'today', 'upcoming', 'past', 'cancelled']
+
+// Day view hour-grid timeline — same pattern as DoctorDashboard/AdminDashboard.
+// The clinic's actual open hours (which vary by day) are computed
+// per-render via getClinicWindow(now), not a fixed constant; see
+// lib/clinicHours.ts.
 const PX_PER_HOUR = 72
-const WINDOW_HOURS = WINDOW_END_HOUR - WINDOW_START_HOUR
-const TIMELINE_HEIGHT = WINDOW_HOURS * PX_PER_HOUR
 
 const TYPE_ACCENT: Record<AppointmentType, string> = {
   consultation: 'border-primary-600',
@@ -54,17 +56,71 @@ function isSameCalendarDay(a: Date, b: Date) {
   )
 }
 
-function minutesFromWindowStart(date: Date) {
-  return (date.getHours() - WINDOW_START_HOUR) * 60 + date.getMinutes()
+/**
+ * Side-by-side column layout for time-overlapping appointments (e.g. two
+ * different doctors both booked at 10 AM) — without this, every card is
+ * `start-0 end-0` (full width) and overlapping appointments render directly
+ * on top of each other. Standard calendar-day-view algorithm: cluster
+ * appointments into chains that transitively overlap in time, then greedily
+ * assign each a column within its cluster (first column whose last
+ * appointment has already ended), so a cluster of N mutually-overlapping
+ * appointments splits the width N ways.
+ */
+function layoutOverlaps(
+  appointments: Appointment[],
+): Map<string, { columnIndex: number; columnCount: number }> {
+  const items = appointments
+    .map((a) => {
+      const start = new Date(a.scheduledAt).getTime()
+      return { id: a.appointmentId, start, end: start + a.durationMinutes * 60_000 }
+    })
+    .sort((a, b) => a.start - b.start)
+
+  const result = new Map<string, { columnIndex: number; columnCount: number }>()
+  let cluster: typeof items = []
+  let clusterEnd = -Infinity
+
+  const flushCluster = () => {
+    if (cluster.length === 0) return
+    const columnEndTimes: number[] = []
+    const columnOf = new Map<string, number>()
+    for (const item of cluster) {
+      const freeColumn = columnEndTimes.findIndex((endTime) => endTime <= item.start)
+      if (freeColumn === -1) {
+        columnEndTimes.push(item.end)
+        columnOf.set(item.id, columnEndTimes.length - 1)
+      } else {
+        columnEndTimes[freeColumn] = item.end
+        columnOf.set(item.id, freeColumn)
+      }
+    }
+    const columnCount = columnEndTimes.length
+    for (const item of cluster) {
+      result.set(item.id, { columnIndex: columnOf.get(item.id)!, columnCount })
+    }
+  }
+
+  for (const item of items) {
+    if (item.start >= clusterEnd) {
+      flushCluster()
+      cluster = [item]
+      clusterEnd = item.end
+    } else {
+      cluster.push(item)
+      clusterEnd = Math.max(clusterEnd, item.end)
+    }
+  }
+  flushCluster()
+
+  return result
 }
 
-function topPxFor(date: Date) {
-  return Math.min(Math.max((minutesFromWindowStart(date) / 60) * PX_PER_HOUR, 0), TIMELINE_HEIGHT)
-}
-
+// `hour` can exceed 23 here (e.g. 25 = 1 AM the next day) since the clinic's
+// window is expressed as one continuous range past midnight — mod 24 so the
+// clock-face label still reads "1 AM", not "25:00".
 function formatHourLabel(hour: number, lang: 'ar' | 'en') {
   const marker = new Date()
-  marker.setHours(hour, 0, 0, 0)
+  marker.setHours(hour % 24, 0, 0, 0)
   return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: 'numeric' }).format(
     marker,
   )
@@ -203,14 +259,23 @@ function DayView({
     () => (data?.appointments ?? []).filter((a) => isSameCalendarDay(new Date(a.scheduledAt), now)),
     [data, now],
   )
+  const overlapLayout = useMemo(() => layoutOverlaps(todaysAppointments), [todaysAppointments])
 
-  const nowOffsetMinutes = minutesFromWindowStart(now)
-  const showNowLine = nowOffsetMinutes >= 0 && nowOffsetMinutes <= WINDOW_HOURS * 60
+  // Clinic hours vary by day (Friday opens at noon, every other day at
+  // 8 AM; every day closes at 1 AM the next calendar day) — see
+  // lib/clinicHours.ts.
+  const { startHour, windowHours } = useMemo(() => getClinicWindow(now), [now])
+  const timelineHeight = windowHours * PX_PER_HOUR
+  const topPxFor = (date: Date) =>
+    Math.min(Math.max((minutesFromWindowStart(date, startHour) / 60) * PX_PER_HOUR, 0), timelineHeight)
+
+  const nowOffsetMinutes = minutesFromWindowStart(now, startHour)
+  const showNowLine = nowOffsetMinutes >= 0 && nowOffsetMinutes <= windowHours * 60
   const sweepStyle: CSSProperties = {
-    ['--sweep-distance' as string]: `${TIMELINE_HEIGHT}px`,
+    ['--sweep-distance' as string]: `${timelineHeight}px`,
     animationDelay: `-${nowOffsetMinutes * 60}s`,
   }
-  const hourMarks = Array.from({ length: WINDOW_HOURS + 1 }, (_, i) => WINDOW_START_HOUR + i)
+  const hourMarks = Array.from({ length: windowHours + 1 }, (_, i) => startHour + i)
 
   if (isLoading) return <LoadingSpinner label={tCommon('loading')} />
 
@@ -236,7 +301,7 @@ function DayView({
           description={t('noAppointmentsHint')}
         />
       ) : (
-        <div className="relative" style={{ height: TIMELINE_HEIGHT }}>
+        <div className="relative" style={{ height: timelineHeight }}>
           {hourMarks.map((hour, idx) => (
             <div
               key={hour}
@@ -258,14 +323,28 @@ function DayView({
           )}
 
           <div className="absolute inset-y-0 start-12 end-0">
-            {todaysAppointments.map((appointment) => (
+            {todaysAppointments.map((appointment) => {
+              const { columnIndex, columnCount } = overlapLayout.get(appointment.appointmentId) ?? {
+                columnIndex: 0,
+                columnCount: 1,
+              }
+              return (
               <div
                 key={appointment.appointmentId}
                 style={{
                   top: topPxFor(new Date(appointment.scheduledAt)),
-                  minHeight: Math.max((appointment.durationMinutes / 60) * PX_PER_HOUR, 56),
+                  // Floor matches PX_PER_HOUR, not an arbitrary 56px — a
+                  // two-row card (name+status, then time/doctor/type) with
+                  // p-3 padding needs close to a full hour-slot's height to
+                  // avoid visually spilling past the next hour's gridline.
+                  minHeight: Math.max((appointment.durationMinutes / 60) * PX_PER_HOUR, PX_PER_HOUR),
+                  // Time-overlapping appointments (e.g. two doctors both
+                  // booked at 10 AM) split the width instead of stacking
+                  // directly on top of each other — see layoutOverlaps.
+                  insetInlineStart: `${(columnIndex / columnCount) * 100}%`,
+                  width: `${(1 / columnCount) * 100}%`,
                 }}
-                className="absolute start-0 end-0 px-2 pb-2"
+                className="absolute px-1 pb-2"
               >
                 <div
                   className={cn(
@@ -281,27 +360,80 @@ function DayView({
                     </span>
                     <StatusBadge status={appointment.status} />
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                     <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    <span>
+                    <span className="shrink-0">
                       {new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-US', {
                         hour: 'numeric',
                         minute: '2-digit',
                       }).format(new Date(appointment.scheduledAt))}
                     </span>
                     {showDoctorColumn && showPatientColumn && appointment.doctorName && (
-                      <span className="truncate">· {appointment.doctorName}</span>
+                      <span className="min-w-0 truncate">· {appointment.doctorName}</span>
                     )}
-                    <Badge variant="secondary" className="ms-auto">
+                    <Badge variant="secondary" className="ms-auto shrink-0">
                       {t(`types.${appointment.type}`)}
                     </Badge>
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/** True when `iso`'s calendar date matches `now`'s (local time), same definition DayView/dashboards use. */
+function isToday(iso: string, now: Date) {
+  const d = new Date(iso)
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  )
+}
+
+function matchesFilterTab(appointment: Appointment, tab: FilterTab, now: Date) {
+  const scheduled = new Date(appointment.scheduledAt)
+  switch (tab) {
+    case 'today':
+      return isToday(appointment.scheduledAt, now)
+    case 'upcoming':
+      return scheduled.getTime() > now.getTime() && appointment.status !== 'cancelled'
+    case 'past':
+      return scheduled.getTime() < now.getTime()
+    case 'cancelled':
+      return appointment.status === 'cancelled'
+    case 'all':
+    default:
+      return true
+  }
+}
+
+function FilterTabBar({ value, onChange }: { value: FilterTab; onChange: (tab: FilterTab) => void }) {
+  const { t } = useTranslation('appointments')
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {FILTER_TABS.map((tab) => (
+        <button
+          key={tab}
+          type="button"
+          onClick={() => onChange(tab)}
+          aria-pressed={value === tab}
+          className={cn(
+            'rounded-full px-3 py-1.5 text-sm font-medium transition-colors duration-150 ease-out',
+            value === tab
+              ? 'bg-primary-600 text-white'
+              : 'bg-neutral-100 text-foreground hover:bg-neutral-200',
+          )}
+        >
+          {t(`filterTabs.${tab}`)}
+        </button>
+      ))}
     </div>
   )
 }
@@ -323,15 +455,28 @@ function ListView({
 }) {
   const { t } = useTranslation('appointments')
   const { t: tCommon } = useTranslation('common')
+  const [filterTab, setFilterTab] = useState<FilterTab>('today')
+  const now = useMemo(() => new Date(), [])
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['appointments', 'list', 'paged', page, PAGE_LIMIT],
-    queryFn: () => appointmentsApi.list({ page, limit: PAGE_LIMIT }),
+    queryKey: ['appointments', 'list', 'filtered', LIST_FETCH_LIMIT],
+    queryFn: () => appointmentsApi.list({ limit: LIST_FETCH_LIMIT }),
   })
 
-  const appointments = data?.appointments ?? []
-  const hasNextPage = appointments.length === PAGE_LIMIT
+  const allAppointments = data?.appointments ?? []
+  const filteredAppointments = useMemo(
+    () => allAppointments.filter((a) => matchesFilterTab(a, filterTab, now)),
+    [allAppointments, filterTab, now],
+  )
+  const pageStart = (page - 1) * PAGE_LIMIT
+  const appointments = filteredAppointments.slice(pageStart, pageStart + PAGE_LIMIT)
+  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / PAGE_LIMIT))
   const errorStatus = isError ? (error as AxiosError).response?.status : null
+
+  const handleFilterChange = (tab: FilterTab) => {
+    setFilterTab(tab)
+    setPage(() => 1)
+  }
 
   if (isLoading) return <LoadingSpinner label={tCommon('loading')} />
 
@@ -346,59 +491,63 @@ function ListView({
   }
   if (isError) return <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
 
-  if (appointments.length === 0) {
-    return (
-      <EmptyState
-        icon={CalendarClock}
-        title={t('noAppointments')}
-        description={t('noAppointmentsHint')}
-      />
-    )
-  }
-
   return (
-    <>
-      <div className="flex flex-col gap-2">
-        {appointments.map((appointment) => (
-          <AppointmentListCard
-            key={appointment.appointmentId}
-            appointment={appointment}
-            formatDate={formatDate}
-            formatTime={formatTime}
-            showDoctorColumn={showDoctorColumn}
-            showPatientColumn={showPatientColumn}
-            isAdmin={isAdmin}
-            isPatient={isPatient}
-          />
-        ))}
-      </div>
+    <div className="flex flex-col gap-4">
+      <FilterTabBar value={filterTab} onChange={handleFilterChange} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <span className="text-sm text-muted-foreground">{t('pagination.pageInfo', { page })}</span>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-            {t('pagination.previous')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!hasNextPage}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            {t('pagination.next')}
-            <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-          </Button>
-        </div>
-      </div>
-    </>
+      {filteredAppointments.length === 0 ? (
+        <EmptyState
+          icon={CalendarClock}
+          title={t('noAppointments')}
+          description={t('noAppointmentsHint')}
+        />
+      ) : (
+        <>
+          <div className="flex flex-col gap-2">
+            {appointments.map((appointment) => (
+              <AppointmentListCard
+                key={appointment.appointmentId}
+                appointment={appointment}
+                formatDate={formatDate}
+                formatTime={formatTime}
+                showDoctorColumn={showDoctorColumn}
+                showPatientColumn={showPatientColumn}
+                isAdmin={isAdmin}
+                isPatient={isPatient}
+              />
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <span className="text-sm text-muted-foreground">
+              {t('pagination.pageInfo', { page, totalPages })}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+                {t('pagination.previous')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                {t('pagination.next')}
+                <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   )
 }
 

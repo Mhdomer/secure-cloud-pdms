@@ -32,10 +32,17 @@
   },
   "noAppointments": "لا توجد مواعيد",
   "noAppointmentsHint": "ستظهر المواعيد هنا بمجرد جدولتها.",
+  "filterTabs": {
+    "all": "الكل",
+    "today": "اليوم",
+    "upcoming": "القادمة",
+    "past": "السابقة",
+    "cancelled": "الملغاة"
+  },
   "pagination": {
     "previous": "السابق",
     "next": "التالي",
-    "pageInfo": "صفحة {{page}}"
+    "pageInfo": "صفحة {{page}} من {{totalPages}}"
   },
   "errors": {
     "forbiddenTitle": "الوصول مرفوض",

@@ -76,6 +76,7 @@
     "validation": {
       "fullNameRequired": "الاسم الكامل مطلوب",
       "dateOfBirthRequired": "تاريخ الميلاد مطلوب",
+      "dateOfBirthFuture": "لا يمكن أن يكون تاريخ الميلاد في المستقبل",
       "nationalIdRequired": "رقم الهوية الوطنية / الإقامة / جواز السفر مطلوب",
       "doctorRequired": "الطبيب المعيّن مطلوب",
       "contactNumberInvalid": "أدخل رقم تواصل صالح"
@@ -132,6 +133,25 @@
     "validation": {
       "doctorRequired": "الرجاء اختيار طبيب"
     }
+  },
+  "careTeam": {
+    "title": "الفريق الطبي",
+    "description": "الأطباء المعيّنون لهذا المريض. لا يمكن إزالة الطبيب الأساسي.",
+    "loading": "جارٍ تحميل الفريق الطبي…",
+    "empty": "لم يُعيَّن أي طبيب بعد.",
+    "primaryBadge": "أساسي",
+    "doctorLabel": "الطبيب",
+    "specialityLabel": "التخصص / القسم",
+    "specialityPlaceholder": "مثال: طب الأسنان",
+    "addDoctor": "إضافة طبيب",
+    "addButton": "إضافة",
+    "adding": "جارٍ الإضافة…",
+    "cancel": "إلغاء",
+    "remove": "إزالة من الفريق الطبي",
+    "addSuccess": "تمت إضافة الطبيب إلى الفريق الطبي",
+    "addError": "فشل في إضافة الطبيب",
+    "removeSuccess": "تمت إزالة الطبيب من الفريق الطبي",
+    "removeError": "فشل في إزالة الطبيب"
   },
   "profileErrors": {
     "notFoundTitle": "المريض غير موجود",
@@ -232,6 +252,11 @@
     "empty": "لا توجد نتائج مختبر مرفوعة بعد.",
     "loadError": "تعذّر تحميل نتائج المختبر لهذا المريض.",
     "download": "تنزيل",
+    "releaseButton": "إتاحة للمريض",
+    "releasing": "جارٍ الإتاحة…",
+    "released": "متاحة للمريض",
+    "releaseSuccess": "تمت إتاحة نتيجة المختبر للمريض.",
+    "releaseError": "تعذّرت إتاحة نتيجة المختبر. الرجاء المحاولة مجدداً.",
     "uploadTrigger": "رفع نتيجة مختبر",
     "uploadTitle": "رفع نتيجة مختبر",
     "testNameLabel": "اسم الفحص",

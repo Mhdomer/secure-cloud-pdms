@@ -28,13 +28,43 @@
     "notFoundTitle": "No records found",
     "notFoundDescription": "This patient does not exist, or you do not have access to their records."
   },
+  "myTabs": {
+    "medicalRecords": "Medical Records",
+    "invoices": "Invoices",
+    "labResults": "Lab Results"
+  },
+  "myInvoicesTab": {
+    "viewToggle": {
+      "invoices": "Invoices",
+      "consent": "Consent Forms"
+    },
+    "description": "Billing documents on file for you.",
+    "consentDescription": "Consent and intake forms you've signed.",
+    "empty": "No invoices yet.",
+    "consentEmpty": "No consent forms on file yet.",
+    "loadError": "Could not load your invoices. Please try again.",
+    "consentLoadError": "Could not load your consent forms. Please try again.",
+    "download": "Download"
+  },
+  "myLabResultsTab": {
+    "description": "Lab results your doctor has shared with you.",
+    "empty": "No lab results yet.",
+    "emptyHint": "Results appear here once your doctor releases them.",
+    "loadError": "Could not load your lab results. Please try again.",
+    "download": "Download"
+  },
   "form": {
     "optional": "Optional",
     "createTitle": "New medical record",
     "createDescription": "Document a diagnosis, prescription, and any notes from this visit.",
     "patientIdLabel": "Patient ID",
+    "patientLabel": "Patient",
     "patientIdLocked": "Locked to the patient you opened this from.",
     "patientIdNote": "There is no patient picker in this system yet — paste the patient's ID from their profile page.",
+    "patientSearchPlaceholder": "Search by national ID, name, or phone…",
+    "patientSearchLoading": "Searching…",
+    "patientSearchEmpty": "No matching patients",
+    "patientSearchError": "Could not search patients. Please try again.",
     "submit": "Create record",
     "submitting": "Creating…",
     "success": "Medical record created.",

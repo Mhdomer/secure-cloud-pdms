@@ -33,7 +33,10 @@ import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { patientsApi, recordsApi } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { CreateRecordDialog } from '@/pages/records/CreateRecordDialog'
+import { MyInvoicesTab } from '@/pages/records/MyInvoicesTab'
+import { MyLabResultsTab } from '@/pages/records/MyLabResultsTab'
 import type { CreateMedicalRecordPayload } from '@/types/medicalRecord'
 
 const PAGE_LIMIT = 10
@@ -53,7 +56,7 @@ const PAGE_LIMIT = 10
  * patient, so it's never attempted for that role.
  */
 export default function MedicalRecordsPage() {
-  const { isDoctor } = useAuth()
+  const { isDoctor, isPatient } = useAuth()
   const [searchParams] = useSearchParams()
   const patientIdParam = searchParams.get('patientId')
   const scopedPatientId = isDoctor ? patientIdParam : null
@@ -63,10 +66,18 @@ export default function MedicalRecordsPage() {
   // Doctor arriving with a specific patient in context (from that patient's
   // profile "View medical history" link) gets the split-pane note-writing
   // view from ui-brief.md — history alongside the form, not a bare list.
-  // Doctor's own unscoped list and the patient's read-only view keep the
-  // plain list below.
   if (isDoctor && scopedPatientId) {
     return <DoctorPatientRecordsSplitView patientId={scopedPatientId} />
+  }
+
+  // Patient's own view is tabbed (Medical Records / Invoices / Lab Results) —
+  // this route is where a patient already goes for "my medical stuff," so
+  // the new invoice/lab-result self-view lives here rather than a new nav
+  // item. Doctor's own unscoped list (no patient in context) stays a plain
+  // list below; they view a specific patient's invoices/lab-results from
+  // that patient's profile instead.
+  if (isPatient) {
+    return <PatientRecordsTabs page={page} setPage={setPage} />
   }
 
   return (
@@ -79,16 +90,63 @@ export default function MedicalRecordsPage() {
   )
 }
 
+type PatientTabKey = 'medicalRecords' | 'invoices' | 'labResults'
+const PATIENT_TABS: PatientTabKey[] = ['medicalRecords', 'invoices', 'labResults']
+
+function PatientRecordsTabs({
+  page,
+  setPage,
+}: {
+  page: number
+  setPage: (updater: (p: number) => number) => void
+}) {
+  const { t } = useTranslation('records')
+  const [tab, setTab] = useState<PatientTabKey>('medicalRecords')
+
+  return (
+    <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
+      <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+
+      <div className="flex gap-1 border-b border-border">
+        {PATIENT_TABS.map((tabKey) => (
+          <button
+            key={tabKey}
+            type="button"
+            onClick={() => setTab(tabKey)}
+            className={cn(
+              '-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors duration-150 ease-out',
+              tab === tabKey
+                ? 'border-primary-600 text-primary-700'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t(`myTabs.${tabKey}`)}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'medicalRecords' && (
+        <MedicalRecordsList isDoctor={false} scopedPatientId={null} page={page} setPage={setPage} hideHeader />
+      )}
+      {tab === 'invoices' && <MyInvoicesTab />}
+      {tab === 'labResults' && <MyLabResultsTab />}
+    </div>
+  )
+}
+
 function MedicalRecordsList({
   isDoctor,
   scopedPatientId,
   page,
   setPage,
+  hideHeader = false,
 }: {
   isDoctor: boolean
   scopedPatientId: string | null
   page: number
   setPage: (updater: (p: number) => number) => void
+  /** Used when embedded as a tab (PatientRecordsTabs) — the tab label already says "Medical Records". */
+  hideHeader?: boolean
 }) {
   const { t } = useTranslation('records')
   const { t: tCommon } = useTranslation('common')
@@ -125,11 +183,13 @@ function MedicalRecordsList({
     scopedPatientId ? `/records/${recordId}?patientId=${scopedPatientId}` : `/records/${recordId}`
 
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
-        {isDoctor && <CreateRecordDialog lockedPatientId={scopedPatientId ?? undefined} />}
-      </div>
+    <div className={hideHeader ? 'flex flex-col gap-6' : 'mx-auto flex max-w-[1280px] flex-col gap-6'}>
+      {!hideHeader && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold text-foreground">{t('title')}</h1>
+          {isDoctor && <CreateRecordDialog lockedPatientId={scopedPatientId ?? undefined} />}
+        </div>
+      )}
 
       {isLoading && <LoadingSpinner label={tCommon('loading')} />}
 

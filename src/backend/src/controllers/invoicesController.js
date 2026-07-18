@@ -6,7 +6,7 @@ const { withTransaction } = require('../config/database');
 const Patient = require('../models/Patient');
 const PatientInvoice = require('../models/PatientInvoice');
 const AuditLog = require('../models/AuditLog');
-const { AUDIT_ACTIONS } = require('../config/constants');
+const { AUDIT_ACTIONS, ROLES } = require('../config/constants');
 
 /** Staff (admin/superadmin) uploads a billing invoice for a patient. */
 async function uploadInvoice(req, res) {
@@ -95,7 +95,40 @@ async function getInvoices(req, res) {
   });
 }
 
-/** Admin/superadmin/doctor: download the invoice file. */
+/**
+ * Patient: their own invoices only. Unlike getInvoices (staff/doctor, which
+ * trusts a :patientId route param), this derives the patient from the
+ * session — a patient can never be handed someone else's invoices by typing
+ * a different ID in the URL, because there is no ID in this URL at all.
+ */
+async function getMyInvoices(req, res) {
+  const { patientId } = req.rlsSession;
+  const { category } = req.query;
+
+  const invoices = await withTransaction(req.rlsSession, (client) =>
+    PatientInvoice.listByPatient(client, patientId, category)
+  );
+
+  return res.status(200).json({
+    invoices: invoices.map((inv) => ({
+      invoiceId: inv.invoice_id,
+      originalFilename: inv.original_filename,
+      amount: inv.amount,
+      description: inv.description,
+      invoiceDate: inv.invoice_date,
+      category: inv.category,
+      createdAt: inv.created_at,
+      uploadedBy: inv.uploaded_by,
+    })),
+  });
+}
+
+/**
+ * Admin/superadmin/doctor: download any invoice file. Patient: only their
+ * own — patient_invoices carries no RLS (see the model's header comment),
+ * so this ownership check is the only thing standing between a patient
+ * session and someone else's invoice.
+ */
 async function downloadInvoice(req, res) {
   const { invoiceId } = req.params;
 
@@ -105,7 +138,11 @@ async function downloadInvoice(req, res) {
     return res.status(404).json({ error: 'Invoice not found' });
   }
 
+  if (req.user.role === ROLES.PATIENT && invoice.patient_id !== req.rlsSession.patientId) {
+    return res.status(404).json({ error: 'Invoice not found' });
+  }
+
   return res.download(invoice.file_path, invoice.original_filename);
 }
 
-module.exports = { uploadInvoice, getInvoices, downloadInvoice };
+module.exports = { uploadInvoice, getInvoices, getMyInvoices, downloadInvoice };

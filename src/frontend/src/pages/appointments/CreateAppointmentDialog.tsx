@@ -12,6 +12,15 @@ import { DoctorSelect } from '@/components/shared/DoctorSelect'
 import { PatientSelect } from '@/components/shared/PatientSelect'
 import { Button } from '@/components/ui/button'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
   Form,
   FormControl,
   FormField,
@@ -21,15 +30,6 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toaster'
 import { appointmentsApi } from '@/lib/api'
@@ -135,7 +135,7 @@ export function CreateAppointmentDialog({ trigger }: CreateAppointmentDialogProp
   }
 
   return (
-    <Sheet
+    <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen)
@@ -144,24 +144,24 @@ export function CreateAppointmentDialog({ trigger }: CreateAppointmentDialogProp
         }
       }}
     >
-      <SheetTrigger asChild>
+      <DialogTrigger asChild>
         {trigger ?? (
           <Button>
             <CalendarPlus className="h-4 w-4" aria-hidden="true" />
             {t('new')}
           </Button>
         )}
-      </SheetTrigger>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>{t('form.createTitle')}</SheetTitle>
-          <SheetDescription>{t('form.createDescription')}</SheetDescription>
-        </SheetHeader>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t('form.createTitle')}</DialogTitle>
+          <DialogDescription>{t('form.createDescription')}</DialogDescription>
+        </DialogHeader>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
             noValidate
-            className="flex flex-1 flex-col gap-4 overflow-y-auto pe-1"
+            className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto pe-1"
           >
             <FormField
               control={form.control}
@@ -254,17 +254,17 @@ export function CreateAppointmentDialog({ trigger }: CreateAppointmentDialogProp
               )}
             />
 
-            <SheetFooter>
+            <DialogFooter>
               <Button
                 type="submit"
                 disabled={form.formState.isSubmitting || createMutation.isPending}
               >
                 {createMutation.isPending ? t('form.submitting') : t('form.submit')}
               </Button>
-            </SheetFooter>
+            </DialogFooter>
           </form>
         </Form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }

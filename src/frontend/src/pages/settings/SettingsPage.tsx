@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useLanguage, type SupportedLanguage } from '@/hooks/useLanguage'
 import { usersApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useDoctorRoomSettingsStore } from '@/store/doctorRoomSettingsStore'
 import type { ChangePasswordPayload } from '@/types/user'
 
 /**
@@ -69,8 +70,104 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {role === 'doctor' && <RoomLabelsCard />}
+
       <ChangePasswordCard />
     </div>
+  )
+}
+
+/**
+ * Stopgap editor for the Doctor Dashboard hero banner's room labels (D-2) —
+ * see store/doctorRoomSettingsStore.ts for why this is localStorage-only
+ * rather than a PATCH /users/me call.
+ */
+function RoomLabelsCard() {
+  const { t } = useTranslation('settings')
+  const { t: tDash } = useTranslation('dashboard')
+  const settings = useDoctorRoomSettingsStore((state) => state.settings)
+  const setSettings = useDoctorRoomSettingsStore((state) => state.setSettings)
+
+  const defaultValues = {
+    room1Name: settings?.room1Name || tDash('doctor.hero.consultationRoom'),
+    room1Number: settings?.room1Number || tDash('doctor.hero.consultationRoomNumber'),
+    room2Name: settings?.room2Name || tDash('doctor.hero.treatmentRoom'),
+    room2Number: settings?.room2Number || tDash('doctor.hero.treatmentRoomNumber'),
+  }
+
+  const form = useForm({ defaultValues })
+
+  const onSubmit = form.handleSubmit((values) => {
+    setSettings(values)
+    toast.success(t('roomLabels.success'))
+  })
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('roomLabels.title')}</CardTitle>
+        <CardDescription>{t('roomLabels.description')}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="room1Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('roomLabels.room1Name')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="room1Number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('roomLabels.room1Number')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="room2Name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('roomLabels.room2Name')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="room2Number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('roomLabels.room2Number')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <Button type="submit" className="w-fit">
+              {t('roomLabels.save')}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   )
 }
 

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
+import { PatientSelect } from '@/components/shared/PatientSelect'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -154,23 +155,31 @@ export function CreateRecordDialog({ lockedPatientId }: CreateRecordDialogProps)
             <FormField
               control={form.control}
               name="patient_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('form.patientIdLabel')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      dir="ltr"
-                      readOnly={!!lockedPatientId}
-                      className={lockedPatientId ? 'bg-neutral-100 text-muted-foreground' : undefined}
-                      {...field}
+              render={({ field }) =>
+                lockedPatientId ? (
+                  <FormItem>
+                    <FormLabel>{t('form.patientIdLabel')}</FormLabel>
+                    <FormControl>
+                      <Input dir="ltr" readOnly className="bg-neutral-100 text-muted-foreground" {...field} />
+                    </FormControl>
+                    <FormDescription>{t('form.patientIdLocked')}</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                ) : (
+                  <FormItem>
+                    <FormLabel>{t('form.patientLabel')}</FormLabel>
+                    <PatientSelect
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      placeholder={t('form.patientSearchPlaceholder')}
+                      loadingLabel={t('form.patientSearchLoading')}
+                      emptyLabel={t('form.patientSearchEmpty')}
+                      loadErrorLabel={t('form.patientSearchError')}
                     />
-                  </FormControl>
-                  <FormDescription>
-                    {lockedPatientId ? t('form.patientIdLocked') : t('form.patientIdNote')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
+                    <FormMessage />
+                  </FormItem>
+                )
+              }
             />
             <FormField
               control={form.control}

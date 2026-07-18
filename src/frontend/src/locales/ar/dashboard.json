@@ -7,18 +7,44 @@
     "todaysAppointments": "مواعيد اليوم",
     "upcomingAppointments": "المواعيد القادمة",
     "recentRecords": "السجلات الأخيرة",
-    "quickActions": "إجراءات سريعة",
     "newRecord": "سجل جديد",
     "greetingMorning": "صباح الخير، د. {{name}}",
     "greetingAfternoon": "مساء الخير، د. {{name}}",
     "greetingEvening": "مساء الخير، د. {{name}}",
+    "hero": {
+      "consultationRoom": "غرفة الاستشارة",
+      "consultationRoomNumber": "غرفة ٢",
+      "treatmentRoom": "غرفة العلاج",
+      "treatmentRoomNumber": "غرفة ٣"
+    },
     "stats": {
       "today": "مواعيد اليوم",
-      "confirmed": "مؤكدة",
-      "awaitingConfirmation": "بانتظار التأكيد",
+      "patientsSeen": "المرضى الذين تم الكشف عليهم",
+      "pendingNotes": "ملاحظات معلّقة",
+      "pendingNotesComingSoon": "قريباً",
       "nextAppointment": "الموعد القادم",
       "noNextAppointment": "لا مواعيد أخرى اليوم",
-      "startingNow": "يبدأ الآن"
+      "startingNow": "يبدأ الآن",
+      "followUps": "المتابعات"
+    },
+    "quickActions": {
+      "heading": "إجراءات سريعة",
+      "newNote": "ملاحظة جديدة",
+      "requestLab": "طلب تحليل",
+      "newPrescription": "وصفة طبية جديدة",
+      "addFollowUp": "إضافة متابعة"
+    },
+    "patientSummary": {
+      "heading": "المريض القادم",
+      "mrn": "رقم الملف: {{id}}",
+      "ageYears": "{{age}} سنة",
+      "bloodTypeUnknown": "فصيلة الدم غير معروفة",
+      "noAllergies": "لا توجد حساسية معروفة",
+      "lastVisit": "آخر زيارة",
+      "noVisits": "لا توجد زيارات سابقة",
+      "viewChart": "عرض الملف الطبي",
+      "emptyTitle": "لا يوجد مريض قادم",
+      "emptyDescription": "سيظهر هنا مريضك المجدول التالي."
     },
     "timeline": {
       "heading": "جدول اليوم",
@@ -40,6 +66,24 @@
   },
   "admin": {
     "todaysSchedule": "جدول اليوم",
+    "hero": {
+      "queue": "قائمة الانتظار",
+      "checkedIn": "تم الوصول",
+      "inConsultation": "قيد الاستشارة"
+    },
+    "stats": {
+      "appointmentsToday": "مواعيد اليوم",
+      "confirmedCount": "{{count}} مؤكدة",
+      "patientsWaiting": "المرضى في الانتظار",
+      "inQueueCount": "{{count}} في قائمة الانتظار",
+      "completedCheckins": "تسجيلات الوصول المكتملة",
+      "pctOfToday": "{{pct}}٪ من مواعيد اليوم"
+    },
+    "announcements": {
+      "heading": "إعلانات",
+      "teamMeeting": "اجتماع الفريق اليوم الساعة ٢:٠٠ ظهراً في قاعة الاجتماعات.",
+      "holidayHours": "تذكير: تغلق العيادة مبكراً هذا الخميس لتدريب الموظفين."
+    },
     "actions": {
       "registerPatient": "تسجيل مريض جديد",
       "registerPatientHint": "أضف مريضاً جديداً وعيّن له طبيباً",
@@ -59,6 +103,10 @@
     }
   },
   "patient": {
+    "hero": {
+      "welcome": "أهلاً بعودتك، {{name}}",
+      "subtitle": "نحن هنا لرعايتك"
+    },
     "upcomingAppointments": "المواعيد القادمة",
     "recentRecords": "السجلات الأخيرة",
     "recordsLinkHint": "اطّلع على سجل زياراتك الكامل وملاحظاتك الطبية.",
@@ -66,6 +114,23 @@
     "noUpcomingAppointments": "لا توجد مواعيد قادمة",
     "nextAppointmentCard": {
       "emptyDescription": "احجز موعداً لتظهر تفاصيله هنا."
+    },
+    "quickBook": {
+      "heading": "حجز سريع",
+      "description": "بحاجة لزيارة طبيب؟ احجز موعدك القادم خلال خطوات بسيطة."
+    },
+    "careJourney": {
+      "heading": "رحلة رعايتك",
+      "subtitle": "نحن معك في كل خطوة",
+      "book": "احجز موعداً",
+      "checkIn": "تسجيل الوصول بالعيادة",
+      "consultation": "الاستشارة مع الطبيب",
+      "support": "احصل على الرعاية والدعم"
+    },
+    "needHelp": {
+      "heading": "بحاجة للمساعدة؟",
+      "description": "فريق الاستقبال في خدمتك.",
+      "phone": "+٩٦٦ ١١ ٤٢٢ ٢٠٠٠"
     },
     "prescriptions": {
       "heading": "الوصفات الطبية الفعالة",
