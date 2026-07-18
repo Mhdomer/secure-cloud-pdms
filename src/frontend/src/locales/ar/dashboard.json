@@ -68,8 +68,11 @@
     "todaysSchedule": "جدول اليوم",
     "hero": {
       "queue": "قائمة الانتظار",
+      "queueSub": "مرضى في الانتظار",
       "checkedIn": "تم الوصول",
-      "inConsultation": "قيد الاستشارة"
+      "checkedInSub": "في الاستقبال",
+      "inConsultation": "قيد الاستشارة",
+      "inConsultationSub": "مع الطبيب"
     },
     "stats": {
       "appointmentsToday": "مواعيد اليوم",

@@ -9,19 +9,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Primary — deep teal (medical trust, not generic blue)
+        // Primary — warm gold, matching the real Alamin PolyClinic logo.
+        // Was deep teal until the site-wide rebrand; 300/400/500/600/700
+        // are identical to brand.gold below (that scale predates this one
+        // and stays in place for the few call sites that reference it
+        // directly), 50/100/200/800/900/950 extrapolate the same hue.
         primary: {
-          50:  '#f0fafa',
-          100: '#ccf0f0',
-          200: '#99e0e0',
-          300: '#5ecaca',
-          400: '#2aadad',
-          500: '#0d8f8f',
-          600: '#0a7272', // main brand color
-          700: '#095e5e',
-          800: '#074a4a',
-          900: '#053838',
-          950: '#022424',
+          50:  '#faf3e6',
+          100: '#f5e6cc',
+          200: '#ecd0a3',
+          300: '#e6c98a',
+          400: '#d9a54b',
+          500: '#c08a3e',
+          600: '#a8722e', // main brand color
+          700: '#8a5c25',
+          800: '#6e4a1e',
+          900: '#543a17',
+          950: '#362510',
         },
         // Neutral — warm slate (not cold gray)
         neutral: {
@@ -54,9 +58,13 @@ const config: Config = {
           600: '#dc2626',
         },
         // Brand — pulled from the actual Alamin PolyClinic logo (gold +
-        // dark brown/charcoal). Scoped to auth/marketing surfaces only —
-        // the rest of the app uses the `primary` teal above. Reconciling
-        // the two into one site-wide palette is a separate design decision.
+        // dark brown/charcoal). Originally scoped to auth/marketing
+        // surfaces only, with the rest of the app on a separate teal
+        // `primary` — that split was reconciled into one site-wide gold
+        // palette (see `primary` above), so `brand.gold`/`brand.charcoal`
+        // are now largely redundant with `primary`/`neutral-800`. Left in
+        // place rather than removed since a handful of auth/marketing call
+        // sites still reference them directly.
         brand: {
           gold: {
             300: '#e6c98a',

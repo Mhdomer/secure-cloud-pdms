@@ -68,8 +68,11 @@
     "todaysSchedule": "Today's Schedule",
     "hero": {
       "queue": "Queue",
+      "queueSub": "Patients in waiting",
       "checkedIn": "Checked In",
-      "inConsultation": "In Consultation"
+      "checkedInSub": "At reception",
+      "inConsultation": "In Consultation",
+      "inConsultationSub": "With a doctor"
     },
     "stats": {
       "appointmentsToday": "Appointments Today",

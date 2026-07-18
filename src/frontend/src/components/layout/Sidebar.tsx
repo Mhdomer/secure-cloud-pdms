@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
+import { ClinicLogo } from '@/components/shared/ClinicLogo'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -117,16 +118,24 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-xs font-bold text-white">
-                  {tCommon('appName').slice(0, 2).toUpperCase()}
-                </span>
+                {/* Same pixel-measured glyph crop as ClinicLogo, scaled down
+                    (0.7x) to fit the collapsed sidebar's ~32px content
+                    width — see ClinicLogo.tsx for how the crop box was
+                    measured off the 900x900 source. */}
+                <span
+                  aria-hidden="true"
+                  className="block h-[42px] w-[28px] shrink-0 rounded-md bg-white bg-no-repeat"
+                  style={{
+                    backgroundImage: 'url(/clinic/logo.jpg)',
+                    backgroundSize: '85.9px 85.9px',
+                    backgroundPosition: '-28.7px -11.9px',
+                  }}
+                />
               </TooltipTrigger>
               <TooltipContent side="end">{tCommon('appName')}</TooltipContent>
             </Tooltip>
           ) : (
-            <span className="truncate text-sm font-semibold text-primary-700">
-              {tCommon('appName')}
-            </span>
+            <ClinicLogo className="min-w-0" />
           )}
           <button
             type="button"

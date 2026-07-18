@@ -840,6 +840,102 @@ scoped out by the user before work began):
 
 ---
 
+## Sprint 3c — Site-Wide Rebrand (Teal → Gold) + Staff Dashboard Card Readability
+
+---
+
+### [DELTA-023] `primary` token recolored teal → gold site-wide; clinic logo added to the sidebar; stat/flow-pill cards redesigned for readability
+
+| Field | Value |
+|---|---|
+| **Category** | UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — verified live across dashboards and a non-dashboard screen (Appointments), both languages |
+
+**What changed:**
+Comparing the finished dashboards against the Canva reference mockups and
+the real Alamin PolyClinic logo (gold + dark brown/charcoal — no teal
+anywhere in the actual branding) surfaced that the authenticated app's
+`primary-600` teal (`#0a7272`, chosen generically for "medical trust" back
+in Sprint 3b) never matched the clinic's real identity. The Login Page
+session had already pulled real logo colors into a separate `brand.gold`
+token, explicitly scoped to auth/marketing surfaces only, with a code
+comment noting "reconciling the two into one site-wide palette is a
+separate design decision." This session made that decision: gold, applied
+everywhere.
+
+**Mechanically, this was a token-value change, not a per-screen edit.**
+Every screen in the app already used the `primary-*` Tailwind scale (and
+shadcn's `--primary`/`--ring` CSS variables) rather than hardcoded teal hex
+— confirmed by grepping the whole frontend for teal hex values before
+starting (zero hits outside the two config files). Changed:
+- `tailwind.config.ts` — `primary.50` through `primary.950` recolored to a
+  gold ramp. The 300/400/500/600/700 steps are identical to the existing
+  `brand.gold` scale (so the two palettes agree exactly where they
+  overlap); 50/100/200/800/900/950 extrapolate the same hue to fill out a
+  full 11-step ramp. `brand.gold`/`brand.charcoal` themselves were left in
+  place (a few auth/marketing call sites still reference them directly)
+  but are now largely redundant with `primary`/`neutral-800`.
+- `src/index.css` — `--primary`/`--ring` (light and dark mode) recolored to
+  match `primary-600`/`primary-400` in HSL.
+
+No component or page file needed a color-class edit. Verified live on all
+three dashboards plus the Appointments page (deliberately picked because
+this session hadn't touched it) to confirm the swap actually reached
+already-built screens without a second round of edits — active nav state,
+buttons, icon chips, links, and focus rings all picked up gold correctly
+in both English and Arabic.
+
+**Clinic logo added to the sidebar.** The Sidebar previously showed plain
+text ("Alamin Clinic") expanded and a 2-letter initials badge collapsed —
+no actual logo image anywhere outside the landing page and login screen.
+Reused `ClinicLogo` (a pixel-measured crop of just the glyph mark off the
+900×900 source file, paired with the wordmark as real text — originally
+built for `LandingNav`/`LandingFooter`) rather than re-deriving the crop
+math: relocated it from `pages/landing/shared.tsx` to
+`components/shared/ClinicLogo.tsx` (the same "second real consumer, so
+promote it to shared" pattern as `DashboardStatCard`/`CountUpNumber` in
+DELTA-022) and used it for the expanded sidebar state. The collapsed state
+needed a smaller crop to fit the ~32px available width, computed by scaling
+the same crop's `background-size`/`background-position` by 0.7×.
+
+**Staff Dashboard card layout — readability fix.** Direct user feedback:
+the stat cards and flow pills didn't match the reference's layout and
+read worse. Re-comparing against the reference identified the actual
+differences and fixed the shared `DashboardStatCard` (used by both Doctor
+and Staff, so this improves both dashboards' fidelity to their respective
+references, not just Staff's):
+- Label moved from a small caption *under* the number to a proper heading
+  *above* it, with the same accent-underline idiom `SectionHeading` already
+  uses elsewhere — matches the reference's label→icon row, then number
+  hierarchy (previously inverted).
+- Icon chip moved to a smaller (36px) top-end position instead of a large
+  (44px) vertically-centered one.
+- Caught a real regression while verifying live: with the label promoted
+  to a prominent heading and `truncate` applied, the Doctor Dashboard's
+  5-card row (narrower per-card width than Staff's 3-card row) clipped mid-word
+  ("Today's App...", "Pending Not..."). Removed `truncate`, let labels wrap
+  to two lines instead — worse than truncating would have been if left
+  alone, since a screenshot taken immediately after the label-reorder
+  change would have shipped it.
+- `FlowPill` (Staff's Queue/Checked-In/In-Consultation cards): photo grew
+  from a 64px strip to a 128–144px panel (closer to the reference's
+  photo-forward treatment), and the text row below it changed from a
+  centered number-then-label stack to a label+sublabel-left /
+  number-right row, matching the reference exactly. Added real sublabel
+  copy per step ("Patients in waiting" / "At reception" / "With a
+  doctor") — informational only, not bound to any new data.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 4 | §4.x UI Design / Design System | Replace every mention of teal/`#0a7272` as the app's primary color with gold; note the token-level (not per-screen) mechanism of the change, and that `brand.gold`/`primary` are now the same palette rather than two separate ones |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the clinic logo to the sidebar description (expanded: glyph + wordmark; collapsed: glyph only); update the Staff Dashboard stat-card and flow-pill descriptions (label-above-number hierarchy, taller photo panels, label+sublabel/number row) |
+| Chapter 4 | Design decisions | Document the reconciliation of the "teal app / gold marketing" split first recorded in the Login Page DELTA — this entry is the follow-up that closes it out, all one gold palette now |
+
+---
+
 ## How to use this file
 
 1. After each sprint ends, check this file before editing the report.

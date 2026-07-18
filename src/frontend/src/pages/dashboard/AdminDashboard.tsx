@@ -72,25 +72,30 @@ function SectionHeading({ children, action }: { children: ReactNode; action?: Re
 function FlowPill({
   step,
   label,
+  sublabel,
   count,
   image,
 }: {
   step: number
   label: string
+  sublabel: string
   count: number
   image: string
 }) {
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-card">
-      <div className="relative h-16 w-full">
+      <div className="relative h-32 w-full sm:h-36">
         <img src={image} alt="" aria-hidden="true" className="h-full w-full object-cover" />
         <span className="absolute -bottom-3 start-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white shadow-card">
           {step}
         </span>
       </div>
-      <div className="flex flex-col items-center gap-1 px-3 pb-3 pt-5 text-center">
-        <span className="text-xl font-bold text-foreground">{count}</span>
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-5">
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-sm font-semibold text-foreground">{label}</span>
+          <span className="truncate text-xs text-muted-foreground">{sublabel}</span>
+        </div>
+        <span className="shrink-0 text-2xl font-bold text-foreground">{count}</span>
       </div>
     </div>
   )
@@ -426,24 +431,27 @@ export default function AdminDashboard() {
         </motion.div>
       )}
 
-      <motion.div variants={sectionFade} className="flex items-center gap-2">
+      <motion.div variants={sectionFade} className="flex items-center gap-3">
         <FlowPill
           step={1}
           label={t('admin.hero.queue')}
+          sublabel={t('admin.hero.queueSub')}
           count={queueCount}
           image="/clinic/real-waiting-area.png"
         />
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180" aria-hidden="true" />
+        <ChevronRight className="h-5 w-5 shrink-0 text-neutral-300 rtl:rotate-180" aria-hidden="true" />
         <FlowPill
           step={2}
           label={t('admin.hero.checkedIn')}
+          sublabel={t('admin.hero.checkedInSub')}
           count={checkedInCount}
           image="/clinic/real-reception.png"
         />
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180" aria-hidden="true" />
+        <ChevronRight className="h-5 w-5 shrink-0 text-neutral-300 rtl:rotate-180" aria-hidden="true" />
         <FlowPill
           step={3}
           label={t('admin.hero.inConsultation')}
+          sublabel={t('admin.hero.inConsultationSub')}
           count={inConsultationCount}
           image="/clinic/real-general-clinic.png"
         />

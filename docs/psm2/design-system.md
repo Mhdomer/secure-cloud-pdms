@@ -8,10 +8,22 @@ It should feel like it was built for a specific clinic — warm, Arabic-first, c
 
 ## Color Palette
 
+**Rebrand (2026-07-18):** `primary` was deep teal (`#0a7272`) from Sprint 3b
+through most of Sprint 3c — chosen generically for "medical trust," not from
+any actual clinic asset. Comparing the Sprint 3c dashboard work against the
+Canva reference mockups and the real Alamin PolyClinic logo (gold + dark
+brown/charcoal, no teal anywhere) surfaced the mismatch; `primary` is now a
+warm gold ramp matching the logo, applied site-wide. This is a token-level
+change only — `primary-*` class names are unchanged, every screen that used
+`bg-primary-600`/`text-primary-600`/etc. picked up the new color automatically
+with no per-file edits. See DELTA-023 in `report-delta.md` for the full
+account, including why the old teal-app/gold-marketing split existed and why
+it was reconciled.
+
 | Token | Hex | Usage |
 |---|---|---|
-| `primary-600` | `#0a7272` | Primary actions, links, active states |
-| `primary-50` | `#f0fafa` | Hover backgrounds, selected rows |
+| `primary-600` | `#a8722e` | Primary actions, links, active states |
+| `primary-50` | `#faf3e6` | Hover backgrounds, selected rows |
 | `neutral-50` | `#fafaf9` | Page background (warm white, not pure white) |
 | `neutral-100` | `#f5f4f2` | Card backgrounds, sidebar |
 | `neutral-800` | `#3a3935` | Body text (warm dark, not #000) |
@@ -29,10 +41,10 @@ It should feel like it was built for a specific clinic — warm, Arabic-first, c
   --card-foreground: 30 8% 23%;
   --muted: 35 15% 95%;              /* neutral-100 */
   --muted-foreground: 30 6% 56%;    /* neutral-500 */
-  --primary: 180 83% 25%;           /* primary-600 */
+  --primary: 33 57% 42%;            /* primary-600, gold */
   --primary-foreground: 0 0% 100%;
   --border: 35 12% 88%;             /* neutral-200 */
-  --ring: 180 83% 25%;
+  --ring: 33 57% 42%;
   --radius: 0.625rem;               /* 10px — not too round, not sharp */
 }
 ```
@@ -95,7 +107,7 @@ It should feel like it was built for a specific clinic — warm, Arabic-first, c
 ```
 - Avatar: colored by first letter, not random color, consistent per user
 - Status badges: pill shape, colored backgrounds (success/warning/danger)
-- Row hover: `bg-primary-50` — not gray, the brand teal tint
+- Row hover: `bg-primary-50` — not gray, the brand gold tint
 
 ### Appointment Card
 ```
@@ -119,7 +131,7 @@ It should feel like it was built for a specific clinic — warm, Arabic-first, c
 | Real | AI-Generated (avoid) |
 |---|---|
 | Warm neutral backgrounds | Pure white `#ffffff` or pure gray |
-| Subtle teal primary, not blue | Generic `#3B82F6` blue everywhere |
+| Warm gold primary (matches the real logo), not blue | Generic `#3B82F6` blue everywhere |
 | Inter + Thmanyah fonts | Default system font or generic sans |
 | 10px border radius | 4px (too sharp) or 20px (too round) |
 | Thin card borders, soft shadow | Heavy `box-shadow: 0 4px 20px rgba` |
