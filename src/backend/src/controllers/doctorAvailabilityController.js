@@ -54,8 +54,12 @@ async function upsertAvailability(req, res) {
     return res.status(404).json({ error: 'Doctor not found' });
   }
 
-  if (startTime >= endTime) {
-    return res.status(422).json({ error: 'start_time must be before end_time' });
+  // end_time < start_time is a real shift (e.g. 20:00-01:00) that runs past
+  // midnight into the next calendar day — isSlotAvailable (utils/availability.js)
+  // knows how to check bookings against that wraparound. Only reject the
+  // genuinely ambiguous case: a zero-length/all-day shift.
+  if (startTime === endTime) {
+    return res.status(422).json({ error: 'start_time and end_time cannot be the same' });
   }
 
   const result = await DoctorAvailability.upsert(pool, doctorId, { dayOfWeek, startTime, endTime, slotMinutes });

@@ -2,12 +2,21 @@
 
 const rateLimit = require('express-rate-limit');
 
-// Chapter 4 §4.3.8.3 — 100 requests / 15 min globally, 10 requests / 15 min
-// on the login endpoint specifically (brute-force mitigation, layered on
-// top of the 3-strikes account lockout in authController).
+// Chapter 4 §4.3.8.3's original 100 requests / 15 min was tuned as a per-IP
+// ceiling, but express-rate-limit's default keyGenerator is req.ip — an
+// entire clinic (every doctor, admin, and nurse on shift, all day) sits
+// behind one shared office NAT gateway, so they all draw from the same
+// budget. This app's own dashboard polling (30s refetch intervals on the
+// doctor's queue/sidebar) plus ordinary multi-page use across a 9-10 hour
+// shift comfortably exceeds 100 requests in 15 minutes on its own — the
+// limiter was tripping on legitimate concurrent staff use, not abuse. Raised
+// to a ceiling that still catches real scraping/DoS volumes without
+// disrupting normal clinic traffic; the endpoints that actually need a
+// tight, security-meaningful ceiling (login, OTP) keep their own dedicated,
+// far stricter limiters below, applied on top of this one.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please try again later.' },

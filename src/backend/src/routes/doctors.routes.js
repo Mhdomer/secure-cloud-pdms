@@ -1,7 +1,9 @@
 'use strict';
 
 const { Router } = require('express');
+const { body, param } = require('express-validator');
 
+const validateRequest = require('../middleware/validateRequest');
 const { authenticateJWT } = require('../middleware/authMiddleware');
 const { authorizeRole } = require('../middleware/rbacMiddleware');
 const asyncHandler = require('../utils/asyncHandler');
@@ -18,6 +20,22 @@ router.get(
   authenticateJWT,
   authorizeRole(ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.DOCTOR, ROLES.PATIENT),
   asyncHandler(doctorsController.listActiveDoctors)
+);
+
+// PATCH /doctors/:doctorId — superadmin only, reassigns a doctor's
+// department. Deliberately narrow (specialisation only) rather than a
+// general doctor-update endpoint, matching the actual gap this closes —
+// see the Departments page's per-row reassignment control.
+router.patch(
+  '/:doctorId',
+  authenticateJWT,
+  authorizeRole(ROLES.SUPERADMIN),
+  [
+    param('doctorId').isUUID(),
+    body('specialisation').trim().isLength({ min: 1, max: 100 }),
+  ],
+  validateRequest,
+  asyncHandler(doctorsController.updateDoctor)
 );
 
 module.exports = router;

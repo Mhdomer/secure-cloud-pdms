@@ -174,6 +174,44 @@ class Appointment {
     return result.rows[0] || null;
   }
 
+  /** Assigned doctor marks an appointment completed (the visit happened). */
+  static async complete(executor, appointmentId) {
+    const result = await executor.query(
+      `UPDATE appointments SET status = 'completed', updated_at = NOW()
+        WHERE appointment_id = $1 AND status IN ('scheduled', 'confirmed', 'arrived')
+        RETURNING appointment_id, status`,
+      [appointmentId]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Auto-closes appointments whose scheduled window has fully passed
+   * without ever being explicitly closed out. Nothing in this app ever
+   * transitioned an appointment to 'completed' or expired a no-show, so
+   * these piled up in 'scheduled'/'confirmed'/'arrived' forever once their
+   * time passed. Run at the top of every list read (no separate
+   * cron/scheduler exists in this project yet) so the fix applies
+   * everywhere appointments are viewed, not just one screen.
+   * 'arrived' (patient was physically here, doctor just never clicked
+   * complete) becomes 'completed'; 'scheduled'/'confirmed' (nobody ever
+   * checked them in) is a no-show, treated as 'cancelled'.
+   */
+  static async sweepExpired(executor) {
+    await executor.query(
+      `UPDATE appointments
+          SET status = CASE WHEN status = 'arrived' THEN 'completed' ELSE 'cancelled' END,
+              cancellation_note = CASE
+                WHEN status != 'arrived'
+                  THEN 'Automatically cancelled — no check-in before the scheduled time passed'
+                ELSE cancellation_note
+              END,
+              updated_at = NOW()
+        WHERE status IN ('scheduled', 'confirmed', 'arrived')
+          AND scheduled_at + (duration_minutes * INTERVAL '1 minute') < NOW()`
+    );
+  }
+
   static async cancel(executor, appointmentId, { cancelledBy, cancellationNote }) {
     const result = await executor.query(
       `UPDATE appointments

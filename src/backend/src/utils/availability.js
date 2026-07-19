@@ -11,6 +11,16 @@
  * night in Jeddah rather than against whatever timezone the app server
  * happens to run in.
  *
+ * A doctor_availability row with end_time <= start_time (e.g. 20:00-01:00)
+ * represents a shift that runs past midnight into the next calendar day —
+ * real overnight clinic shifts exist and doctorAvailabilityController no
+ * longer rejects them at save time. Each row is anchored to two possible
+ * calendar days here: the day it's stored under (day_of_week), where it
+ * covers the evening portion up to midnight-and-beyond, and the following
+ * day, where an appointment landing in the early-morning hours must still
+ * match yesterday's overnight row. A normal same-day row (end_time >
+ * start_time) only ever matches via the first anchor.
+ *
  * Must be called with the same transaction client used for the appointment
  * INSERT/UPDATE it guards, so the availability check and the write observe
  * a consistent snapshot.
@@ -24,13 +34,36 @@
  */
 async function isSlotAvailable(client, doctorId, scheduledAt, durationMinutes, excludeAppointmentId = null) {
   const withinHours = await client.query(
-    `SELECT 1
-       FROM doctor_availability
-      WHERE doctor_id = $1
-        AND is_active = true
-        AND day_of_week = EXTRACT(DOW FROM ($2::timestamptz AT TIME ZONE 'Asia/Riyadh'))::smallint
-        AND start_time <= ($2::timestamptz AT TIME ZONE 'Asia/Riyadh')::time
-        AND end_time >= (($2::timestamptz AT TIME ZONE 'Asia/Riyadh') + ($3 || ' minutes')::interval)::time`,
+    `SELECT 1 FROM (
+       -- Anchored to the appointment's own calendar day — covers ordinary
+       -- same-day shifts, and the evening portion of a shift that starts
+       -- today and runs past midnight.
+       SELECT
+         (($2::timestamptz AT TIME ZONE 'Asia/Riyadh')::date + da.start_time) AS shift_start,
+         (CASE WHEN da.end_time > da.start_time
+               THEN ($2::timestamptz AT TIME ZONE 'Asia/Riyadh')::date + da.end_time
+               ELSE ($2::timestamptz AT TIME ZONE 'Asia/Riyadh')::date + INTERVAL '1 day' + da.end_time
+          END) AS shift_end
+         FROM doctor_availability da
+        WHERE da.doctor_id = $1
+          AND da.is_active = true
+          AND da.day_of_week = EXTRACT(DOW FROM ($2::timestamptz AT TIME ZONE 'Asia/Riyadh'))::smallint
+
+       UNION ALL
+
+       -- Anchored to yesterday — only usable when yesterday's row is itself
+       -- an overnight shift spilling into today.
+       SELECT
+         (($2::timestamptz AT TIME ZONE 'Asia/Riyadh')::date - INTERVAL '1 day' + da.start_time) AS shift_start,
+         (($2::timestamptz AT TIME ZONE 'Asia/Riyadh')::date + da.end_time) AS shift_end
+         FROM doctor_availability da
+        WHERE da.doctor_id = $1
+          AND da.is_active = true
+          AND da.end_time <= da.start_time
+          AND da.day_of_week = (EXTRACT(DOW FROM ($2::timestamptz AT TIME ZONE 'Asia/Riyadh'))::smallint + 6) % 7
+     ) shifts
+     WHERE shifts.shift_start <= ($2::timestamptz AT TIME ZONE 'Asia/Riyadh')
+       AND shifts.shift_end   >= (($2::timestamptz AT TIME ZONE 'Asia/Riyadh') + ($3 || ' minutes')::interval)`,
     [doctorId, scheduledAt, durationMinutes]
   );
   if (withinHours.rows.length === 0) {

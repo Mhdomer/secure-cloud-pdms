@@ -14,7 +14,7 @@ class Patient {
       `SELECT patient_id, user_id, full_name, date_of_birth, gender, contact_number,
               assigned_doctor_id, created_at, id_type, national_id, blood_type, allergies,
               nationality, address, emergency_contact_name, emergency_contact_phone,
-              insurance_provider, insurance_number, email, preferred_language
+              insurance_provider, insurance_number, email, preferred_language, file_no
          FROM patients WHERE patient_id = $1`,
       [patientId]
     );
@@ -43,11 +43,12 @@ class Patient {
   static async search(client, term, { limit, offset }) {
     const escapedTerm = term.replace(/[\\%_]/g, '\\$&');
     const result = await client.query(
-      `SELECT patient_id, full_name, national_id, contact_number, date_of_birth, assigned_doctor_id
+      `SELECT patient_id, full_name, national_id, contact_number, date_of_birth, assigned_doctor_id, file_no
          FROM patients
         WHERE national_id = $1
            OR full_name ILIKE '%' || $2 || '%' ESCAPE '\\'
            OR contact_number ILIKE $2 || '%' ESCAPE '\\'
+           OR CAST(file_no AS TEXT) = $1
         ORDER BY full_name ASC
         LIMIT $3 OFFSET $4`,
       [term, escapedTerm, limit, offset]
@@ -87,7 +88,7 @@ class Patient {
        )
        VALUES ($1, $2, $3, $4, $5, $6, NOW(), COALESCE($7, 'national_id'), $8, $9, $10, $11, $12, $13, $14, $15, $16,
                $17, COALESCE($18, 'en'))
-       RETURNING patient_id, full_name, assigned_doctor_id, created_at, national_id`,
+       RETURNING patient_id, full_name, assigned_doctor_id, created_at, national_id, file_no`,
       [
         userId,
         fullName,
@@ -155,7 +156,7 @@ class Patient {
         WHERE patient_id = $1
         RETURNING patient_id, full_name, date_of_birth, gender, contact_number, id_type, national_id,
                   blood_type, allergies, nationality, address, emergency_contact_name,
-                  emergency_contact_phone, insurance_provider, insurance_number, email, preferred_language`,
+                  emergency_contact_phone, insurance_provider, insurance_number, email, preferred_language, file_no`,
       [
         patientId,
         fullName || null,

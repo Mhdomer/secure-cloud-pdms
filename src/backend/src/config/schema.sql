@@ -22,6 +22,41 @@ CREATE TABLE IF NOT EXISTS users (
   created_at      TIMESTAMPTZ  DEFAULT NOW()
 );
 
+-- ── departments ────────────────────────────────────────────────────────────
+-- Clinic/department taxonomy. A doctor belongs to exactly one department
+-- (doctors.specialisation below); a department can have many doctors — the
+-- same taxonomy also classifies billing items (clinic_services.category).
+-- Rows are only ever deactivated, never deleted, so historical doctors,
+-- services, and visits that reference a key never go stale. `key` is
+-- generated once at creation (see departmentsController.slugify) and is
+-- immutable after that — it's the value stored in every referencing row, so
+-- renaming a department only ever touches name_en/name_ar, never key.
+CREATE TABLE IF NOT EXISTS departments (
+  department_id UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  key           VARCHAR(50)  UNIQUE NOT NULL,
+  name_en       VARCHAR(100) NOT NULL,
+  name_ar       VARCHAR(100) NOT NULL,
+  is_active     BOOLEAN      NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- Seed the departments that previously lived only as a hardcoded frontend
+-- array (SERVICE_CATEGORIES) — existing doctors/services already carry these
+-- exact key values, so the FK constraints added below attach immediately
+-- without needing a data backfill.
+INSERT INTO departments (key, name_en, name_ar) VALUES
+  ('laboratory',  'Laboratory',       'المختبر'),
+  ('dental',      'Dental',           'الأسنان'),
+  ('dermatology', 'Dermatology',      'الجلدية'),
+  ('general',     'General Medicine', 'الطب العام'),
+  ('pediatrics',  'Pediatrics',       'طب الأطفال'),
+  ('gynecology',  'Gynecology',       'النساء والولادة'),
+  ('other',       'Other',            'أخرى')
+ON CONFLICT (key) DO NOTHING;
+
+GRANT SELECT, INSERT, UPDATE ON departments TO pdms_app;
+
 -- ── doctors ────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS doctors (
   doctor_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -32,6 +67,16 @@ CREATE TABLE IF NOT EXISTS doctors (
   phone          VARCHAR(20),
   is_active      BOOLEAN DEFAULT true
 );
+
+-- A doctor's specialisation must be a real, known department — enforced here
+-- (not just by the frontend dropdown) so a stray value can never desync the
+-- billing/report grouping from the doctor directory. `DROP ... IF EXISTS`
+-- first makes this ALTER safe to re-run against a DB that already had
+-- `doctors` before this change, same idiom as the appointments status
+-- CHECK constraint above.
+ALTER TABLE doctors DROP CONSTRAINT IF EXISTS doctors_specialisation_fkey;
+ALTER TABLE doctors ADD CONSTRAINT doctors_specialisation_fkey
+  FOREIGN KEY (specialisation) REFERENCES departments(key);
 
 -- ── patients ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS patients (
@@ -644,3 +689,167 @@ CREATE POLICY doctor_release_lab_results ON lab_results
     SELECT patient_id FROM patients
      WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
   ));
+
+-- ── Patient File Number ───────────────────────────────────────────────────
+-- Human-readable sequential patient identifier printed on all clinic
+-- documents (invoices, lab results, etc.). Auto-assigned, never typed
+-- by staff. Sequence starts at 10001 so demo data looks realistic.
+CREATE SEQUENCE IF NOT EXISTS patient_file_no_seq START WITH 10001 INCREMENT BY 1;
+
+ALTER TABLE patients
+  ADD COLUMN IF NOT EXISTS file_no INTEGER UNIQUE DEFAULT nextval('patient_file_no_seq');
+
+-- Backfill any existing patients in order of registration
+UPDATE patients
+   SET file_no = nextval('patient_file_no_seq')
+ WHERE file_no IS NULL;
+
+ALTER TABLE patients ALTER COLUMN file_no SET NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_patients_file_no ON patients(file_no);
+
+GRANT USAGE, SELECT ON SEQUENCE patient_file_no_seq TO pdms_app;
+
+-- ── clinic_services ──────────────────────────────────────────────────────
+-- Price catalog for billing. Admin/superadmin manage this list.
+-- Prices are editable; nothing is hardcoded. Deactivation not deletion
+-- preserves billing history integrity.
+CREATE TABLE IF NOT EXISTS clinic_services (
+  service_id  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  code_no     VARCHAR(20)  NOT NULL UNIQUE,
+  name_en     VARCHAR(255) NOT NULL,
+  name_ar     VARCHAR(255),
+  base_price  DECIMAL(10,2) NOT NULL CHECK (base_price >= 0),
+  category    VARCHAR(50),
+  vat_pct     DECIMAL(5,2) NOT NULL DEFAULT 15,
+  is_active   BOOLEAN      NOT NULL DEFAULT true,
+  created_by  UUID         REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_services_code     ON clinic_services(code_no);
+CREATE INDEX IF NOT EXISTS idx_services_active   ON clinic_services(is_active);
+CREATE INDEX IF NOT EXISTS idx_services_category ON clinic_services(category);
+
+GRANT SELECT, INSERT, UPDATE ON clinic_services TO pdms_app;
+
+-- Same department FK as doctors.specialisation above — one shared taxonomy
+-- for both "what clinic is this doctor in" and "what clinic is this billing
+-- item under".
+ALTER TABLE clinic_services DROP CONSTRAINT IF EXISTS clinic_services_category_fkey;
+ALTER TABLE clinic_services ADD CONSTRAINT clinic_services_category_fkey
+  FOREIGN KEY (category) REFERENCES departments(key);
+
+-- ── visits ────────────────────────────────────────────────────────────────
+-- Walk-in patient encounters. NOT the same as appointments (which are
+-- pre-booked slots for dentistry/dermatology). This is the first-come
+-- first-served flow for general medicine, pediatrics, lab, etc.
+CREATE TABLE IF NOT EXISTS visits (
+  visit_id      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id    UUID        NOT NULL REFERENCES patients(patient_id)  ON DELETE RESTRICT,
+  doctor_id     UUID        NOT NULL REFERENCES doctors(doctor_id)    ON DELETE RESTRICT,
+  queue_no      INTEGER     NOT NULL,
+  clinic        VARCHAR(50),
+  status        VARCHAR(20) NOT NULL DEFAULT 'waiting'
+                  CHECK (status IN ('waiting','in_progress','completed','billed')),
+  notes         TEXT,
+  checked_in_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at  TIMESTAMPTZ,
+  created_by    UUID        REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_visits_patient ON visits(patient_id);
+CREATE INDEX IF NOT EXISTS idx_visits_doctor  ON visits(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_visits_status  ON visits(status);
+-- Plain index on the timestamptz column itself, not DATE(checked_in_at) —
+-- date(timestamptz) is STABLE, not IMMUTABLE (its result depends on the
+-- session's TimeZone setting), so Postgres rejects it as an index
+-- expression outright ("functions in index expression must be marked
+-- IMMUTABLE" — confirmed against this project's local DB). A plain index
+-- on the raw column supports the same "today's queue" lookup just fine via
+-- a checked_in_at >= start_of_day AND checked_in_at < start_of_day + 1 day
+-- range predicate, which is the standard sargable pattern anyway.
+CREATE INDEX IF NOT EXISTS idx_visits_date    ON visits(checked_in_at);
+
+GRANT SELECT, INSERT, UPDATE ON visits TO pdms_app;
+
+-- ── prescription_notes on visits ─────────────────────────────────────────
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS prescription_notes TEXT;
+
+-- ── visit_type on visits ─────────────────────────────────────────────────
+-- Reason for the walk-in (staff picks this at check-in so the doctor sees
+-- why the patient is here before calling them in). Reuses the exact same
+-- vocabulary as appointments.type (APPOINTMENT_TYPES) instead of a second,
+-- parallel taxonomy — nullable since staff won't always know at check-in.
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS visit_type VARCHAR(20)
+  CHECK (visit_type IN ('consultation','follow_up','emergency','checkup'));
+
+-- ── visit_invoices ────────────────────────────────────────────────────────
+-- Status flow:
+--   draft          → doctor is adding items (auto-created on first item add)
+--   pending_billing→ doctor marked done, staff can now bill
+--   paid           → patient paid in full
+--   partial        → partial payment taken
+--   cancelled      → voided
+
+CREATE SEQUENCE IF NOT EXISTS invoice_no_seq START WITH 900001 INCREMENT BY 1;
+
+CREATE TABLE IF NOT EXISTS visit_invoices (
+  invoice_id     UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  inv_no         VARCHAR(20)   NOT NULL UNIQUE DEFAULT nextval('invoice_no_seq')::TEXT,
+  visit_id       UUID          NOT NULL UNIQUE REFERENCES visits(visit_id) ON DELETE RESTRICT,
+  patient_id     UUID          NOT NULL REFERENCES patients(patient_id),
+  doctor_id      UUID          NOT NULL REFERENCES doctors(doctor_id),
+  payment_method VARCHAR(20)   CHECK (payment_method IN ('cash','card','insurance')),
+  insurance_co   VARCHAR(100),
+  subtotal       DECIMAL(10,2) NOT NULL DEFAULT 0,
+  total_discount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  net_total      DECIMAL(10,2) NOT NULL DEFAULT 0,
+  total_vat      DECIMAL(10,2) NOT NULL DEFAULT 0,
+  grand_total    DECIMAL(10,2) NOT NULL DEFAULT 0,
+  amount_paid    DECIMAL(10,2) NOT NULL DEFAULT 0,
+  amount_balance DECIMAL(10,2) NOT NULL DEFAULT 0,
+  status         VARCHAR(20)   NOT NULL DEFAULT 'draft'
+                   CHECK (status IN ('draft','pending_billing','paid','partial','cancelled')),
+  created_by     UUID          REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+-- ── paid_at on visit_invoices ─────────────────────────────────────────────
+-- Set the moment payInvoice transitions status to 'paid'/'partial' — the
+-- staff billing report's daily revenue figures key off this, not
+-- created_at (set when the doctor completes the visit, before any money
+-- changes hands). Nullable: pre-existing rows and never-paid invoices have
+-- no payment moment to record.
+ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS invoice_items (
+  item_id         UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  invoice_id      UUID          NOT NULL REFERENCES visit_invoices(invoice_id) ON DELETE CASCADE,
+  service_id      UUID          REFERENCES clinic_services(service_id) ON DELETE SET NULL,
+  code_no         VARCHAR(20),
+  name_en         VARCHAR(255),
+  name_ar         VARCHAR(255),
+  qty             INTEGER       NOT NULL DEFAULT 1 CHECK (qty > 0),
+  unit_price      DECIMAL(10,2) NOT NULL,
+  discount_pct    DECIMAL(5,2)  NOT NULL DEFAULT 0,
+  discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  net_price       DECIMAL(10,2) NOT NULL,
+  vat_pct         DECIMAL(5,2)  NOT NULL DEFAULT 15,
+  vat_amount      DECIMAL(10,2) NOT NULL,
+  total_with_vat  DECIMAL(10,2) NOT NULL,
+  sort_order      INTEGER       NOT NULL DEFAULT 0
+);
+
+-- No index on visit_invoices(visit_id) here — the UNIQUE constraint above
+-- already makes Postgres create visit_invoices_visit_id_key automatically
+-- (confirmed against this project's local DB); a second explicit index on
+-- the same column would just duplicate it, costing storage and write time
+-- for zero benefit.
+CREATE INDEX IF NOT EXISTS idx_visit_invoices_patient  ON visit_invoices(patient_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice   ON invoice_items(invoice_id);
+
+GRANT SELECT, INSERT, UPDATE    ON visit_invoices TO pdms_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON invoice_items TO pdms_app;
+GRANT USAGE, SELECT ON SEQUENCE invoice_no_seq TO pdms_app;

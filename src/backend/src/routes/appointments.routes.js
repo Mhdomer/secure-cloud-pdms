@@ -101,6 +101,17 @@ router.patch(
   asyncHandler(appointmentsController.confirmAppointment)
 );
 
+// Complete Appointment (assigned Doctor only; ownership checked in the controller)
+router.patch(
+  '/:appointmentId/complete',
+  authenticateJWT,
+  authorizeRole(ROLES.DOCTOR),
+  [param('appointmentId').isUUID()],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(appointmentsController.completeAppointment)
+);
+
 // Quick Check-In (Feature E) — staff marks a patient as physically present
 router.patch(
   '/:appointmentId/checkin',

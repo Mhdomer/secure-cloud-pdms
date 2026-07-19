@@ -280,6 +280,11 @@ async function listAppointments(req, res) {
   const { role, doctorId, patientId } = req.rlsSession;
 
   const result = await withTransaction(req.rlsSession, async (client) => {
+    // See Appointment.sweepExpired's own comment — this is the one place
+    // that runs on every appointments read (dashboards, /appointments,
+    // patient's own view), so it's the natural spot for the sweep rather
+    // than a separate background job.
+    await Appointment.sweepExpired(client);
     let rows;
     if (role === ROLES.ADMIN) {
       rows = await Appointment.listForAdmin(client, { limit, offset, from, to });
@@ -471,6 +476,66 @@ async function confirmAppointment(req, res) {
 }
 
 /**
+ * Complete Appointment — assigned Doctor only. Deliberately doctor-only,
+ * not admin: whether a visit actually happened is a clinical judgment call,
+ * the same reasoning ConsultationPage's "Complete Visit" is doctor-only for
+ * walk-ins. Admin's role here stays limited to schedule/reschedule/cancel/
+ * check-in (logistics). Allowed from scheduled/confirmed too, not just
+ * arrived — staff sometimes forgets Quick Check-In, and that shouldn't
+ * block a doctor who genuinely saw the patient from closing it out.
+ */
+async function completeAppointment(req, res) {
+  const { appointmentId } = req.params;
+  const { doctorId } = req.rlsSession;
+
+  const result = await withTransaction(req.rlsSession, async (client) => {
+    const existing = await Appointment.findById(client, appointmentId);
+    if (!existing) {
+      const err = new Error('Appointment not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    // Application-layer ownership check — appointments has no RLS, same
+    // pattern as confirmAppointment/cancelAppointment above.
+    if (existing.doctor_id !== doctorId) {
+      const err = new Error('You are not assigned to this appointment');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (!['scheduled', 'confirmed', 'arrived'].includes(existing.status)) {
+      const err = new Error(`Cannot complete an appointment that is ${existing.status}`);
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const completed = await Appointment.complete(client, appointmentId);
+    if (!completed) {
+      const err = new Error('Appointment status changed before it could be completed');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    await AuditLog.log(client, {
+      userId: req.user.userId,
+      action: AUDIT_ACTIONS.COMPLETE_APPOINTMENT,
+      resource: 'appointments',
+      recordId: appointmentId,
+      ipAddress: req.ip,
+    });
+
+    return completed;
+  });
+
+  return res.status(200).json({
+    appointmentId: result.appointment_id,
+    status: result.status,
+    message: 'Appointment marked as completed',
+  });
+}
+
+/**
  * Quick Check-In (Feature E) — Staff marks a patient as physically present.
  * Admin/superadmin only (appointments has no RLS, so this is the entire
  * access boundary — same pattern as scheduleAppointment/cancelAppointment).
@@ -609,6 +674,7 @@ module.exports = {
   listAppointments,
   updateAppointment,
   confirmAppointment,
+  completeAppointment,
   checkinAppointment,
   cancelAppointment,
 };

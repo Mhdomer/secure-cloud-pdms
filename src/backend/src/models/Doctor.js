@@ -45,6 +45,16 @@ class Doctor {
     );
     return result.rows[0];
   }
+
+  /** Reassigns a doctor to a different department after account creation. */
+  static async updateSpecialisation(executor, doctorId, specialisation) {
+    const result = await executor.query(
+      `UPDATE doctors SET specialisation = $1 WHERE doctor_id = $2
+       RETURNING doctor_id, full_name, specialisation`,
+      [specialisation, doctorId]
+    );
+    return result.rows[0] || null;
+  }
 }
 
 module.exports = Doctor;

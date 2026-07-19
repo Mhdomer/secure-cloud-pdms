@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const { pool, withTransaction } = require('../config/database');
 const User = require('../models/User');
 const Doctor = require('../models/Doctor');
+const Department = require('../models/Department');
 const AuditLog = require('../models/AuditLog');
 const { AUDIT_ACTIONS, ROLES } = require('../config/constants');
 
@@ -36,6 +37,17 @@ async function createUser(req, res) {
     const user = await User.create(client, { username, passwordHash, role });
 
     if (role === ROLES.DOCTOR) {
+      // Fail with a clean 400 instead of letting an invalid/inactive
+      // department fall through to the INSERT's FK constraint, which would
+      // surface as a raw, unmapped 23503 (generic 500) — same
+      // existence-check pattern as visitsController.create /
+      // patientsController.registerPatient.
+      const department = specialisation ? await Department.findByKey(client, specialisation) : null;
+      if (!department || !department.is_active) {
+        const err = new Error('Unknown or inactive department');
+        err.statusCode = 400;
+        throw err;
+      }
       await Doctor.create(client, { userId: user.user_id, fullName, specialisation });
     }
 

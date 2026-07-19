@@ -150,6 +150,7 @@ async function registerPatient(req, res) {
   return res.status(201).json({
     patientId: patient.patient_id,
     fullName: patient.full_name,
+    fileNo: patient.file_no,
     assignedDoctorId: patient.assigned_doctor_id,
     username,
     qrCode: setupToken.qrDataUrl,
@@ -178,6 +179,7 @@ async function searchPatients(req, res) {
     patients: rows.map((p) => ({
       patientId: p.patient_id,
       fullName: p.full_name,
+      fileNo: p.file_no,
       nationalId: p.national_id,
       contactNumber: p.contact_number,
       dateOfBirth: p.date_of_birth,
@@ -205,6 +207,7 @@ async function viewPatient(req, res) {
   return res.status(200).json({
     patientId: patient.patient_id,
     fullName: patient.full_name,
+    fileNo: patient.file_no,
     dateOfBirth: patient.date_of_birth,
     gender: patient.gender,
     contactNumber: patient.contact_number,
@@ -270,6 +273,7 @@ async function updatePatient(req, res) {
   return res.status(200).json({
     patientId: result.patient_id,
     fullName: result.full_name,
+    fileNo: result.file_no,
     dateOfBirth: result.date_of_birth,
     gender: result.gender,
     contactNumber: result.contact_number,
