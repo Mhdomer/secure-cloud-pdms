@@ -151,7 +151,10 @@ function PatientSearchResultRow({ patient }: { patient: PatientSearchResult }) {
         {initialsFor(patient.fullName)}
       </span>
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm font-medium text-foreground">{patient.fullName}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="font-mono text-xs text-muted-foreground">#{patient.fileNo}</span>
+          <span className="truncate text-sm font-medium text-foreground">{patient.fullName}</span>
+        </span>
         <span className="truncate text-xs text-muted-foreground" dir="ltr">
           {patient.nationalId ?? '—'}
           {patient.contactNumber ? ` · ${patient.contactNumber}` : ''}

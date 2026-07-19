@@ -59,8 +59,27 @@ import type {
   UpsertAvailabilityPayload,
   UpsertAvailabilityResponse,
 } from '@/types/doctor'
+import type {
+  CreateDepartmentPayload,
+  Department,
+  ListDepartmentsResponse,
+  UpdateDepartmentPayload,
+} from '@/types/department'
 import type { InvoiceCategory, InvoicesListResponse, UploadInvoiceResponse } from '@/types/invoice'
 import type { LabResultsListResponse, ReleaseLabResultResponse, UploadLabResultResponse } from '@/types/labResult'
+import type { ClinicService, CreateServicePayload, UpdateServicePayload } from '@/types/clinicService'
+import type { CreateVisitPayload, UpdateVisitStatusResponse, Visit, VisitDetail, VisitStatus } from '@/types/visit'
+import type {
+  AddInvoiceItemPayload,
+  AddInvoiceItemResponse,
+  BillingHistoryResponse,
+  BillingReportInvoicesResponse,
+  BillingReportResponse,
+  InvoiceItem,
+  PayInvoicePayload,
+  VisitInvoice,
+  VisitInvoiceDetail,
+} from '@/types/billing'
 
 const AUTH_LOGIN_PATH = '/auth/login'
 // UC-19 step 3 can 401 for "registration token expired/invalid" — a
@@ -170,6 +189,28 @@ export const doctorsApi = {
   /** Superadmin or the doctor themselves — removes one day's working-hours slot entirely. */
   removeAvailability: (doctorId: string, dayOfWeek: number) =>
     api.delete<{ message: string }>(`/doctors/${doctorId}/availability/${dayOfWeek}`).then((res) => res.data),
+  /** Superadmin only — reassigns a doctor to a different department. */
+  update: (doctorId: string, payload: { specialisation: string }) =>
+    api
+      .patch<{ doctorId: string; fullName: string; specialisation: string | null }>(`/doctors/${doctorId}`, payload)
+      .then((res) => res.data),
+}
+
+// ── Departments ──────────────────────────────────────────────────────────
+
+export const departmentsApi = {
+  /** Every authenticated role reads — dropdowns/labels need it everywhere. */
+  list: (params?: { active?: boolean }) =>
+    api.get<ListDepartmentsResponse>('/departments', { params }).then((res) => res.data),
+  /** Superadmin only. */
+  create: (payload: CreateDepartmentPayload) =>
+    api.post<Department>('/departments', payload).then((res) => res.data),
+  /** Superadmin only — renames display names, `key` is immutable. */
+  update: (key: string, payload: UpdateDepartmentPayload) =>
+    api.patch<Department>(`/departments/${key}`, payload).then((res) => res.data),
+  /** Superadmin only — deactivate/reactivate, never a hard delete. */
+  toggle: (key: string) =>
+    api.patch<Department>(`/departments/${key}/toggle`).then((res) => res.data),
 }
 
 // ── Patients ─────────────────────────────────────────────────────────────
@@ -280,6 +321,11 @@ export const appointmentsApi = {
     api
       .patch<AppointmentMutationResponse>(`/appointments/${appointmentId}/checkin`)
       .then((res) => res.data),
+  /** Assigned doctor only — marks the visit as having happened. */
+  complete: (appointmentId: string) =>
+    api
+      .patch<AppointmentMutationResponse>(`/appointments/${appointmentId}/complete`)
+      .then((res) => res.data),
   /** UC-20 — Patient books their own appointment; patient_id is never sent, it's derived server-side from the session. */
   bookMine: (payload: BookOwnAppointmentPayload) =>
     api.post<BookOwnAppointmentResponse>('/appointments/mine', payload).then((res) => res.data),
@@ -354,4 +400,79 @@ export const labResultsApi = {
     api.patch<ReleaseLabResultResponse>(`/lab-results/${resultId}/release`).then((res) => res.data),
   /** Patient only — their own released results, patientId derived server-side from the session. */
   mine: () => api.get<LabResultsListResponse>('/lab-results/mine').then((res) => res.data),
+}
+
+// ── Clinic services (billing price catalog — admin/superadmin manage, all roles read) ──
+
+export const clinicServicesApi = {
+  list: (params?: { q?: string; category?: string; active?: boolean }) =>
+    api.get<{ services: ClinicService[] }>('/services', { params }).then((r) => r.data),
+  create: (payload: CreateServicePayload) =>
+    api.post<ClinicService>('/services', payload).then((r) => r.data),
+  update: (serviceId: string, payload: UpdateServicePayload) =>
+    api.put<ClinicService>(`/services/${serviceId}`, payload).then((r) => r.data),
+  toggle: (serviceId: string) =>
+    api.patch<ClinicService>(`/services/${serviceId}/toggle`).then((r) => r.data),
+}
+
+// ── Visits (walk-in queue — admin creates/updates, admin + doctor read) ──
+
+export const visitsApi = {
+  create: (payload: CreateVisitPayload) =>
+    api.post<Visit>('/visits', payload).then((r) => r.data),
+  listToday: (params?: { status?: VisitStatus; doctor_id?: string }) =>
+    api.get<{ visits: Visit[] }>('/visits/today', { params }).then((r) => r.data),
+  getOne: (visitId: string) =>
+    api.get<VisitDetail>(`/visits/${visitId}`).then((r) => r.data),
+  updateStatus: (visitId: string, status: VisitStatus) =>
+    api.patch<UpdateVisitStatusResponse>(`/visits/${visitId}/status`, { status }).then((r) => r.data),
+}
+
+// ── Billing (doctor adds items during consultation, staff discounts + collects payment) ──
+
+export const billingApi = {
+  getInvoice: (visitId: string) =>
+    api.get<VisitInvoiceDetail>(`/visits/${visitId}/invoice`).then((r) => r.data),
+  /** Doctor only. */
+  addItem: (visitId: string, payload: AddInvoiceItemPayload) =>
+    api.post<AddInvoiceItemResponse>(`/visits/${visitId}/invoice/items`, payload).then((r) => r.data),
+  /** Doctor only. */
+  removeItem: (visitId: string, itemId: string) =>
+    api.delete<{ message: string }>(`/visits/${visitId}/invoice/items/${itemId}`).then((r) => r.data),
+  /** Doctor only — draft invoices only, adjusts an already-added item's quantity directly. */
+  updateQty: (visitId: string, itemId: string, qty: number) =>
+    api.patch<InvoiceItem>(`/visits/${visitId}/invoice/items/${itemId}/qty`, { qty }).then((r) => r.data),
+  /** Doctor only — marks the consultation done, transitions the invoice to pending_billing. */
+  markDone: (visitId: string, payload: { prescriptionNotes?: string; notes?: string }) =>
+    api
+      .patch<{ message: string }>(`/visits/${visitId}/invoice/complete`, {
+        prescription_notes: payload.prescriptionNotes,
+        notes: payload.notes,
+      })
+      .then((r) => r.data),
+  /** Admin only. */
+  updateDiscount: (visitId: string, itemId: string, discountPct: number) =>
+    api
+      .patch<InvoiceItem>(`/visits/${visitId}/invoice/items/${itemId}/discount`, {
+        discount_pct: discountPct,
+      })
+      .then((r) => r.data),
+  /** Admin only — collects payment and finalizes the invoice. */
+  pay: (visitId: string, payload: PayInvoicePayload) =>
+    api.patch<VisitInvoice>(`/visits/${visitId}/invoice/pay`, payload).then((r) => r.data),
+  /** Admin/doctor — billing history for one patient (PatientProfilePage's Billing tab). */
+  listForPatient: (patientId: string) =>
+    api.get<BillingHistoryResponse>(`/patients/${patientId}/billing`).then((r) => r.data),
+  /** Patient only — their own billing history, patientId derived server-side from the session. */
+  mine: () => api.get<BillingHistoryResponse>('/billing/mine').then((r) => r.data),
+  /** Admin/superadmin only — staff end-of-day revenue report. `date` defaults server-side to today (Asia/Riyadh) when omitted. */
+  getDailyReport: (date?: string) =>
+    api.get<BillingReportResponse>('/billing/report', { params: date ? { date } : undefined }).then((r) => r.data),
+  /** Admin/superadmin only — drill-down invoice list behind the daily report's totals, optionally filtered to one doctor and/or clinic. */
+  getDailyInvoices: (params: { date?: string; doctorId?: string; clinic?: string }) =>
+    api
+      .get<BillingReportInvoicesResponse>('/billing/report/invoices', {
+        params: { date: params.date, doctor_id: params.doctorId, clinic: params.clinic },
+      })
+      .then((r) => r.data),
 }

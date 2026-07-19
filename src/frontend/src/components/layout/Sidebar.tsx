@@ -1,14 +1,19 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Building2,
   Calendar,
   ChevronsLeft,
   ChevronsRight,
+  ClipboardList,
   FileText,
   LayoutDashboard,
+  ListOrdered,
   LogOut,
+  Receipt,
   Settings,
+  Stethoscope,
   UserCog,
   Users,
 } from 'lucide-react'
@@ -25,7 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
-import { authApi } from '@/lib/api'
+import { authApi, visitsApi } from '@/lib/api'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { cn } from '@/lib/utils'
 import type { Role } from '@/types/auth'
@@ -35,12 +40,17 @@ interface NavItem {
   /** Key into the `nav` i18n namespace. */
   labelKey: string
   icon: LucideIcon
+  /** Doctor's "Continue Consultation" item — tinted even when not the active route, so it reads as something waiting on you, not just another link. */
+  highlight?: boolean
 }
 
 const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   superadmin: [
     { to: '/dashboard/superadmin', labelKey: 'dashboard', icon: LayoutDashboard },
     { to: '/users', labelKey: 'users', icon: UserCog },
+    { to: '/departments', labelKey: 'departments', icon: Building2 },
+    { to: '/catalog', labelKey: 'catalog', icon: ClipboardList },
+    { to: '/billing-report', labelKey: 'billingReport', icon: Receipt },
     { to: '/settings', labelKey: 'settings', icon: Settings },
   ],
   doctor: [
@@ -54,11 +64,15 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { to: '/dashboard/admin', labelKey: 'dashboard', icon: LayoutDashboard },
     { to: '/patients', labelKey: 'patients', icon: Users },
     { to: '/appointments', labelKey: 'appointments', icon: Calendar },
+    { to: '/visits', labelKey: 'visits', icon: ListOrdered },
+    { to: '/catalog', labelKey: 'catalog', icon: ClipboardList },
+    { to: '/billing-report', labelKey: 'billingReport', icon: Receipt },
     { to: '/settings', labelKey: 'settings', icon: Settings },
   ],
   patient: [
     { to: '/dashboard/patient', labelKey: 'dashboard', icon: LayoutDashboard },
     { to: '/records', labelKey: 'records', icon: FileText },
+    { to: '/invoices', labelKey: 'invoices', icon: Receipt },
     { to: '/appointments', labelKey: 'appointments', icon: Calendar },
     { to: '/settings', labelKey: 'settings', icon: Settings },
   ],
@@ -89,8 +103,32 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
+  // Sidebar is mounted for the whole authenticated session (AppShell), not
+  // just the dashboard — so this is the one place a doctor can always get
+  // back to a consultation they navigated away from, from any page, without
+  // returning to the dashboard first. Same queryKey as DoctorDashboard's own
+  // queue query, so the two share one cached fetch when both are mounted.
+  const { data: queueData } = useQuery({
+    queryKey: ['visits', 'today', 'mine'],
+    queryFn: () => visitsApi.listToday(),
+    enabled: role === 'doctor',
+    refetchInterval: 30_000,
+  })
+  const activeVisit = role === 'doctor' ? (queueData?.visits.find((v) => v.status === 'in_progress') ?? null) : null
+
   if (!role) return null
-  const items = NAV_BY_ROLE[role]
+  const items: NavItem[] = activeVisit
+    ? [
+        NAV_BY_ROLE[role][0],
+        {
+          to: `/visits/${activeVisit.visitId}/consult`,
+          labelKey: 'continueConsultation',
+          icon: Stethoscope,
+          highlight: true,
+        },
+        ...NAV_BY_ROLE[role].slice(1),
+      ]
+    : NAV_BY_ROLE[role]
   const ToggleIcon = collapsed ? ChevronsRight : ChevronsLeft
 
   const handleLogout = async () => {
@@ -157,6 +195,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
                   cn(
                     'flex items-center gap-3 rounded-lg border-s-4 border-transparent px-3 py-2 text-sm font-medium text-neutral-700 transition-colors duration-150 ease-out hover:bg-primary-50 hover:text-primary-700',
                     isActive && 'border-s-primary-600 bg-primary-50 text-primary-700',
+                    item.highlight && !isActive && 'border-s-primary-200 bg-primary-50/60 text-primary-700',
                   )
                 }
               >

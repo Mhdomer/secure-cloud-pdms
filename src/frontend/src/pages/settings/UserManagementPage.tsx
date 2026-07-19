@@ -48,8 +48,9 @@ import {
 import { toast } from '@/components/ui/toaster'
 import { useLanguage } from '@/hooks/useLanguage'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
-import { usersApi } from '@/lib/api'
+import { departmentsApi, usersApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { departmentLabel, type Department } from '@/types/department'
 import type { CreateUserPayload, StaffRole, StaffUser } from '@/types/user'
 
 /**
@@ -82,8 +83,15 @@ const STAFF_ROLES: StaffRole[] = ['doctor', 'admin']
 function CreateStaffAccountSheet() {
   const { t } = useTranslation('settings')
   const { t: tCommon } = useTranslation('common')
+  const { currentLang } = useLanguage()
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
+
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments', 'active'],
+    queryFn: () => departmentsApi.list({ active: true }),
+  })
+  const departments = departmentsData?.departments ?? []
 
   const createUserSchema = useMemo(
     () =>
@@ -103,6 +111,13 @@ function CreateStaffAccountSheet() {
         .refine((data) => data.role !== 'doctor' || !!data.fullName, {
           message: t('users.create.validation.fullNameRequired'),
           path: ['fullName'],
+        })
+        // A doctor belongs to exactly one clinic (many doctors per clinic,
+        // never the reverse) — required, not optional, so every doctor
+        // account is created with a real clinic assignment from day one.
+        .refine((data) => data.role !== 'doctor' || !!data.specialisation, {
+          message: t('users.create.validation.specialisationRequired'),
+          path: ['specialisation'],
         }),
     [t],
   )
@@ -147,9 +162,7 @@ function CreateStaffAccountSheet() {
       tempPassword: values.tempPassword,
       role: values.role,
       ...(values.role === 'doctor' && values.fullName ? { fullName: values.fullName } : {}),
-      ...(values.role === 'doctor' && values.specialisation
-        ? { specialisation: values.specialisation }
-        : {}),
+      ...(values.role === 'doctor' ? { specialisation: values.specialisation } : {}),
     }
     createUserMutation.mutate(payload)
   }
@@ -244,15 +257,21 @@ function CreateStaffAccountSheet() {
                   name="specialisation"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        {t('users.create.specialisationLabel')}{' '}
-                        <span className="text-muted-foreground">
-                          ({t('users.create.specialisationOptional')})
-                        </span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
+                      <FormLabel>{t('users.create.specialisationLabel')}</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('users.create.specialisationPlaceholder')} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {departments.map((department) => (
+                            <SelectItem key={department.key} value={department.key}>
+                              {currentLang === 'ar' ? department.nameAr : department.nameEn}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -284,8 +303,13 @@ function StaffDirectoryCard() {
     queryKey: ['users', 'directory'],
     queryFn: () => usersApi.list(),
   })
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => departmentsApi.list(),
+  })
 
   const users = data?.users ?? []
+  const departments = departmentsData?.departments ?? []
   const doctorCount = users.filter((u) => u.role === 'doctor').length
   const staffCount = users.filter((u) => u.role === 'admin').length
 
@@ -345,6 +369,7 @@ function StaffDirectoryCard() {
                 key={user.userId}
                 user={user}
                 lang={currentLang}
+                departments={departments}
                 onDeactivate={() => deactivateMutation.mutate(user.userId)}
                 onReactivate={() => reactivateMutation.mutate(user.userId)}
                 isMutating={
@@ -363,12 +388,14 @@ function StaffDirectoryCard() {
 function StaffDirectoryRow({
   user,
   lang,
+  departments,
   onDeactivate,
   onReactivate,
   isMutating,
 }: {
   user: StaffUser
   lang: 'ar' | 'en'
+  departments: Department[]
   onDeactivate: () => void
   onReactivate: () => void
   isMutating: boolean
@@ -404,9 +431,14 @@ function StaffDirectoryRow({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-medium text-foreground">{displayName}</span>
-        <span className="truncate text-xs text-muted-foreground" dir="ltr">
-          {user.username}
-          {user.specialisation ? ` · ${user.specialisation}` : ''}
+        <span className="truncate text-xs text-muted-foreground">
+          <span dir="ltr">{user.username}</span>
+          {user.specialisation && (
+            <>
+              {' · '}
+              <span dir="auto">{departmentLabel(departments, user.specialisation, lang)}</span>
+            </>
+          )}
         </span>
       </div>
 

@@ -1,9 +1,10 @@
 import { type CSSProperties, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
 import {
   CalendarClock,
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -17,6 +18,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { appointmentsApi } from '@/lib/api'
@@ -214,6 +216,7 @@ export default function AppointmentsPage() {
           showPatientColumn={showPatientColumn}
           isAdmin={isAdmin}
           isPatient={isPatient}
+          isDoctor={isDoctor}
         />
       ) : (
         <ListView
@@ -225,6 +228,7 @@ export default function AppointmentsPage() {
           showPatientColumn={showPatientColumn}
           isAdmin={isAdmin}
           isPatient={isPatient}
+          isDoctor={isDoctor}
         />
       )}
     </div>
@@ -236,6 +240,7 @@ interface ViewProps {
   showPatientColumn: boolean
   isAdmin: boolean
   isPatient: boolean
+  isDoctor: boolean
 }
 
 function DayView({
@@ -447,6 +452,7 @@ function ListView({
   showPatientColumn,
   isAdmin,
   isPatient,
+  isDoctor,
 }: ViewProps & {
   page: number
   setPage: (updater: (p: number) => number) => void
@@ -514,6 +520,7 @@ function ListView({
                 showPatientColumn={showPatientColumn}
                 isAdmin={isAdmin}
                 isPatient={isPatient}
+                isDoctor={isDoctor}
               />
             ))}
           </div>
@@ -559,6 +566,7 @@ function AppointmentListCard({
   showPatientColumn,
   isAdmin,
   isPatient,
+  isDoctor,
 }: {
   appointment: Appointment
   formatDate: (iso: string) => string
@@ -567,6 +575,8 @@ function AppointmentListCard({
   const { t } = useTranslation('appointments')
   const canAct =
     (isAdmin || isPatient) && (appointment.status === 'scheduled' || appointment.status === 'confirmed')
+  const canComplete =
+    isDoctor && ['scheduled', 'confirmed', 'arrived'].includes(appointment.status)
 
   return (
     <div
@@ -598,14 +608,44 @@ function AppointmentListCard({
       </Badge>
       <StatusBadge status={appointment.status} className="shrink-0" />
 
-      {canAct ? (
+      {canAct || canComplete ? (
         <div className="flex shrink-0 items-center gap-1">
           {isAdmin && <EditAppointmentDialog appointment={appointment} />}
-          <CancelAppointmentDialog appointment={appointment} />
+          {canAct && <CancelAppointmentDialog appointment={appointment} />}
+          {canComplete && <CompleteAppointmentButton appointment={appointment} />}
         </div>
       ) : (
-        (isAdmin || isPatient) && <span className="w-4 shrink-0" />
+        (isAdmin || isPatient || isDoctor) && <span className="w-4 shrink-0" />
       )}
     </div>
+  )
+}
+
+/** Doctor-only — marks an appointment as completed (the visit happened). Same directness as ScheduleTableRow's Quick Check-In button on AdminDashboard, no confirm dialog: low-stakes, easily correctable if clicked on the wrong row (status checks still gate re-use). */
+function CompleteAppointmentButton({ appointment }: { appointment: Appointment }) {
+  const { t } = useTranslation('appointments')
+  const queryClient = useQueryClient()
+
+  const completeMutation = useMutation({
+    mutationFn: () => appointmentsApi.complete(appointment.appointmentId),
+    onSuccess: () => {
+      toast.success(t('complete.success'))
+      queryClient.invalidateQueries({ queryKey: ['appointments'] })
+    },
+    onError: () => toast.error(t('complete.error')),
+  })
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className="h-7 gap-1 bg-success-50 px-2 text-xs text-success-600 hover:bg-success-50/70"
+      disabled={completeMutation.isPending}
+      onClick={() => completeMutation.mutate()}
+    >
+      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+      {completeMutation.isPending ? t('complete.completing') : t('complete.trigger')}
+    </Button>
   )
 }

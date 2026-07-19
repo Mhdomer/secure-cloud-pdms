@@ -6,6 +6,7 @@
   "delete": "حذف",
   "edit": "تعديل",
   "view": "عرض",
+  "actions": "الإجراءات",
   "search": "بحث",
   "filter": "تصفية",
   "noResults": "لا توجد نتائج",
@@ -17,7 +18,11 @@
     "pending": "قيد الانتظار",
     "arrived": "وصل",
     "cancelled": "ملغى",
-    "completed": "مكتمل"
+    "completed": "مكتمل",
+    "draft": "مسودة",
+    "pending_billing": "بانتظار الدفع",
+    "paid": "مدفوعة",
+    "partial": "مدفوعة جزئياً"
   },
   "roles": {
     "superadmin": "مدير النظام",

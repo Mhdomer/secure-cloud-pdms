@@ -36,10 +36,11 @@ export interface MedicalRecord {
   updatedAt: string
 }
 
-/** Body for POST /api/medical-records/records (doctor only). Wire format is snake_case. */
+/** Body for POST /api/medical-records/records (doctor only). Wire format is snake_case. `chief_complaint` is required — `medicalRecords.routes.js`'s validator has no `.optional()` on it. */
 export interface CreateMedicalRecordPayload {
   patient_id: string
   diagnosis: string
+  chief_complaint: string
   prescription?: string
   notes?: string
 }

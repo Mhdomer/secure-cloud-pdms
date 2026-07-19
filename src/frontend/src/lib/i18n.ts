@@ -11,6 +11,7 @@ import enRecords from '../locales/en/records.json'
 import enSettings from '../locales/en/settings.json'
 import enLanding from '../locales/en/landing.json'
 import enDoctors from '../locales/en/doctors.json'
+import enVisits from '../locales/en/visits.json'
 
 import arCommon from '../locales/ar/common.json'
 import arNav from '../locales/ar/nav.json'
@@ -22,6 +23,7 @@ import arRecords from '../locales/ar/records.json'
 import arSettings from '../locales/ar/settings.json'
 import arLanding from '../locales/ar/landing.json'
 import arDoctors from '../locales/ar/doctors.json'
+import arVisits from '../locales/ar/visits.json'
 
 const savedLang = localStorage.getItem('pdms_lang') ?? 'ar'
 
@@ -41,6 +43,7 @@ i18n.use(initReactI18next).init({
       settings: enSettings,
       landing: enLanding,
       doctors: enDoctors,
+      visits: enVisits,
     },
     ar: {
       common: arCommon,
@@ -53,6 +56,7 @@ i18n.use(initReactI18next).init({
       settings: arSettings,
       landing: arLanding,
       doctors: arDoctors,
+      visits: arVisits,
     },
   },
   interpolation: { escapeValue: false },

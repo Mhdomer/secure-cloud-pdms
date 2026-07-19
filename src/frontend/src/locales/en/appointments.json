@@ -24,6 +24,12 @@
     "error": "Could not check in this appointment. Please try again.",
     "hereIndicator": "Patient has arrived"
   },
+  "complete": {
+    "trigger": "Mark Completed",
+    "completing": "Completing…",
+    "success": "Appointment marked as completed.",
+    "error": "Could not mark this appointment as completed. Please try again."
+  },
   "types": {
     "consultation": "Consultation",
     "follow_up": "Follow-up",

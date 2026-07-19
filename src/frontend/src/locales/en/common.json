@@ -6,6 +6,7 @@
   "delete": "Delete",
   "edit": "Edit",
   "view": "View",
+  "actions": "Actions",
   "search": "Search",
   "filter": "Filter",
   "noResults": "No results found",
@@ -17,7 +18,11 @@
     "pending": "Pending",
     "arrived": "Arrived",
     "cancelled": "Cancelled",
-    "completed": "Completed"
+    "completed": "Completed",
+    "draft": "Draft",
+    "pending_billing": "Pending payment",
+    "paid": "Paid",
+    "partial": "Partially paid"
   },
   "roles": {
     "superadmin": "System Admin",

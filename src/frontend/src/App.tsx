@@ -21,13 +21,22 @@ import DoctorDashboard from '@/pages/dashboard/DoctorDashboard'
 import PatientDashboard from '@/pages/dashboard/PatientDashboard'
 import SuperAdminDashboard from '@/pages/dashboard/SuperAdminDashboard'
 import AppointmentsPage from '@/pages/appointments/AppointmentsPage'
+import ServicesCatalogPage from '@/pages/catalog/ServicesCatalogPage'
 import DoctorAvailabilityPage from '@/pages/doctors/DoctorAvailabilityPage'
+import TodaysVisitsPage from '@/pages/visits/TodaysVisitsPage'
+import ConsultationPage from '@/pages/visits/ConsultationPage'
+import BillVisitPage from '@/pages/visits/BillVisitPage'
+import InvoicePage from '@/pages/visits/InvoicePage'
 import PatientLookupPage from '@/pages/patients/PatientLookupPage'
 import PatientProfilePage from '@/pages/patients/PatientProfilePage'
+import MyInvoicesPage from '@/pages/invoices/MyInvoicesPage'
+import BillingReportPage from '@/pages/invoices/BillingReportPage'
+import BillingReportInvoicesPage from '@/pages/invoices/BillingReportInvoicesPage'
 import MedicalRecordsPage from '@/pages/records/MedicalRecordsPage'
 import RecordDetailPage from '@/pages/records/RecordDetailPage'
 import SettingsPage from '@/pages/settings/SettingsPage'
 import UserManagementPage from '@/pages/settings/UserManagementPage'
+import DepartmentsPage from '@/pages/departments/DepartmentsPage'
 
 /** Root `/` and any unmatched path: authenticated users go to their own dashboard, everyone else see the public landing page. */
 function RoleAwareRedirect() {
@@ -155,11 +164,96 @@ function App() {
             />
 
             <Route
+              path="/invoices"
+              element={
+                <ProtectedRoute allowedRoles={['patient']}>
+                  <AppShell>
+                    <MyInvoicesPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/billing-report"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                  <AppShell>
+                    <BillingReportPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/billing-report/invoices"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                  <AppShell>
+                    <BillingReportInvoicesPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/appointments"
               element={
                 <ProtectedRoute allowedRoles={['doctor', 'admin', 'patient']}>
                   <AppShell>
                     <AppointmentsPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/visits"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AppShell>
+                    <TodaysVisitsPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/visits/:visitId/consult"
+              element={
+                <ProtectedRoute allowedRoles={['doctor']}>
+                  <AppShell>
+                    <ConsultationPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/visits/:visitId/bill"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AppShell>
+                    <BillVisitPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/visits/:visitId/invoice"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'superadmin', 'doctor', 'patient']}>
+                  <AppShell>
+                    <InvoicePage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/catalog"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                  <AppShell>
+                    <ServicesCatalogPage />
                   </AppShell>
                 </ProtectedRoute>
               }
@@ -181,6 +275,16 @@ function App() {
                 <ProtectedRoute allowedRoles={['superadmin']}>
                   <AppShell>
                     <UserManagementPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/departments"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin']}>
+                  <AppShell>
+                    <DepartmentsPage />
                   </AppShell>
                 </ProtectedRoute>
               }

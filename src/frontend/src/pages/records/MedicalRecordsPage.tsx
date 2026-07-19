@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
 import {
   ArrowRight,
@@ -35,7 +35,6 @@ import { useLanguage } from '@/hooks/useLanguage'
 import { patientsApi, recordsApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { CreateRecordDialog } from '@/pages/records/CreateRecordDialog'
-import { MyInvoicesTab } from '@/pages/records/MyInvoicesTab'
 import { MyLabResultsTab } from '@/pages/records/MyLabResultsTab'
 import type { CreateMedicalRecordPayload } from '@/types/medicalRecord'
 
@@ -70,12 +69,12 @@ export default function MedicalRecordsPage() {
     return <DoctorPatientRecordsSplitView patientId={scopedPatientId} />
   }
 
-  // Patient's own view is tabbed (Medical Records / Invoices / Lab Results) —
-  // this route is where a patient already goes for "my medical stuff," so
-  // the new invoice/lab-result self-view lives here rather than a new nav
-  // item. Doctor's own unscoped list (no patient in context) stays a plain
-  // list below; they view a specific patient's invoices/lab-results from
-  // that patient's profile instead.
+  // Patient's own view is tabbed (Medical Records / Lab Results). Invoices
+  // used to be a third tab here but moved to its own `/invoices` page + sidebar
+  // nav item — "add invoices sidebar tab" was an explicit ask, since a tab
+  // buried inside Records wasn't easy enough to find. Doctor's own unscoped
+  // list (no patient in context) stays a plain list below; they view a
+  // specific patient's lab results from that patient's profile instead.
   if (isPatient) {
     return <PatientRecordsTabs page={page} setPage={setPage} />
   }
@@ -90,8 +89,8 @@ export default function MedicalRecordsPage() {
   )
 }
 
-type PatientTabKey = 'medicalRecords' | 'invoices' | 'labResults'
-const PATIENT_TABS: PatientTabKey[] = ['medicalRecords', 'invoices', 'labResults']
+type PatientTabKey = 'medicalRecords' | 'labResults'
+const PATIENT_TABS: PatientTabKey[] = ['medicalRecords', 'labResults']
 
 function PatientRecordsTabs({
   page,
@@ -128,7 +127,6 @@ function PatientRecordsTabs({
       {tab === 'medicalRecords' && (
         <MedicalRecordsList isDoctor={false} scopedPatientId={null} page={page} setPage={setPage} hideHeader />
       )}
-      {tab === 'invoices' && <MyInvoicesTab />}
       {tab === 'labResults' && <MyLabResultsTab />}
     </div>
   )
@@ -166,6 +164,34 @@ function MedicalRecordsList({
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT))
   const errorStatus = isError ? (error as AxiosError).response?.status : null
+
+  // Doctor's own unscoped list mixes records across every patient they've
+  // ever written for — without this, the table has no way to say whose
+  // record a given row even is. Not needed for the patient's own view
+  // (every row there is already their own). `MedicalRecordSummary.patientId`
+  // is only populated on this exact endpoint (see types/medicalRecord.ts).
+  const uniquePatientIds = useMemo(
+    () =>
+      isDoctor
+        ? Array.from(new Set(records.map((r) => r.patientId).filter((id): id is string => Boolean(id))))
+        : [],
+    [records, isDoctor],
+  )
+  const patientQueries = useQueries({
+    queries: uniquePatientIds.map((id) => ({
+      queryKey: ['patients', 'get', id],
+      queryFn: () => patientsApi.get(id),
+      staleTime: 5 * 60 * 1000,
+    })),
+  })
+  const patientById = useMemo(() => {
+    const map = new Map<string, { fullName: string; fileNo: number }>()
+    uniquePatientIds.forEach((id, idx) => {
+      const patient = patientQueries[idx]?.data
+      if (patient) map.set(id, patient)
+    })
+    return map
+  }, [uniquePatientIds, patientQueries])
 
   const formatDate = (iso: string) => {
     try {
@@ -220,6 +246,8 @@ function MedicalRecordsList({
           <Table>
             <TableHeader>
               <TableRow>
+                {isDoctor && <TableHead>{t('list.columns.patient')}</TableHead>}
+                {isDoctor && <TableHead>{t('list.columns.fileNo')}</TableHead>}
                 <TableHead>{t('list.columns.date')}</TableHead>
                 <TableHead>{t('list.columns.diagnosis')}</TableHead>
                 <TableHead>{t('list.columns.lastUpdated')}</TableHead>
@@ -229,24 +257,47 @@ function MedicalRecordsList({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {records.map((record) => (
-                <TableRow key={record.recordId}>
-                  <TableCell className="whitespace-nowrap">
-                    {formatDate(record.createdAt)}
-                  </TableCell>
-                  <TableCell className="max-w-[420px] truncate" dir="auto">
-                    {record.diagnosis}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">
-                    {formatDate(record.updatedAt)}
-                  </TableCell>
-                  <TableCell className="text-end">
-                    <Button asChild size="sm" variant="ghost">
-                      <Link to={detailLink(record.recordId)}>{t('viewDetails')}</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {records.map((record) => {
+                const patient = record.patientId ? patientById.get(record.patientId) : undefined
+                return (
+                  <TableRow key={record.recordId}>
+                    {isDoctor && (
+                      <TableCell>
+                        {record.patientId ? (
+                          <Link
+                            to={`/patients/${record.patientId}`}
+                            className="font-medium text-primary-600 hover:underline"
+                            dir="auto"
+                          >
+                            {patient?.fullName ?? '…'}
+                          </Link>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                    )}
+                    {isDoctor && (
+                      <TableCell className="font-mono text-xs text-muted-foreground" dir="ltr">
+                        {patient ? patient.fileNo : '—'}
+                      </TableCell>
+                    )}
+                    <TableCell className="whitespace-nowrap">
+                      {formatDate(record.createdAt)}
+                    </TableCell>
+                    <TableCell className="max-w-[420px] truncate" dir="auto">
+                      {record.diagnosis}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {formatDate(record.updatedAt)}
+                    </TableCell>
+                    <TableCell className="text-end">
+                      <Button asChild size="sm" variant="ghost">
+                        <Link to={detailLink(record.recordId)}>{t('viewDetails')}</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
 
@@ -329,6 +380,11 @@ function DoctorPatientRecordsSplitView({ patientId }: { patientId: string }) {
   const createSchema = useMemo(
     () =>
       z.object({
+        chief_complaint: z
+          .string()
+          .trim()
+          .min(1, t('form.validation.chiefComplaintRequired'))
+          .max(2000, t('form.validation.chiefComplaintMax')),
         diagnosis: z
           .string()
           .trim()
@@ -340,7 +396,7 @@ function DoctorPatientRecordsSplitView({ patientId }: { patientId: string }) {
     [t],
   )
   type FormValues = z.infer<typeof createSchema>
-  const defaultValues: FormValues = { diagnosis: '', prescription: '', notes: '' }
+  const defaultValues: FormValues = { chief_complaint: '', diagnosis: '', prescription: '', notes: '' }
   const form = useForm<FormValues>({ resolver: zodResolver(createSchema), defaultValues })
 
   const createMutation = useMutation({
@@ -356,6 +412,7 @@ function DoctorPatientRecordsSplitView({ patientId }: { patientId: string }) {
   const onSubmit = (values: FormValues) => {
     createMutation.mutate({
       patient_id: patientId,
+      chief_complaint: values.chief_complaint,
       diagnosis: values.diagnosis,
       ...(values.prescription ? { prescription: values.prescription } : {}),
       ...(values.notes ? { notes: values.notes } : {}),
@@ -421,12 +478,25 @@ function DoctorPatientRecordsSplitView({ patientId }: { patientId: string }) {
             <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
               <FormField
                 control={form.control}
+                name="chief_complaint"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('chiefComplaint')}</FormLabel>
+                    <FormControl>
+                      <Textarea rows={2} maxLength={2000} autoFocus {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="diagnosis"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('diagnosis')}</FormLabel>
                     <FormControl>
-                      <Textarea rows={3} maxLength={2000} autoFocus {...field} />
+                      <Textarea rows={3} maxLength={2000} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

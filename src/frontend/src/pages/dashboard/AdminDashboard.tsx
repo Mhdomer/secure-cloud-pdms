@@ -5,7 +5,7 @@ import {
   CalendarClock,
   CalendarPlus,
   ChevronRight,
-  Megaphone,
+  ListOrdered,
   UserCheck,
   UserPlus,
   Users,
@@ -24,12 +24,13 @@ import { Card } from '@/components/ui/card'
 import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage, type SupportedLanguage } from '@/hooks/useLanguage'
-import { appointmentsApi } from '@/lib/api'
+import { appointmentsApi, visitsApi } from '@/lib/api'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { todayWindowIso } from '@/lib/dateRange'
 import { cn } from '@/lib/utils'
 import { CreateAppointmentDialog } from '@/pages/appointments/CreateAppointmentDialog'
 import { RegisterPatientDialog } from '@/pages/patients/RegisterPatientDialog'
+import { NewWalkInDialog } from '@/pages/visits/NewWalkInDialog'
 import { useRecentRegistrationsStore, type RecentRegistration } from '@/store/recentRegistrationsStore'
 import type { Appointment, AppointmentType } from '@/types/appointment'
 
@@ -294,28 +295,42 @@ export default function AdminDashboard() {
     [todaysAppointments],
   )
 
-  // 3-step patient flow pills below the hero banner — pulled from today's
-  // appointment statuses already fetched above, no new endpoint. The API has
-  // no distinct "in progress" state (see `Status` in StatusBadge.tsx), so
-  // "In Consultation" uses `completed` as the closest existing proxy for
-  // "already seen today".
+  // Walk-in queue — these stats used to be built purely from scheduled
+  // appointments, so on a walk-in-heavy day (no appointments booked, just
+  // patients checked in at the desk) every one of these read zero even with
+  // a full waiting room. `listToday` returns every doctor's visits for an
+  // admin session (no doctor_id filter applied server-side for ADMIN role),
+  // so this is clinic-wide, matching this dashboard's own scope.
+  const { data: queueData, isLoading: queueLoading } = useQuery({
+    queryKey: ['visits', 'today', 'all'],
+    queryFn: () => visitsApi.listToday(),
+    refetchInterval: 30_000,
+  })
+  const visits = queueData?.visits ?? []
+  const walkInWaitingCount = visits.filter((v) => v.status === 'waiting').length
+  const walkInInProgressCount = visits.filter((v) => v.status === 'in_progress').length
+
+  // 3-step patient flow pills below the hero banner. The API has no
+  // distinct "in progress" state for appointments (see `Status` in
+  // StatusBadge.tsx), so "In Consultation" uses `completed` as the closest
+  // existing proxy for "already seen today" on the appointment side — the
+  // walk-in side has a real in_progress status, so that half is exact.
+  // Walk-ins have no "booked but not arrived" state (a walk-in registration
+  // IS the check-in), so step 1 stays appointments-only; a walk-in's
+  // 'waiting' status is the direct equivalent of an appointment's 'arrived'
+  // (physically present, not yet with the doctor), so it folds into step 2.
   const queueCount = todaysAppointments.filter(
     (a) => a.status === 'scheduled' || a.status === 'confirmed',
   ).length
-  const checkedInCount = todaysAppointments.filter((a) => a.status === 'arrived').length
-  const inConsultationCount = todaysAppointments.filter((a) => a.status === 'completed').length
+  const apptCheckedInCount = todaysAppointments.filter((a) => a.status === 'arrived').length
+  const apptInConsultationCount = todaysAppointments.filter((a) => a.status === 'completed').length
+  const checkedInCount = apptCheckedInCount + walkInWaitingCount
+  const inConsultationCount = apptInConsultationCount + walkInInProgressCount
 
-  // Top stat row — same today's-appointments data as the flow pills below,
-  // just summarized differently: a live count ("Patients Waiting" = who's
-  // physically arrived right now) next to a running daily total
-  // ("Completed Check-ins" = arrived + completed, i.e. everyone who has
-  // been through check-in today, whether their visit is finished or not).
+  // Top stat row. "Patients Waiting" reuses the blended `checkedInCount`
+  // above — same real-world meaning (physically present, waiting to be
+  // called) whether they arrived for a booked appointment or walked in.
   const statConfirmedToday = todaysAppointments.filter((a) => a.status === 'confirmed').length
-  const statCompletedCheckins = checkedInCount + inConsultationCount
-  const statCompletedCheckinsPct =
-    todaysAppointments.length > 0
-      ? Math.round((statCompletedCheckins / todaysAppointments.length) * 100)
-      : 0
 
   // Session-local registration trail — see store/recentRegistrationsStore.ts
   // for why this isn't a network fetch (`GET /patients` has no "list all" or
@@ -379,7 +394,7 @@ export default function AdminDashboard() {
           initial="hidden"
           animate="visible"
           variants={sectionStagger}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-3"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2"
         >
           <DashboardStatCard
             icon={CalendarClock}
@@ -401,7 +416,7 @@ export default function AdminDashboard() {
             icon={Users}
             tone="warning"
             label={t('admin.stats.patientsWaiting')}
-            isLoading={appointmentsLoading}
+            isLoading={appointmentsLoading || queueLoading}
           >
             <div className="flex flex-col">
               <span className="text-2xl font-bold tracking-tight text-foreground">
@@ -409,22 +424,6 @@ export default function AdminDashboard() {
               </span>
               <span className="truncate text-xs text-muted-foreground">
                 {t('admin.stats.inQueueCount', { count: queueCount })}
-              </span>
-            </div>
-          </DashboardStatCard>
-
-          <DashboardStatCard
-            icon={UserCheck}
-            tone="success"
-            label={t('admin.stats.completedCheckins')}
-            isLoading={appointmentsLoading}
-          >
-            <div className="flex flex-col">
-              <span className="text-2xl font-bold tracking-tight text-foreground">
-                <CountUpNumber value={statCompletedCheckins} />
-              </span>
-              <span className="truncate text-xs text-muted-foreground">
-                {t('admin.stats.pctOfToday', { pct: statCompletedCheckinsPct })}
               </span>
             </div>
           </DashboardStatCard>
@@ -442,14 +441,6 @@ export default function AdminDashboard() {
         <ChevronRight className="h-5 w-5 shrink-0 text-neutral-300 rtl:rotate-180" aria-hidden="true" />
         <FlowPill
           step={2}
-          label={t('admin.hero.checkedIn')}
-          sublabel={t('admin.hero.checkedInSub')}
-          count={checkedInCount}
-          image="/clinic/real-reception.png"
-        />
-        <ChevronRight className="h-5 w-5 shrink-0 text-neutral-300 rtl:rotate-180" aria-hidden="true" />
-        <FlowPill
-          step={3}
           label={t('admin.hero.inConsultation')}
           sublabel={t('admin.hero.inConsultationSub')}
           count={inConsultationCount}
@@ -457,8 +448,11 @@ export default function AdminDashboard() {
         />
       </motion.div>
 
-      {/* The two things staff do all day — full-width stack on mobile,
-          side-by-side on desktop, primary-600 filled. Not subtle on purpose. */}
+      {/* The three things staff do all day — full-width stack on mobile,
+          side-by-side on desktop, primary-600 filled. Not subtle on purpose.
+          New Walk-in sits right here (not just on /visits) since walk-ins
+          are a constant, high-volume part of the front desk's day — staff
+          shouldn't have to leave the dashboard to register one. */}
       <motion.div variants={sectionFade} className="flex flex-col gap-4 sm:flex-row">
         <RegisterPatientDialog
           trigger={
@@ -475,6 +469,15 @@ export default function AdminDashboard() {
               icon={CalendarPlus}
               label={t('admin.actions.bookAppointment')}
               hint={t('admin.actions.bookAppointmentHint')}
+            />
+          }
+        />
+        <NewWalkInDialog
+          trigger={
+            <AdminActionTile
+              icon={ListOrdered}
+              label={t('admin.actions.newWalkIn')}
+              hint={t('admin.actions.newWalkInHint')}
             />
           }
         />
@@ -539,43 +542,22 @@ export default function AdminDashboard() {
           </div>
         </Card>
 
-        <div className="flex flex-col gap-6">
-          <Card className="p-5">
-            <SectionHeading>{t('admin.announcements.heading')}</SectionHeading>
-            <div className="mt-4 flex flex-col gap-3">
-              {(
-                [
-                  t('admin.announcements.teamMeeting'),
-                  t('admin.announcements.holidayHours'),
-                ] as const
-              ).map((text) => (
-                <div key={text} className="flex items-start gap-3 rounded-lg border border-border p-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-50">
-                    <Megaphone className="h-4 w-4 text-primary-600" aria-hidden="true" />
-                  </span>
-                  <p className="text-sm text-foreground">{text}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="p-5">
-            <SectionHeading>{t('admin.recentRegistrations.heading')}</SectionHeading>
-            <div className="mt-4 flex flex-col gap-3">
-              {recentRegistrations.length === 0 ? (
-                <EmptyState
-                  icon={Users}
-                  title={t('admin.recentRegistrations.emptyTitle')}
-                  description={t('admin.recentRegistrations.emptyDescription')}
-                />
-              ) : (
-                recentRegistrations.map((entry) => (
-                  <RecentRegistrationCard key={entry.patientId} entry={entry} lang={currentLang} />
-                ))
-              )}
-            </div>
-          </Card>
-        </div>
+        <Card className="p-5">
+          <SectionHeading>{t('admin.recentRegistrations.heading')}</SectionHeading>
+          <div className="mt-4 flex flex-col gap-3">
+            {recentRegistrations.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title={t('admin.recentRegistrations.emptyTitle')}
+                description={t('admin.recentRegistrations.emptyDescription')}
+              />
+            ) : (
+              recentRegistrations.map((entry) => (
+                <RecentRegistrationCard key={entry.patientId} entry={entry} lang={currentLang} />
+              ))
+            )}
+          </div>
+        </Card>
       </motion.div>
     </motion.div>
   )

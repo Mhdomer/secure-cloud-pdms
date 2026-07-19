@@ -62,15 +62,25 @@
       "lastVisit": "Last visit {{date}}",
       "emptyTitle": "No patients yet",
       "emptyDescription": "Patients you've written a record for will appear here."
+    },
+    "todaysQueue": {
+      "heading": "Today's Queue",
+      "loadError": "Could not load today's queue.",
+      "inProgressHeading": "In Consultation ({{count}})",
+      "inConsultationLink": "Continue consultation",
+      "waitingHeading": "Waiting ({{count}})",
+      "noPatientsWaiting": "No patients waiting.",
+      "seenTodayHeading": "Seen today ({{count}})",
+      "startButton": "Start",
+      "waitingSince": "Waiting since {{minutes}} min",
+      "fileNoLine": "File #{{fileNo}}"
     }
   },
   "admin": {
     "todaysSchedule": "Today's Schedule",
     "hero": {
-      "queue": "Queue",
-      "queueSub": "Patients in waiting",
-      "checkedIn": "Checked In",
-      "checkedInSub": "At reception",
+      "queue": "Upcoming",
+      "queueSub": "Booked, not yet arrived",
       "inConsultation": "In Consultation",
       "inConsultationSub": "With a doctor"
     },
@@ -78,20 +88,15 @@
       "appointmentsToday": "Appointments Today",
       "confirmedCount": "{{count}} confirmed",
       "patientsWaiting": "Patients Waiting",
-      "inQueueCount": "{{count}} in queue",
-      "completedCheckins": "Completed Check-ins",
-      "pctOfToday": "{{pct}}% of today's appointments"
-    },
-    "announcements": {
-      "heading": "Announcements",
-      "teamMeeting": "Team meeting today at 2:00 PM in the conference room.",
-      "holidayHours": "Reminder: the clinic closes early this Thursday for staff training."
+      "inQueueCount": "{{count}} in queue"
     },
     "actions": {
       "registerPatient": "Register New Patient",
       "registerPatientHint": "Add a new patient and assign a doctor",
       "bookAppointment": "Book Appointment",
-      "bookAppointmentHint": "Schedule a visit for an existing patient"
+      "bookAppointmentHint": "Schedule a visit for an existing patient",
+      "newWalkIn": "New Walk-in",
+      "newWalkInHint": "Register a walk-in patient and join the queue"
     },
     "timeline": {
       "emptyTitle": "Nothing scheduled for today",

@@ -1,4 +1,4 @@
-import { Pencil, X } from 'lucide-react'
+import { FolderOpen, Pencil, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -64,6 +64,10 @@ export function PatientSummary({
           <h1 className="truncate text-xl font-semibold text-foreground" dir="auto">
             {patient.fullName}
           </h1>
+          <span className="inline-flex w-fit items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-mono font-medium text-muted-foreground">
+            <FolderOpen className="h-3 w-3" aria-hidden="true" />
+            {t('fileNo')} {patient.fileNo}
+          </span>
           <span className="truncate text-xs text-muted-foreground" dir="ltr">
             {t('header.nationalId')}: {patient.nationalId ?? '—'}
           </span>

@@ -62,6 +62,11 @@ export function CreateRecordDialog({ lockedPatientId }: CreateRecordDialogProps)
           .trim()
           .min(1, t('form.validation.patientIdRequired'))
           .uuid(t('form.validation.patientIdInvalid')),
+        chief_complaint: z
+          .string()
+          .trim()
+          .min(1, t('form.validation.chiefComplaintRequired'))
+          .max(2000, t('form.validation.chiefComplaintMax')),
         diagnosis: z
           .string()
           .trim()
@@ -81,6 +86,7 @@ export function CreateRecordDialog({ lockedPatientId }: CreateRecordDialogProps)
 
   const defaultValues: CreateFormValues = {
     patient_id: lockedPatientId ?? '',
+    chief_complaint: '',
     diagnosis: '',
     prescription: '',
     notes: '',
@@ -118,6 +124,7 @@ export function CreateRecordDialog({ lockedPatientId }: CreateRecordDialogProps)
   const onSubmit = (values: CreateFormValues) => {
     const payload: CreateMedicalRecordPayload = {
       patient_id: values.patient_id,
+      chief_complaint: values.chief_complaint,
       diagnosis: values.diagnosis,
       ...(values.prescription ? { prescription: values.prescription } : {}),
       ...(values.notes ? { notes: values.notes } : {}),
@@ -183,12 +190,25 @@ export function CreateRecordDialog({ lockedPatientId }: CreateRecordDialogProps)
             />
             <FormField
               control={form.control}
+              name="chief_complaint"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('chiefComplaint')}</FormLabel>
+                  <FormControl>
+                    <Textarea rows={2} maxLength={2000} autoFocus={!lockedPatientId} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="diagnosis"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('diagnosis')}</FormLabel>
                   <FormControl>
-                    <Textarea rows={3} maxLength={2000} autoFocus={!lockedPatientId} {...field} />
+                    <Textarea rows={3} maxLength={2000} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

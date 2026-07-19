@@ -13,7 +13,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
-import { careTeamApi } from '@/lib/api'
+import { useLanguage } from '@/hooks/useLanguage'
+import { careTeamApi, departmentsApi } from '@/lib/api'
+import { departmentLabel } from '@/types/department'
 import type { CareTeamMember, Patient } from '@/types/patient'
 
 interface CareTeamPanelProps {
@@ -28,6 +30,7 @@ type AddFormValues = z.infer<typeof addSchema>
 
 export function CareTeamPanel({ patient }: CareTeamPanelProps) {
   const { t } = useTranslation('patients')
+  const { currentLang } = useLanguage()
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
 
@@ -35,6 +38,11 @@ export function CareTeamPanel({ patient }: CareTeamPanelProps) {
     queryKey: ['care-team', patient.patientId],
     queryFn: () => careTeamApi.list(patient.patientId),
   })
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => departmentsApi.list(),
+  })
+  const departments = departmentsData?.departments ?? []
 
   const form = useForm<AddFormValues>({
     resolver: zodResolver(addSchema),
@@ -90,8 +98,13 @@ export function CareTeamPanel({ patient }: CareTeamPanelProps) {
           >
             <div className="flex min-w-0 flex-col">
               <span className="truncate text-sm font-medium">{m.doctorName}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {m.speciality ?? m.specialisation ?? '—'}
+              <span className="truncate text-xs text-muted-foreground" dir="auto">
+                {/* `speciality` is free text staff typed for this specific
+                    care-team assignment (e.g. "second opinion") — left as-is.
+                    `specialisation` is the doctor's own fixed department, only
+                    used as a fallback when no per-assignment note was given,
+                    so it needs the department's display name looked up. */}
+                {m.speciality ?? (m.specialisation ? departmentLabel(departments, m.specialisation, currentLang) : '—')}
               </span>
             </div>
             <div className="flex shrink-0 items-center gap-2">

@@ -11,6 +11,11 @@ export function cn(...inputs: ClassValue[]) {
  * check the boolean result and show a manual-copy fallback rather than
  * assuming success.
  */
+/** Whole minutes elapsed between an ISO timestamp and now, clamped to >= 0. */
+export function elapsedMinutesSince(iso: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000))
+}
+
 export async function copyToClipboard(text: string): Promise<boolean> {
   if (!navigator.clipboard?.writeText) return false
   try {

@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 
 import { FormControl } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { doctorsApi } from '@/lib/api'
+import { useLanguage } from '@/hooks/useLanguage'
+import { departmentsApi, doctorsApi } from '@/lib/api'
+import { departmentLabel } from '@/types/department'
 
 interface DoctorSelectProps {
   value: string
@@ -31,8 +33,11 @@ export function DoctorSelect({
   loadErrorLabel,
   disabled,
 }: DoctorSelectProps) {
+  const { currentLang } = useLanguage()
   const doctorsQuery = useQuery({ queryKey: ['doctors', 'active'], queryFn: () => doctorsApi.listActive() })
   const activeDoctors = doctorsQuery.data?.doctors ?? []
+  const departmentsQuery = useQuery({ queryKey: ['departments'], queryFn: () => departmentsApi.list() })
+  const departments = departmentsQuery.data?.departments ?? []
 
   return (
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
@@ -49,7 +54,9 @@ export function DoctorSelect({
         ) : (
           activeDoctors.map((doctor) => (
             <SelectItem key={doctor.doctorId} value={doctor.doctorId}>
-              {doctor.specialisation ? `${doctor.fullName} — ${doctor.specialisation}` : doctor.fullName}
+              {doctor.specialisation
+                ? `${doctor.fullName} — ${departmentLabel(departments, doctor.specialisation, currentLang)}`
+                : doctor.fullName}
             </SelectItem>
           ))
         )}

@@ -2,6 +2,7 @@
   "title": "Medical Records",
   "newRecord": "New record",
   "diagnosis": "Diagnosis",
+  "chiefComplaint": "Chief Complaint",
   "prescription": "Prescription",
   "notes": "Notes",
   "noRecords": "No medical records",
@@ -10,6 +11,8 @@
   "backToList": "Back to records",
   "list": {
     "columns": {
+      "patient": "Patient",
+      "fileNo": "File #",
       "date": "Date",
       "diagnosis": "Diagnosis",
       "lastUpdated": "Last updated",
@@ -72,6 +75,8 @@
     "validation": {
       "patientIdRequired": "Patient ID is required",
       "patientIdInvalid": "Enter a valid patient ID (UUID)",
+      "chiefComplaintRequired": "Chief complaint is required",
+      "chiefComplaintMax": "Chief complaint must be 2000 characters or fewer",
       "diagnosisRequired": "Diagnosis is required",
       "diagnosisMax": "Diagnosis must be 2000 characters or fewer",
       "prescriptionMax": "Prescription must be 2000 characters or fewer",

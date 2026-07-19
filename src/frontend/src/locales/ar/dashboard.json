@@ -62,15 +62,25 @@
       "lastVisit": "آخر زيارة {{date}}",
       "emptyTitle": "لا يوجد مرضى بعد",
       "emptyDescription": "سيظهر هنا المرضى الذين كتبت لهم سجلاً طبياً."
+    },
+    "todaysQueue": {
+      "heading": "قائمة انتظار اليوم",
+      "loadError": "تعذّر تحميل قائمة انتظار اليوم.",
+      "inProgressHeading": "قيد الكشف ({{count}})",
+      "inConsultationLink": "متابعة الكشف",
+      "waitingHeading": "بالانتظار ({{count}})",
+      "noPatientsWaiting": "لا يوجد مرضى بالانتظار.",
+      "seenTodayHeading": "تمت رؤيتهم اليوم ({{count}})",
+      "startButton": "بدء",
+      "waitingSince": "بالانتظار منذ {{minutes}} د",
+      "fileNoLine": "رقم الملف {{fileNo}}"
     }
   },
   "admin": {
     "todaysSchedule": "جدول اليوم",
     "hero": {
-      "queue": "قائمة الانتظار",
-      "queueSub": "مرضى في الانتظار",
-      "checkedIn": "تم الوصول",
-      "checkedInSub": "في الاستقبال",
+      "queue": "القادمون",
+      "queueSub": "محجوزون، لم يصلوا بعد",
       "inConsultation": "قيد الاستشارة",
       "inConsultationSub": "مع الطبيب"
     },
@@ -78,20 +88,15 @@
       "appointmentsToday": "مواعيد اليوم",
       "confirmedCount": "{{count}} مؤكدة",
       "patientsWaiting": "المرضى في الانتظار",
-      "inQueueCount": "{{count}} في قائمة الانتظار",
-      "completedCheckins": "تسجيلات الوصول المكتملة",
-      "pctOfToday": "{{pct}}٪ من مواعيد اليوم"
-    },
-    "announcements": {
-      "heading": "إعلانات",
-      "teamMeeting": "اجتماع الفريق اليوم الساعة ٢:٠٠ ظهراً في قاعة الاجتماعات.",
-      "holidayHours": "تذكير: تغلق العيادة مبكراً هذا الخميس لتدريب الموظفين."
+      "inQueueCount": "{{count}} في قائمة الانتظار"
     },
     "actions": {
       "registerPatient": "تسجيل مريض جديد",
       "registerPatientHint": "أضف مريضاً جديداً وعيّن له طبيباً",
       "bookAppointment": "حجز موعد",
-      "bookAppointmentHint": "جدولة زيارة لمريض مسجّل"
+      "bookAppointmentHint": "جدولة زيارة لمريض مسجّل",
+      "newWalkIn": "مريض بدون موعد",
+      "newWalkInHint": "سجّل مريضاً بدون موعد وأضفه إلى قائمة الانتظار"
     },
     "timeline": {
       "emptyTitle": "لا مواعيد مجدولة اليوم",

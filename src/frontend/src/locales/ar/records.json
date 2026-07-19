@@ -2,6 +2,7 @@
   "title": "السجلات الطبية",
   "newRecord": "سجل جديد",
   "diagnosis": "التشخيص",
+  "chiefComplaint": "الشكوى الرئيسية",
   "prescription": "الوصفة الطبية",
   "notes": "ملاحظات",
   "noRecords": "لا توجد سجلات طبية",
@@ -10,6 +11,8 @@
   "backToList": "العودة إلى السجلات",
   "list": {
     "columns": {
+      "patient": "المريض",
+      "fileNo": "رقم الملف",
       "date": "التاريخ",
       "diagnosis": "التشخيص",
       "lastUpdated": "آخر تحديث",
@@ -72,6 +75,8 @@
     "validation": {
       "patientIdRequired": "معرّف المريض مطلوب",
       "patientIdInvalid": "أدخل معرّف مريض صالح (UUID)",
+      "chiefComplaintRequired": "الشكوى الرئيسية مطلوبة",
+      "chiefComplaintMax": "يجب ألا تتجاوز الشكوى الرئيسية 2000 حرف",
       "diagnosisRequired": "التشخيص مطلوب",
       "diagnosisMax": "يجب ألا يتجاوز التشخيص 2000 حرف",
       "prescriptionMax": "يجب ألا تتجاوز الوصفة الطبية 2000 حرف",

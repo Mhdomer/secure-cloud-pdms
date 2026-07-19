@@ -24,7 +24,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
 import { useLanguage } from '@/hooks/useLanguage'
-import { doctorsApi } from '@/lib/api'
+import { departmentsApi, doctorsApi } from '@/lib/api'
+import { departmentLabel } from '@/types/department'
 import type { DoctorAvailabilitySlot } from '@/types/doctor'
 
 const DAYS_OF_WEEK = [0, 1, 2, 3, 4, 5, 6]
@@ -46,12 +47,18 @@ export default function DoctorAvailabilityPage() {
   const { doctorId } = useParams<{ doctorId: string }>()
   const { t } = useTranslation('doctors')
   const { t: tCommon } = useTranslation('common')
+  const { currentLang } = useLanguage()
 
   const { data: doctorsData, isLoading: doctorsLoading } = useQuery({
     queryKey: ['doctors', 'active'],
     queryFn: () => doctorsApi.listActive(),
   })
   const doctor = doctorsData?.doctors.find((d) => d.doctorId === doctorId)
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => departmentsApi.list(),
+  })
+  const departments = departmentsData?.departments ?? []
 
   const {
     data: availabilityData,
@@ -90,7 +97,9 @@ export default function DoctorAvailabilityPage() {
               {doctor.fullName}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {doctor.specialisation ?? t('availabilityPage.title')}
+              {doctor.specialisation
+                ? departmentLabel(departments, doctor.specialisation, currentLang)
+                : t('availabilityPage.title')}
             </p>
           </div>
 
@@ -141,8 +150,13 @@ function DayRow({
           end_time: z.string().min(1),
           slot_minutes: z.string().trim().optional(),
         })
-        .refine((data) => data.start_time < data.end_time, {
-          message: t('availabilityPage.validation.startBeforeEnd'),
+        // end_time <= start_time is a valid overnight shift (e.g. 20:00 to
+        // 01:00 the next day) — real clinic shifts cross midnight, and the
+        // backend's conflict check (utils/availability.js) knows how to
+        // handle the wraparound. Only the zero-length/all-day case (the two
+        // times being identical) is genuinely ambiguous.
+        .refine((data) => data.start_time !== data.end_time, {
+          message: t('availabilityPage.validation.startEqualsEnd'),
           path: ['end_time'],
         }),
     [t],
@@ -208,6 +222,11 @@ function DayRow({
               <span dir="ltr">
                 {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
               </span>
+              {slot.endTime <= slot.startTime && (
+                <span className="ms-1 text-xs italic text-muted-foreground">
+                  ({t('availabilityPage.nextDayHint')})
+                </span>
+              )}
               <span className="mx-1.5 text-neutral-300">·</span>
               {t('availabilityPage.slotMinutesLabel')}: {slot.slotMinutes}
             </span>

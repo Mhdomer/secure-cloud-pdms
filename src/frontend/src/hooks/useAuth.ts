@@ -17,6 +17,7 @@ export function useAuth() {
     isDoctor: user?.role === 'doctor',
     isAdmin: user?.role === 'admin',
     isPatient: user?.role === 'patient',
+    isSuperAdmin: user?.role === 'superadmin',
     setAuth,
     clearAuth,
   }

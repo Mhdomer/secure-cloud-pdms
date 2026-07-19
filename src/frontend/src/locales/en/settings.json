@@ -69,8 +69,8 @@
       "roleLabel": "Role",
       "fullNameLabel": "Full name",
       "fullNameHint": "Required for doctor accounts.",
-      "specialisationLabel": "Specialisation",
-      "specialisationOptional": "Optional, doctor accounts only",
+      "specialisationLabel": "Clinic",
+      "specialisationPlaceholder": "Select clinic",
       "submit": "Create account",
       "submitting": "Creating…",
       "success": "Staff account created for {{username}}.",
@@ -81,7 +81,8 @@
         "tempPasswordUpper": "Temporary password must include at least one uppercase letter",
         "tempPasswordLower": "Temporary password must include at least one lowercase letter",
         "tempPasswordNumber": "Temporary password must include at least one number",
-        "fullNameRequired": "Full name is required for doctor accounts"
+        "fullNameRequired": "Full name is required for doctor accounts",
+        "specialisationRequired": "Clinic is required for doctor accounts"
       }
     },
     "deactivate": {
@@ -99,6 +100,71 @@
       "error": "Could not reactivate this account. Please try again.",
       "confirmTitle": "Reactivate {{name}}'s account?",
       "confirmDescription": "They will be able to log in again immediately."
+    }
+  },
+  "departments": {
+    "title": "Departments",
+    "description": "Manage the clinic's departments — each doctor belongs to exactly one; a department can have many doctors.",
+    "addDepartment": "Add Department",
+    "addDescription": "New departments become available immediately as a doctor's clinic and as a billing category.",
+    "nameEn": "Name (English)",
+    "nameAr": "Name (Arabic)",
+    "doctorCount": "Doctors",
+    "serviceCount": "Services",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "rename": "Rename",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "viewDoctors": "View doctors",
+    "hideDoctors": "Hide doctors",
+    "noDoctors": "No doctors in this department yet.",
+    "loadError": "Could not load departments.",
+    "empty": "No departments yet.",
+    "submitting": "Adding…",
+    "addSuccess": "Department added.",
+    "saveSuccess": "Department updated.",
+    "toggleSuccess": "Department status updated.",
+    "reassignSuccess": "{{name}} moved to the new department.",
+    "reassignError": "Could not reassign this doctor. Please try again.",
+    "deactivateConfirmTitle": "Deactivate {{name}}?",
+    "deactivateConfirmDescription": "Hidden from new doctor/service assignment. Doctors and services already in this department are unaffected, and it can be reactivated later.",
+    "activateConfirmTitle": "Activate {{name}}?",
+    "activateConfirmDescription": "It will be available again for new doctor and service assignment.",
+    "validation": {
+      "nameEnRequired": "English name is required",
+      "nameArRequired": "Arabic name is required"
+    }
+  },
+  "services": {
+    "title": "Services Catalog",
+    "description": "Manage clinic services and prices. Changes apply to all future invoices.",
+    "addService": "Add Service",
+    "code": "Code",
+    "nameEn": "Name (English)",
+    "nameAr": "Name (Arabic)",
+    "category": "Category",
+    "price": "Price (SAR)",
+    "vat": "VAT %",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "edit": "Edit",
+    "saveSuccess": "Service saved",
+    "toggleSuccess": "Service status updated",
+    "searchPlaceholder": "Search by code, name, or category…",
+    "loadError": "Could not load the services catalog.",
+    "empty": "No services in the catalog yet.",
+    "noResults": "No services match your search.",
+    "submitting": "Adding…",
+    "allCategories": "All Categories",
+    "validation": {
+      "codeRequired": "Service code is required",
+      "nameEnRequired": "English name is required",
+      "priceInvalid": "Enter a valid price"
     }
   }
 }

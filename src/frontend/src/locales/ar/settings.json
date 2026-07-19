@@ -77,8 +77,8 @@
       "roleLabel": "الدور",
       "fullNameLabel": "الاسم الكامل",
       "fullNameHint": "مطلوب لحسابات الأطباء.",
-      "specialisationLabel": "التخصص",
-      "specialisationOptional": "اختياري، لحسابات الأطباء فقط",
+      "specialisationLabel": "العيادة",
+      "specialisationPlaceholder": "اختر العيادة",
       "submit": "إنشاء الحساب",
       "submitting": "جارٍ الإنشاء…",
       "success": "تم إنشاء حساب الموظف لـ {{username}}.",
@@ -89,7 +89,8 @@
         "tempPasswordUpper": "يجب أن تحتوي كلمة المرور المؤقتة على حرف كبير واحد على الأقل",
         "tempPasswordLower": "يجب أن تحتوي كلمة المرور المؤقتة على حرف صغير واحد على الأقل",
         "tempPasswordNumber": "يجب أن تحتوي كلمة المرور المؤقتة على رقم واحد على الأقل",
-        "fullNameRequired": "الاسم الكامل مطلوب لحسابات الأطباء"
+        "fullNameRequired": "الاسم الكامل مطلوب لحسابات الأطباء",
+        "specialisationRequired": "العيادة مطلوبة لحسابات الأطباء"
       }
     },
     "deactivate": {
@@ -107,6 +108,71 @@
       "error": "تعذّرت إعادة تفعيل هذا الحساب. الرجاء المحاولة مجدداً.",
       "confirmTitle": "إعادة تفعيل حساب {{name}}؟",
       "confirmDescription": "سيتمكن من تسجيل الدخول مجدداً فوراً."
+    }
+  },
+  "departments": {
+    "title": "الأقسام",
+    "description": "إدارة أقسام العيادة — كل طبيب ينتمي إلى قسم واحد فقط؛ ويمكن أن يضم القسم عدة أطباء.",
+    "addDepartment": "إضافة قسم",
+    "addDescription": "تصبح الأقسام الجديدة متاحة فوراً كعيادة للطبيب وكفئة للفوترة.",
+    "nameEn": "الاسم (إنجليزي)",
+    "nameAr": "الاسم (عربي)",
+    "doctorCount": "الأطباء",
+    "serviceCount": "الخدمات",
+    "status": "الحالة",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "rename": "إعادة تسمية",
+    "activate": "تفعيل",
+    "deactivate": "إيقاف",
+    "viewDoctors": "عرض الأطباء",
+    "hideDoctors": "إخفاء الأطباء",
+    "noDoctors": "لا يوجد أطباء في هذا القسم بعد.",
+    "loadError": "تعذّر تحميل الأقسام.",
+    "empty": "لا توجد أقسام بعد.",
+    "submitting": "جارٍ الإضافة…",
+    "addSuccess": "تمت إضافة القسم.",
+    "saveSuccess": "تم تحديث القسم.",
+    "toggleSuccess": "تم تحديث حالة القسم.",
+    "reassignSuccess": "تم نقل {{name}} إلى القسم الجديد.",
+    "reassignError": "تعذّر نقل هذا الطبيب. الرجاء المحاولة مجدداً.",
+    "deactivateConfirmTitle": "إيقاف {{name}}؟",
+    "deactivateConfirmDescription": "سيُخفى عن قوائم تعيين الأطباء والخدمات الجديدة. الأطباء والخدمات الموجودون فيه بالفعل لن يتأثروا، ويمكن إعادة تفعيله لاحقاً.",
+    "activateConfirmTitle": "تفعيل {{name}}؟",
+    "activateConfirmDescription": "سيصبح متاحاً مجدداً لتعيين الأطباء والخدمات الجديدة.",
+    "validation": {
+      "nameEnRequired": "الاسم الإنجليزي مطلوب",
+      "nameArRequired": "الاسم العربي مطلوب"
+    }
+  },
+  "services": {
+    "title": "قائمة الخدمات",
+    "description": "إدارة خدمات العيادة والأسعار. تُطبَّق التغييرات على جميع الفواتير المستقبلية.",
+    "addService": "إضافة خدمة",
+    "code": "الرمز",
+    "nameEn": "الاسم (إنجليزي)",
+    "nameAr": "الاسم (عربي)",
+    "category": "الفئة",
+    "price": "السعر (ريال)",
+    "vat": "ضريبة القيمة المضافة %",
+    "status": "الحالة",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "activate": "تفعيل",
+    "deactivate": "إيقاف",
+    "edit": "تعديل",
+    "saveSuccess": "تم حفظ الخدمة",
+    "toggleSuccess": "تم تحديث حالة الخدمة",
+    "searchPlaceholder": "ابحث بالرمز أو الاسم أو الفئة…",
+    "loadError": "تعذّر تحميل قائمة الخدمات.",
+    "empty": "لا توجد خدمات في القائمة بعد.",
+    "noResults": "لا توجد خدمات مطابقة لبحثك.",
+    "submitting": "جارٍ الإضافة…",
+    "allCategories": "كل الفئات",
+    "validation": {
+      "codeRequired": "رمز الخدمة مطلوب",
+      "nameEnRequired": "الاسم الإنجليزي مطلوب",
+      "priceInvalid": "أدخل سعراً صالحاً"
     }
   }
 }

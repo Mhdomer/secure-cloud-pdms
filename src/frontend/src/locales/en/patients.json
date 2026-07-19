@@ -1,5 +1,6 @@
 {
   "title": "Patients",
+  "fileNo": "File No.",
   "addPatient": "Add patient",
   "searchPlaceholder": "Search by name or MRN…",
   "mrn": "MRN",
@@ -37,7 +38,7 @@
   "search": {
     "title": "Find a patient",
     "description": "Search by national ID, name, or phone number.",
-    "placeholder": "National ID, name, or phone…",
+    "placeholder": "Search by name, file number, national ID, or phone",
     "hint": "Start typing to search — results appear as you go.",
     "resultsCount_one": "{{count}} result",
     "resultsCount_other": "{{count}} results",
@@ -169,7 +170,14 @@
     "appointments": "Appointments",
     "demographics": "Demographics",
     "invoices": "Invoices",
+    "billing": "Billing",
     "labResults": "Lab Results"
+  },
+  "billingHistoryTab": {
+    "description": "Invoices generated for this patient's visits — distinct from the uploaded documents in the Invoices tab.",
+    "empty": "No invoices yet.",
+    "loadError": "Could not load this patient's billing history. Please try again.",
+    "view": "View / Print"
   },
   "recordsTab": {
     "empty": "No medical records for this patient yet.",

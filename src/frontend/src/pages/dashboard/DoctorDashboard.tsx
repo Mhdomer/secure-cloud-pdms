@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, type Variants } from 'framer-motion'
 import {
   AlarmClock,
@@ -17,7 +17,7 @@ import {
   Timer,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { CountUpNumber } from '@/components/shared/CountUpNumber'
 import { DashboardHeroBanner } from '@/components/shared/DashboardHeroBanner'
@@ -25,15 +25,17 @@ import { DashboardStatCard } from '@/components/shared/DashboardStatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
-import { appointmentsApi, patientsApi, recordsApi } from '@/lib/api'
+import { appointmentsApi, patientsApi, recordsApi, visitsApi } from '@/lib/api'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { getClinicWindow, minutesFromWindowStart } from '@/lib/clinicHours'
 import { todayWindowIso } from '@/lib/dateRange'
-import { cn } from '@/lib/utils'
+import { cn, elapsedMinutesSince } from '@/lib/utils'
 import { useDoctorRoomSettingsStore } from '@/store/doctorRoomSettingsStore'
 import type { Appointment, AppointmentType } from '@/types/appointment'
 import type { Patient } from '@/types/patient'
@@ -345,8 +347,11 @@ function TimelineBlock({ appointment, top, height, expanded, onToggle }: Timelin
 export default function DoctorDashboard() {
   const { t } = useTranslation('dashboard')
   const { t: tCommon } = useTranslation('common')
+  const { t: tVisits } = useTranslation('visits')
+  const { t: tAppointments } = useTranslation('appointments')
   const { currentLang } = useLanguage()
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const now = useMemo(() => new Date(), [])
@@ -391,7 +396,6 @@ export default function DoctorDashboard() {
     [appointments, now],
   )
   const statToday = todaysAppointments.length
-  const statFollowUps = todaysAppointments.filter((a) => a.type === 'follow_up').length
   const nextAppointment = useMemo(
     () => appointments.find((a) => new Date(a.scheduledAt).getTime() > now.getTime()) ?? null,
     [appointments, now],
@@ -409,19 +413,71 @@ export default function DoctorDashboard() {
     queryFn: () => recordsApi.list({ limit: 20 }),
   })
 
+  const queryClient = useQueryClient()
+
+  const {
+    data: queueData,
+    isLoading: queueLoading,
+    isError: queueError,
+  } = useQuery({
+    queryKey: ['visits', 'today', 'mine'],
+    // listToday forces v.doctor_id = the session's own doctorId for a
+    // doctor-role session server-side (visitsController.js) — a doctor can
+    // never see another doctor's queue here regardless of what this call
+    // sends, so there's no patient_id/doctor_id param to spoof.
+    queryFn: () => visitsApi.listToday(),
+    refetchInterval: 30_000,
+  })
+  const visits = queueData?.visits ?? []
+  // At most one in_progress visit at a time in practice — the backend never
+  // enforces this (a doctor could in theory PATCH a second visit to
+  // in_progress directly against the API), but the UI only ever starts one.
+  const inProgressVisits = visits.filter((v) => v.status === 'in_progress')
+  const waitingVisits = visits.filter((v) => v.status === 'waiting')
+  const doneToday = visits.filter((v) => v.status === 'completed' || v.status === 'billed')
+
+  // Same appointments-only blind spot the "Next Patient" card had: a
+  // walk-in visit tagged visit_type='follow_up' (NewWalkInDialog's Reason
+  // for Visit) never showed up here since this only ever looked at
+  // scheduled appointments. `visits` is already today-only (listToday's own
+  // date range), so no extra date filter needed for the walk-in half.
+  const statFollowUps =
+    todaysAppointments.filter((a) => a.type === 'follow_up').length +
+    visits.filter((v) => v.visitType === 'follow_up').length
+
+  // Doctor's own "start" transition — moves the visit to in_progress, then
+  // hands off to ConsultationPage, where the rest of the visit's work
+  // (services, notes, prescription, "done") happens.
+  const startMutation = useMutation({
+    mutationFn: (visitId: string) => visitsApi.updateStatus(visitId, 'in_progress'),
+    onSuccess: (_data, visitId) => {
+      queryClient.invalidateQueries({ queryKey: ['visits', 'today', 'mine'] })
+      navigate(`/visits/${visitId}/consult`)
+    },
+    onError: () => toast.error(tVisits('todaysVisits.statusUpdateError')),
+  })
+
   // "Patients Seen" can't come from appointment status: listForDoctor (the
   // query above) only ever returns scheduled/confirmed/arrived rows, never
   // 'completed' (see that query's own comment) — filtering on status here
-  // would always read 0. A written medical record is a real, direct signal
-  // a visit happened, so this counts today's records instead — same
-  // already-fetched `recentRecordsPage`, no extra request.
-  const statPatientsSeen = useMemo(
-    () =>
-      (recentRecordsPage?.records ?? []).filter((record) =>
-        isSameCalendarDay(new Date(record.createdAt), now),
-      ).length,
-    [recentRecordsPage, now],
-  )
+  // would always read 0. A written medical record is one real signal a
+  // visit happened, but it's not the only one: a walk-in visit can now be
+  // completed via ConsultationPage without the doctor ever adding a medical
+  // record (e.g. a service-only visit) — that visit is still a patient seen
+  // today, so this unions today's records with today's completed/billed
+  // walk-in visits, deduped by patient, rather than counting records alone.
+  const statPatientsSeen = useMemo(() => {
+    const seenPatientIds = new Set<string>()
+    for (const record of recentRecordsPage?.records ?? []) {
+      if (record.patientId && isSameCalendarDay(new Date(record.createdAt), now)) {
+        seenPatientIds.add(record.patientId)
+      }
+    }
+    for (const visit of doneToday) {
+      seenPatientIds.add(visit.patientId)
+    }
+    return seenPatientIds.size
+  }, [recentRecordsPage, doneToday, now])
 
   const recentPatientEntries = useMemo(() => {
     const records = recentRecordsPage?.records ?? []
@@ -654,6 +710,135 @@ export default function DoctorDashboard() {
         </motion.div>
       )}
 
+      <motion.div variants={sectionFade}>
+        <Card className="p-5">
+          <SectionHeading>{t('doctor.todaysQueue.heading')}</SectionHeading>
+          <div className="mt-4">
+            {queueLoading ? (
+              <div className="flex flex-col gap-3">
+                {[0, 1, 2].map((i) => (
+                  <span key={i} className="h-16 w-full animate-pulse rounded-lg bg-neutral-200" />
+                ))}
+              </div>
+            ) : queueError ? (
+              <p className="text-sm text-danger-600">{t('doctor.todaysQueue.loadError')}</p>
+            ) : (
+              <div className="flex flex-col gap-6">
+                {inProgressVisits.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t('doctor.todaysQueue.inProgressHeading', { count: inProgressVisits.length })}
+                    </h3>
+                    {inProgressVisits.map((v) => (
+                      <Link
+                        key={v.visitId}
+                        to={`/visits/${v.visitId}/consult`}
+                        className="flex items-center justify-between rounded-lg border-2 border-primary-200 bg-primary-50/50 px-4 py-3 transition-colors duration-150 ease-out hover:bg-primary-100/50"
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="w-8 text-center text-2xl font-black text-primary-700" dir="ltr">
+                            {v.queueNo}
+                          </span>
+                          <div>
+                            <p className="font-medium text-foreground" dir="auto">
+                              {v.patientName}
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-mono text-xs text-muted-foreground" dir="ltr">
+                                {t('doctor.todaysQueue.fileNoLine', { fileNo: v.fileNo })}
+                              </p>
+                              {v.visitType && (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  {tAppointments(`types.${v.visitType}`)}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center gap-0.5 text-sm font-medium text-primary-700">
+                          {t('doctor.todaysQueue.inConsultationLink')}
+                          <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t('doctor.todaysQueue.waitingHeading', { count: waitingVisits.length })}
+                  </h3>
+                  {waitingVisits.map((v) => (
+                    <div
+                      key={v.visitId}
+                      className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="w-8 text-center text-2xl font-black text-primary-700" dir="ltr">
+                          {v.queueNo}
+                        </span>
+                        <div>
+                          <p className="font-medium text-foreground" dir="auto">
+                            {v.patientName}
+                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-mono text-xs text-muted-foreground" dir="ltr">
+                              {t('doctor.todaysQueue.fileNoLine', { fileNo: v.fileNo })}
+                            </p>
+                            {v.visitType && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                {tAppointments(`types.${v.visitType}`)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground" dir="ltr">
+                          {t('doctor.todaysQueue.waitingSince', {
+                            minutes: elapsedMinutesSince(v.checkedInAt),
+                          })}
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={inProgressVisits.length > 0 || startMutation.isPending}
+                          onClick={() => startMutation.mutate(v.visitId)}
+                        >
+                          {t('doctor.todaysQueue.startButton')}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {waitingVisits.length === 0 && (
+                    <p className="text-sm text-muted-foreground">{t('doctor.todaysQueue.noPatientsWaiting')}</p>
+                  )}
+                </div>
+
+                {doneToday.length > 0 && (
+                  <details className="text-sm">
+                    <summary className="cursor-pointer text-muted-foreground">
+                      {t('doctor.todaysQueue.seenTodayHeading', { count: doneToday.length })}
+                    </summary>
+                    <div className="mt-2 flex flex-col gap-1 ps-2">
+                      {doneToday.map((v) => (
+                        <span key={v.visitId} className="flex items-center gap-1.5 text-muted-foreground">
+                          <span className="font-mono" dir="ltr">
+                            #{v.queueNo}
+                          </span>
+                          <span aria-hidden="true">—</span>
+                          <span dir="auto">{v.patientName}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+      </motion.div>
+
       <motion.div variants={sectionFade} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
           <SectionHeading>{t('doctor.timeline.heading')}</SectionHeading>
@@ -723,6 +908,13 @@ export default function DoctorDashboard() {
             <div className="mt-4">
               {nextAppointment ? (
                 <PatientSummaryCard patientId={nextAppointment.patientId} />
+              ) : waitingVisits[0] ? (
+                // No scheduled appointment coming up, but there's a walk-in
+                // queue — this card was appointment-only before the walk-in
+                // queue existed, so it always read empty on a walk-in-only
+                // day even with patients waiting. Falls back to the next
+                // waiting visit (already queue_no-ordered by listToday).
+                <PatientSummaryCard patientId={waitingVisits[0].patientId} />
               ) : (
                 <EmptyState
                   title={t('doctor.patientSummary.emptyTitle')}

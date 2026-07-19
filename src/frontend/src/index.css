@@ -121,3 +121,26 @@
     @apply animate-fade-in;
   }
 }
+
+/* ── Print isolation (InvoicePage) ─────────────────────────────────────── */
+/* `visibility`, not `display`: hiding an ancestor with `display: none` also
+   removes its descendants from the render tree, so a child can't override
+   it back to visible no matter how it's styled. `visibility: hidden` has no
+   such effect on children — a `visible` descendant still renders even
+   inside a `hidden` ancestor, which is what lets #invoice-print-area show
+   through while everything else on the page disappears. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #invoice-print-area,
+  #invoice-print-area * {
+    visibility: visible;
+  }
+  #invoice-print-area {
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0;
+    width: 100%;
+  }
+}

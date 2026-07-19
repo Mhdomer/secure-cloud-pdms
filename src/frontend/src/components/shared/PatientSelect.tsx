@@ -126,7 +126,10 @@ export function PatientSelect({
                   {initialsFor(patient.fullName)}
                 </span>
                 <span className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-medium text-foreground">{patient.fullName}</span>
+                  <span className="truncate text-sm font-medium text-foreground">
+                    <span className="font-mono text-xs text-muted-foreground me-1.5">#{patient.fileNo}</span>
+                    {patient.fullName}
+                  </span>
                   <span className="truncate text-xs text-muted-foreground" dir="ltr">
                     {patient.nationalId ?? ''}
                     {patient.contactNumber ? ` · ${patient.contactNumber}` : ''}

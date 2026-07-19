@@ -4,10 +4,12 @@ import { Badge, type BadgeProps } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 /**
- * Every status value used across account status (`active`/`inactive`) and
+ * Every status value used across account status (`active`/`inactive`),
  * appointment status (`scheduled`/`confirmed`/`arrived`/`completed`/
  * `cancelled` — matches `AppointmentStatus` in `types/appointment.ts`
- * exactly). `pending` is kept for forward-compatibility with `common.json`'s
+ * exactly), and `visit_invoices.status` (`draft`/`pending_billing`/`paid`/
+ * `partial` — `cancelled`/`completed` are shared with appointments, same
+ * meaning). `pending` is kept for forward-compatibility with `common.json`'s
  * existing key but nothing in the current API surface produces it.
  * Matches `common.json`'s `status.*` keys.
  */
@@ -20,6 +22,10 @@ export type Status =
   | 'arrived'
   | 'cancelled'
   | 'completed'
+  | 'draft'
+  | 'pending_billing'
+  | 'paid'
+  | 'partial'
 
 const STATUS_VARIANT: Record<Status, NonNullable<BadgeProps['variant']>> = {
   active: 'success',
@@ -33,6 +39,10 @@ const STATUS_VARIANT: Record<Status, NonNullable<BadgeProps['variant']>> = {
   pending: 'warning',
   inactive: 'secondary',
   cancelled: 'danger',
+  draft: 'secondary',
+  pending_billing: 'warning',
+  paid: 'success',
+  partial: 'warning',
 }
 
 interface StatusBadgeProps {

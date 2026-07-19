@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
-import { UserPlus } from 'lucide-react'
+import { FolderOpen, UserPlus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
@@ -330,6 +330,14 @@ export function RegisterPatientDialog({ trigger }: RegisterPatientDialogProps = 
                 {t('credentialsPanel.description', { username: result.username })}
               </DialogDescription>
             </DialogHeader>
+
+            <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2">
+              <FolderOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <span className="text-sm text-muted-foreground">{t('fileNo')}</span>
+              <span className="text-lg font-mono font-bold tracking-wide text-foreground">
+                {result.fileNo}
+              </span>
+            </div>
 
             <SetupQrPanel qrCode={result.qrCode} setupUrl={result.setupUrl} expiresAt={result.expiresAt} />
 

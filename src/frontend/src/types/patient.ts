@@ -11,6 +11,7 @@ export type PreferredLanguage = 'en' | 'ar'
  */
 export interface Patient {
   patientId: string
+  fileNo: number
   fullName: string
   dateOfBirth: string // ISO date string
   gender: Gender | null
@@ -62,6 +63,7 @@ export interface CreatePatientPayload {
 export interface RegisterPatientResponse {
   patientId: string
   fullName: string
+  fileNo: number
   assignedDoctorId: string
   username: string
   qrCode: string
@@ -115,6 +117,7 @@ export interface UpdatePatientResponse extends Omit<Patient, 'assignedDoctorId' 
  */
 export interface PatientSearchResult {
   patientId: string
+  fileNo: number
   fullName: string
   nationalId: string | null
   contactNumber: string | null
