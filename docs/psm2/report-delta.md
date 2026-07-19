@@ -936,6 +936,250 @@ references, not just Staff's):
 
 ---
 
+## Sprint 3c — Patient File Number (رقم الملف)
+
+---
+
+### [DELTA-024] Human-readable sequential patient file number added alongside the UUID patient_id
+
+| Field | Value |
+|---|---|
+| **Category** | DB Schema / Functionality / API / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — code complete; DB migration run + `psql` spot-check still owed (no local Postgres available in this session) |
+
+**What changed:**
+The clinic's real paper/invoice workflow identifies a patient by a short
+sequential number (e.g. `13167`, رقم الملف) printed on every physical
+document — staff cannot use the system's UUID `patient_id` for this at all.
+Added `patients.file_no`, an auto-assigned `INTEGER UNIQUE NOT NULL` backed
+by a new `patient_file_no_seq` sequence starting at 10001 (so existing demo
+data reads as a realistic clinic). Staff never type it; the system assigns
+it at registration (`DEFAULT nextval(...)`) and existing rows were backfilled
+in registration order. Indexed (`idx_patients_file_no`) since it's now a
+search key, not just a display field.
+
+Backend: `file_no` added to every `patients` SELECT/RETURNING clause used by
+`Patient.findById`/`search`/`register`/`update` (`src/backend/src/models/
+Patient.js`) and surfaced as `fileNo` in the corresponding
+`patientsController.js` responses (register/search/view/update). The admin
+patient-search endpoint (`GET /patients?q=`) was extended to also match an
+exact `file_no` alongside its existing national-ID-exact / name-substring /
+phone-prefix modes — typing a 5-digit file number now jumps straight to that
+patient, the same way typing a national ID already did.
+
+Frontend: `fileNo` added to the `Patient`, `PatientSearchResult`, and
+`RegisterPatientResponse` types (`UpdatePatientResponse` inherits it via its
+existing `Omit<Patient, ...>`). Five UI touchpoints surface it: a badge below
+the patient's name on the profile header (`PatientSummary.tsx`); a prominent
+block above the QR code on the registration success screen (`Register
+PatientDialog.tsx` — staff need it immediately to write on physical
+paperwork); inline before the name in both the admin search result list
+(`PatientLookupPage.tsx`) and the shared `PatientSelect` combobox used by
+every "pick a patient" form in the app (appointments, records, invoices);
+and the search placeholder text now mentions file number as a valid search
+term (EN/AR). New `patients.fileNo` i18n key ("File No." / "رقم الملف").
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "The system shall auto-assign a sequential, human-readable file number to every patient at registration, displayed alongside (not replacing) the internal patient ID" |
+| Chapter 4 | §4.x ER Diagram | Add `file_no` (INTEGER, UNIQUE, NOT NULL) to the patients entity; note the backing `patient_file_no_seq` sequence |
+| Chapter 4 | §4.x API Design | Extend the `GET /patients?q=` description: search now matches national ID (exact) / name (substring) / phone (prefix) / file number (exact) |
+| Chapter 4 | §4.x UI Design / Screen Designs | Note the file-number badge on the patient profile header, its prominence on the registration success screen, and its appearance in both the search result list and the shared patient picker |
+| Chapter 4 | §4.x Design Decisions | Document the two-identifier rationale: UUID stays the internal DB key (never shown), file number is the clinic's real-world, paper-compatible identifier — a third layer alongside the DELTA-005 national-ID identifier, addressing a different need (staff cannot write a UUID on an invoice) |
+
+---
+
+## Sprint 3c — Walk-in Queue, Billing Engine, and Clinic Services Catalog
+
+---
+
+### [DELTA-025] Clinic services price catalog added — superadmin-managed, admin read-only
+
+| Field | Value |
+|---|---|
+| **Category** | DB Schema / Functionality / UI / Security |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented |
+
+**What changed:**
+New `clinic_services` table (`code_no`, `name_en`, `name_ar`, `category`, `price`,
+`is_active`) backs a price/service catalog the walk-in billing flow (DELTA-026/027)
+draws from. Write access was originally scoped to both Admin and Superadmin, then
+narrowed to **superadmin-only** after user feedback that reception staff editing
+prices directly is "against the integrity of the place" — Admin (Staff) now has
+read-only access, the same trust boundary already drawn around account management
+(DELTA-004). Surfaced as its own sidebar-linked `/catalog` page rather than a
+Settings tab, after a second round of feedback that staff wouldn't think to check
+Settings for something they need to reference constantly mid-shift.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "Superadmin shall manage the clinic's service/price catalog; Staff and Doctor roles may view it read-only" |
+| Chapter 4 | §4.x ER Diagram | Add `clinic_services` entity |
+| Chapter 4 | §4.x RBAC / Access Control Design | Add `clinic_services` row to the matrix: superadmin full CRUD, admin/doctor read-only |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the `/catalog` screen; note it as a dedicated sidebar page rather than a Settings tab, and why |
+
+---
+
+### [DELTA-026] Walk-in patient visit & queue system — doctor-only consultation status
+
+| Field | Value |
+|---|---|
+| **Category** | DB Schema / Functionality / UI / Security / Use Case |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented |
+
+**What changed:**
+New `visits` table gives the clinic a same-day walk-in queue independent of the
+appointment system — staff check a walk-in patient in against an assigned doctor
+and get back a daily sequential queue number (`queue_no`, assigned via the same
+SERIALIZABLE-guarded read-then-insert pattern `appointmentsController.js` already
+used, to stay race-safe under concurrent check-ins). New `/visits` staff screen
+(`TodaysVisitsPage`) plus a "Today's Queue" panel promoted to the top of
+`DoctorDashboard`.
+
+The status-transition ownership was corrected mid-build after user feedback: the
+original design had staff mark `waiting→in_progress` and `in_progress→completed`
+from the front desk, but staff aren't physically present with the doctor and have
+no way to know when a patient actually enters or leaves the consultation room.
+Both transitions were moved to be doctor-only and are rejected **server-side**, not
+just hidden client-side, if attempted from an admin session
+(`visitsController.updateStatus`). Staff's role narrowed to creating the visit at
+check-in; the final `completed→billed` transition later became server-only as part
+of the billing engine (DELTA-027) — it now happens automatically once payment is
+collected, rather than via any manual staff action.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR for walk-in check-in + queue numbering, and the doctor-only consultation-status rule |
+| Chapter 4 | §4.x Use Case Diagram | Add a walk-in check-in use case (Staff actor) and a mark-in-progress/mark-complete use case (Doctor actor) |
+| Chapter 4 | §4.x ER Diagram | Add `visits` entity (`queue_no`, `status`, `doctor_id`, `patient_id`, `checked_in_at`) |
+| Chapter 4 | §4.x RBAC / Access Control Design | Document that visit status transitions are role-and-ownership gated at the API layer, not just UI-hidden — staff cannot advance a visit past "waiting" even via a direct API call |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add `TodaysVisitsPage` and the Doctor Dashboard's Today's Queue panel |
+
+---
+
+### [DELTA-027] Billing engine — consultation-time item entry, staff discounting, and a print-ready bilingual invoice
+
+| Field | Value |
+|---|---|
+| **Category** | DB Schema / Functionality / UI / Security / API / Use Case |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — backend syntax-checked and dev-server smoke-tested; full in-browser click-through not yet performed (no test credentials available in the implementing session) |
+
+**What changed:**
+New `visit_invoices`/`invoice_items` tables complete the walk-in flow started by
+DELTA-026: while a patient is `in_progress`, the doctor adds priced services from
+the clinic services catalog (DELTA-025) and free-text prescription notes directly
+from the Doctor Dashboard's active-consultation card, then marks the patient done —
+this auto-creates a `draft` invoice on the first item added and flips it to
+`pending_billing` on completion, transitioning the visit to `completed` in the same
+step. Staff then open a dedicated review screen (`BillVisitPage`,
+`/visits/:visitId/bill`) to apply a per-item discount percentage, choose a payment
+method (cash/card/insurance, with a conditional insurance-company field), and
+collect payment (`payInvoice`) — which is also the only place `visits.status` is
+ever set to `billed`. All money math (subtotal, discount, net, 15% VAT, grand
+total) is computed server-side (`utils/invoiceCalc.js`) and re-fetched after every
+discount edit, so the totals shown to staff are never a client-side approximation
+that could drift from what's actually stored.
+
+A "Generate Invoice" action on the billing screen opens a new print-ready invoice
+page (`InvoicePage`, `/visits/:visitId/invoice`) matching the clinic's real paper
+Simplified Tax Invoice format — cross-checked field-by-field against a scanned real
+invoice (`docs/real_samples/real_sample_invoice.pdf`) rather than a generic receipt
+layout — showing File No, ID No, Inv. No, Doctor, Clinic, Date, itemized services,
+totals, and payment summary, all bilingually (English + Arabic together)
+regardless of the viewer's app-language setting, matching how the physical
+document actually prints.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FRs: doctor records billable services + notes during consultation; staff applies discounts and collects payment; system generates a print-ready bilingual tax invoice |
+| Chapter 4 | §4.x ER Diagram | Add `visit_invoices`/`invoice_items` entities (incl. `invoice_no_seq` starting at 900001, VAT/discount/net/total columns) |
+| Chapter 4 | §4.x Use Case Diagram | Add a consultation-billing use case (Doctor actor) and a payment-collection use case (Staff actor) |
+| Chapter 4 | §4.x RBAC / Access Control Design | Add a billing endpoint role table: doctor (add/remove items, mark done), admin (discount, pay), both (read-only view) |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the interactive Doctor Dashboard consultation card, `BillVisitPage`, and the print-ready `InvoicePage`; note the invoice page as the one screen in the system that deliberately does not follow the app's normal language-toggle convention — it always renders both languages, matching a physical bilingual document |
+| Chapter 4 | §4.x Data Design | Note server-side-only money calculation (`invoiceCalc.js`) as a data-integrity decision — clients never compute or submit totals |
+
+---
+
+### [DELTA-028] Billing history surfaced to patients and to staff/doctor on the patient profile — the billing engine (DELTA-027) had no UI reachable from either
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI / Security / API |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — backend verified by calling the controller directly with simulated sessions (admin/treating-doctor/unrelated-doctor/owning-patient/other-patient), frontend verified live in-browser as admin |
+
+**What changed:**
+User-reported bug: staff generated a bill and collected payment through the
+DELTA-027 billing flow, then couldn't find it anywhere — not on the
+patient's profile, not in the patient's own portal, not for the treating
+doctor. Root cause: DELTA-027 built `visit_invoices`/`invoice_items` and the
+print-ready `/visits/:visitId/invoice` page, but nothing ever queried those
+tables from `PatientProfilePage` or exposed them to a patient session —
+the money was recorded correctly, it was just invisible outside the exact
+visit URL. This is a distinct problem from DELTA-020 (which added a patient
+self-view for a *different*, older table, `patient_invoices` — staff-uploaded
+scanned documents/consent forms, unrelated to the structured billing data
+here).
+
+Fix, by explicit user request (see conversation — "go with your
+recommendation" for the billing-history list, plus "add invoices sidebar
+tab" and "billing history... should be adhering to doctors and staff as
+well... they can download it"):
+- New `GET /patients/:patientId/billing` (admin/doctor, doctor scoped to
+  visits they themselves treated) and `GET /billing/mine` (patient, own
+  history, `draft` status excluded — nothing to show a patient for an
+  in-progress consultation).
+- `assertOwnVisit` (the same ownership guard `addItem`/`removeItem`/etc.
+  already used for doctor scoping) extended to also check patient
+  ownership, and `GET /visits/:visitId/invoice` opened to
+  `ROLES.PATIENT` — without this, any patient could have viewed any other
+  patient's invoice just by changing the URL, since `visit_invoices` has no
+  RLS (app-layer scoping only, per DELTA-027/DELTA-026's own design).
+- New "Billing" tab on `PatientProfilePage` (admin/doctor) and a new
+  `/invoices` page + sidebar nav item for patients (two sections: "Billing"
+  — this new data — and "Documents" — DELTA-020's existing
+  `patient_invoices` self-view, reused as-is). Each row links to the
+  existing `/visits/:visitId/invoice` print page rather than introducing a
+  separate download mechanism — that page already has a working Print
+  button that produces a real PDF via the browser's print dialog.
+- `StatusBadge` (`components/shared/StatusBadge.tsx`) extended to cover
+  `visit_invoices.status` values (`draft`/`pending_billing`/`paid`/`partial`)
+  instead of adding a parallel badge component.
+
+**Bug found and fixed during backend verification:** none in the new code,
+but confirming a positive case (an owning patient successfully viewing
+their own invoice) required using that patient's *real* `user_id` — an
+early test with a fake one silently 404'd because `patients` RLS
+(`patient_select_own`) matches on `user_id`, not `patient_id`, and the
+`GET /visits/:visitId/invoice` query inner-joins `patients`. Worth noting
+as a testing gotcha for this table, not a code defect: a wrong `user_id` in
+a simulated session looks identical to "not authorized," which is the
+correct behavior, just easy to misdiagnose as a bug in a hurry.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FRs: "A patient shall be able to view and print their own billing history" and "Staff/doctor shall be able to view a specific patient's billing history from their profile" |
+| Chapter 4 | §4.x RBAC / Access Control Design | Add the billing-history rows to the role table from DELTA-027: doctor (own-treated visits only), admin (all), patient (own, non-draft only) |
+| Chapter 4 | §4.x Security Design | Document `assertOwnVisit`'s patient-ownership branch as the only thing preventing one patient from reading another's invoice by URL, since `visit_invoices` carries no RLS |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the Patient Profile "Billing" tab and the patient-facing `/invoices` page (Billing + Documents sections); note it is a separate nav item from `/records`, not a third tab there, because it needed to be easy to find |
+| Chapter 4 | §4.x Navigation / Routing design | Add `/invoices` as a patient-only route |
+
+---
+
 ## How to use this file
 
 1. After each sprint ends, check this file before editing the report.
@@ -945,4 +1189,4 @@ references, not just Staff's):
 
 ---
 
-*Last updated: Sprint 3c (2026-07-18)*
+*Last updated: Sprint 3c — DELTA-028 (2026-07-19)*
