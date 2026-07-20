@@ -26,6 +26,14 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="min-h-screen bg-neutral-50">
       <Sidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} />
+      {/* App Shell Global Dashboard Watermark */}
+      <div className="pointer-events-none fixed end-6 bottom-6 z-0 opacity-[0.07] select-none">
+        <img
+          src="/clinic/brand-emblem-mark.png"
+          alt=""
+          className="h-[480px] w-auto object-contain"
+        />
+      </div>
       <div
         className={cn(
           'flex min-h-screen flex-col transition-[margin] duration-150 ease-out',

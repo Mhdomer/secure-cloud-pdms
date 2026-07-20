@@ -119,15 +119,15 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
   if (!role) return null
   const items: NavItem[] = activeVisit
     ? [
-        NAV_BY_ROLE[role][0],
-        {
-          to: `/visits/${activeVisit.visitId}/consult`,
-          labelKey: 'continueConsultation',
-          icon: Stethoscope,
-          highlight: true,
-        },
-        ...NAV_BY_ROLE[role].slice(1),
-      ]
+      NAV_BY_ROLE[role][0],
+      {
+        to: `/visits/${activeVisit.visitId}/consult`,
+        labelKey: 'continueConsultation',
+        icon: Stethoscope,
+        highlight: true,
+      },
+      ...NAV_BY_ROLE[role].slice(1),
+    ]
     : NAV_BY_ROLE[role]
   const ToggleIcon = collapsed ? ChevronsRight : ChevronsLeft
 
@@ -148,11 +148,23 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
     <TooltipProvider delayDuration={200}>
       <aside
         className={cn(
-          'fixed inset-y-0 start-0 z-30 flex flex-col border-e border-border bg-neutral-100 transition-[width] duration-150 ease-out',
+          'fixed inset-y-0 start-0 z-30 flex flex-col border-e border-border bg-neutral-100 transition-[width] duration-150 ease-out overflow-hidden',
           collapsed ? 'w-16' : 'w-60',
         )}
       >
-        <div className="flex h-16 items-center justify-between px-4">
+        {/* Background Brand Emblem Watermark */}
+        <div className="absolute inset-x-0 bottom-0 pointer-events-none select-none overflow-hidden opacity-15 flex items-end justify-center pb-3 z-0">
+          <img
+            src="/clinic/brand-emblem-mark.png"
+            alt=""
+            className={cn(
+              'w-auto object-contain transition-all duration-150',
+              collapsed ? 'h-20 max-w-[80%]' : 'h-40 max-w-[85%]',
+            )}
+          />
+        </div>
+
+        <div className="relative z-10 flex h-16 items-center justify-between px-4">
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -185,7 +197,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
           </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-2 py-2">
+        <nav className="relative z-10 flex flex-1 flex-col gap-1 px-2 py-2">
           {items.map((item) => {
             const link = (
               <NavLink
@@ -215,7 +227,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
           })}
         </nav>
 
-        <div className="border-t border-border p-2">
+        <div className="relative z-10 border-t border-border p-2">
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
