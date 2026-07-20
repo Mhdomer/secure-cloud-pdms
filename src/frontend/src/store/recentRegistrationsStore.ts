@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 
 /** One successful registration, captured at the moment it happens. */
 export interface RecentRegistration {
@@ -56,6 +56,7 @@ export const useRecentRegistrationsStore = create<RecentRegistrationsStore>()(
     }),
     {
       name: 'pdms-recent-registrations',
+      storage: createJSONStorage(() => sessionStorage),
     },
   ),
 )

@@ -16,7 +16,7 @@ function authenticateJWT(req, res, next) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] }, (err, decoded) => {
     if (err) {
       // Generic message regardless of expiry vs. tampering vs. bad
       // signature — do not leak which failure mode occurred.

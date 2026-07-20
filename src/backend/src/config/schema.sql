@@ -853,3 +853,113 @@ CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice   ON invoice_items(invoice_
 GRANT SELECT, INSERT, UPDATE    ON visit_invoices TO pdms_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON invoice_items TO pdms_app;
 GRANT USAGE, SELECT ON SEQUENCE invoice_no_seq TO pdms_app;
+
+-- ── RLS on operational tables (HIGH-03 audit fix) ────────────────────────
+-- visits, visit_invoices, invoice_items, and patient_care_team were missing
+-- database-level RLS. These policies mirror the application-layer RBAC so
+-- a rogue query outside the app layer cannot leak encounter or billing data.
+
+ALTER TABLE visits            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE visit_invoices    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invoice_items     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_care_team ENABLE ROW LEVEL SECURITY;
+
+-- visits -------------------------------------------------------------------
+-- Admin/superadmin see all visits; doctor sees only their own patients'
+-- visits (by direct assignment or via care team); patient sees their own.
+
+CREATE POLICY admin_all_visits ON visits
+  FOR ALL
+  USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
+
+CREATE POLICY doctor_own_visits ON visits
+  FOR ALL
+  USING (
+    current_setting('app.current_role', true) = 'doctor'
+    AND doctor_id = (
+      SELECT doctor_id FROM doctors
+      WHERE user_id = current_setting('app.current_user_id', true)::uuid
+    )
+  );
+
+CREATE POLICY patient_own_visits ON visits
+  FOR SELECT
+  USING (
+    current_setting('app.current_role', true) = 'patient'
+    AND patient_id = current_setting('app.current_patient_id', true)::uuid
+  );
+
+-- visit_invoices -----------------------------------------------------------
+CREATE POLICY admin_all_invoices ON visit_invoices
+  FOR ALL
+  USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
+
+CREATE POLICY doctor_own_invoices ON visit_invoices
+  FOR ALL
+  USING (
+    current_setting('app.current_role', true) = 'doctor'
+    AND doctor_id = (
+      SELECT doctor_id FROM doctors
+      WHERE user_id = current_setting('app.current_user_id', true)::uuid
+    )
+  );
+
+CREATE POLICY patient_own_invoices ON visit_invoices
+  FOR SELECT
+  USING (
+    current_setting('app.current_role', true) = 'patient'
+    AND patient_id = current_setting('app.current_patient_id', true)::uuid
+  );
+
+-- invoice_items ------------------------------------------------------------
+-- Access through the parent invoice: if you can read the invoice you can
+-- read its items. The JOIN to visit_invoices enforces the same scope.
+
+CREATE POLICY admin_all_items ON invoice_items
+  FOR ALL
+  USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
+
+CREATE POLICY doctor_own_items ON invoice_items
+  FOR ALL
+  USING (
+    current_setting('app.current_role', true) = 'doctor'
+    AND invoice_id IN (
+      SELECT invoice_id FROM visit_invoices
+      WHERE doctor_id = (
+        SELECT doctor_id FROM doctors
+        WHERE user_id = current_setting('app.current_user_id', true)::uuid
+      )
+    )
+  );
+
+CREATE POLICY patient_own_items ON invoice_items
+  FOR SELECT
+  USING (
+    current_setting('app.current_role', true) = 'patient'
+    AND invoice_id IN (
+      SELECT invoice_id FROM visit_invoices
+      WHERE patient_id = current_setting('app.current_patient_id', true)::uuid
+    )
+  );
+
+-- patient_care_team --------------------------------------------------------
+CREATE POLICY admin_all_care_team ON patient_care_team
+  FOR ALL
+  USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
+
+CREATE POLICY doctor_own_care_team ON patient_care_team
+  FOR ALL
+  USING (
+    current_setting('app.current_role', true) = 'doctor'
+    AND doctor_id = (
+      SELECT doctor_id FROM doctors
+      WHERE user_id = current_setting('app.current_user_id', true)::uuid
+    )
+  );
+
+-- Apply the new RLS policies to the running database ----------------------
+-- Run this block manually once on the live DB after deploying schema changes:
+--
+--   psql -U postgres -d pdms -f schema.sql
+--
+-- Existing data is unaffected; policies only control future query results.

@@ -124,7 +124,7 @@ async function completeRegistration(req, res) {
 
   let decoded;
   try {
-    decoded = jwt.verify(registrationToken, process.env.JWT_SECRET);
+    decoded = jwt.verify(registrationToken, process.env.JWT_SECRET, { algorithms: ['HS256'] });
   } catch {
     return res.status(401).json({ error: 'Registration session expired or invalid. Please start again.' });
   }
