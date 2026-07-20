@@ -1,4 +1,4 @@
-import { forwardRef, useMemo, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { forwardRef, useMemo, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, type Variants } from 'framer-motion'
 import {
@@ -6,6 +6,7 @@ import {
   CalendarPlus,
   ChevronRight,
   ListOrdered,
+  Search,
   UserCheck,
   UserPlus,
   Users,
@@ -21,6 +22,7 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage, type SupportedLanguage } from '@/hooks/useLanguage'
@@ -155,6 +157,7 @@ interface ScheduleTableRowProps {
  */
 function ScheduleTableRow({ appointment, lang }: ScheduleTableRowProps) {
   const { t } = useTranslation('appointments')
+  const { t: tDash } = useTranslation('dashboard')
   const queryClient = useQueryClient()
 
   const checkinMutation = useMutation({
@@ -172,9 +175,10 @@ function ScheduleTableRow({ appointment, lang }: ScheduleTableRowProps) {
   }).format(new Date(appointment.scheduledAt))
 
   const canCheckIn = appointment.status === 'scheduled' || appointment.status === 'confirmed'
+  const isWaitingInLobby = appointment.status === 'arrived'
 
   return (
-    <tr className="border-b border-border last:border-0 hover:bg-primary-50">
+    <tr className="border-b border-border last:border-0 hover:bg-primary-50/50">
       <td className="whitespace-nowrap py-3 ps-1 pe-3 text-sm text-foreground">{timeLabel}</td>
       <td className="max-w-0 py-3 pe-3 text-sm font-medium text-foreground">
         <span className="flex min-w-0 items-center gap-2">
@@ -183,6 +187,12 @@ function ScheduleTableRow({ appointment, lang }: ScheduleTableRowProps) {
             aria-hidden="true"
           />
           <span className="truncate">{appointment.patientName ?? t('patient')}</span>
+          {isWaitingInLobby && (
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />
+              {tDash('admin.waitingBadge')}
+            </span>
+          )}
         </span>
       </td>
       <td className="max-w-0 truncate py-3 pe-3 text-sm text-muted-foreground">{t(`types.${appointment.type}`)}</td>
@@ -264,6 +274,9 @@ export default function AdminDashboard() {
   const { user } = useAuth()
   const { currentLang } = useLanguage()
 
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState<'all' | 'waiting' | 'inConsultation' | 'completed'>('all')
+
   const now = useMemo(() => new Date(), [])
   const { from, to } = useMemo(() => todayWindowIso(now), [now])
 
@@ -273,13 +286,6 @@ export default function AdminDashboard() {
     isError: appointmentsError,
   } = useQuery({
     queryKey: ['appointments', 'list', { limit: 100, from, to }],
-    // Admin scope (every clinic appointment, across all doctors) is derived
-    // server-side from the session cookie — see appointmentsApi.list's note.
-    // `from`/`to` bound the query to a window around today — listForAdmin has
-    // no status filter at all, so without a date bound, once the clinic has
-    // more than 100 appointments ever recorded (any status), the oldest,
-    // already-completed ones would fill the page and today's real
-    // appointments would silently never show up.
     queryFn: () => appointmentsApi.list({ limit: 100, from, to }),
   })
   const appointments = appointmentsPage?.appointments ?? []
@@ -294,6 +300,30 @@ export default function AdminDashboard() {
       ),
     [todaysAppointments],
   )
+
+  const filteredTodaysAppointments = useMemo(() => {
+    return sortedTodaysAppointments.filter((a) => {
+      if (activeTab === 'waiting' && !(a.status === 'arrived' || a.status === 'scheduled' || a.status === 'confirmed')) {
+        return false
+      }
+      if (activeTab === 'inConsultation' && (a.status as string) !== 'in_progress' && a.status !== 'arrived') {
+        return false
+      }
+      if (activeTab === 'completed' && a.status !== 'completed') {
+        return false
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchesName = a.patientName?.toLowerCase().includes(q)
+        const matchesDoctor = a.doctorName?.toLowerCase().includes(q)
+        const matchesId = a.patientId?.toLowerCase().includes(q)
+        if (!matchesName && !matchesDoctor && !matchesId) return false
+      }
+
+      return true
+    })
+  }, [sortedTodaysAppointments, activeTab, searchQuery])
 
   // Walk-in queue — these stats used to be built purely from scheduled
   // appointments, so on a walk-in-heavy day (no appointments booked, just
@@ -484,7 +514,7 @@ export default function AdminDashboard() {
       </motion.div>
 
       <motion.div variants={sectionFade} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="p-5 lg:col-span-2">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md lg:col-span-2">
           <SectionHeading
             action={
               <Link
@@ -499,7 +529,39 @@ export default function AdminDashboard() {
             {t('admin.todaysSchedule')}
           </SectionHeading>
 
-          <div className="mt-5">
+          {/* Instant Search Bar & Filter Tabs */}
+          <div className="mt-4 flex flex-col gap-3">
+            <div className="relative">
+              <Search className="absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              <Input
+                type="text"
+                placeholder={t('admin.searchPlaceholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="ps-9 bg-white/90 border-slate-200 shadow-none focus-visible:ring-primary-500"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 border-b border-slate-100 pb-3">
+              {(['all', 'waiting', 'inConsultation', 'completed'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150',
+                    activeTab === tab
+                      ? 'bg-primary-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70',
+                  )}
+                >
+                  {t(`admin.tabs.${tab}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4">
             {appointmentsLoading ? (
               <div className="flex flex-col gap-2">
                 {[0, 1, 2].map((i) => (
@@ -508,7 +570,7 @@ export default function AdminDashboard() {
               </div>
             ) : appointmentsError ? (
               <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
-            ) : todaysAppointments.length === 0 ? (
+            ) : filteredTodaysAppointments.length === 0 ? (
               <EmptyState
                 icon={CalendarClock}
                 title={t('admin.timeline.emptyTitle')}
@@ -528,7 +590,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedTodaysAppointments.map((appointment) => (
+                    {filteredTodaysAppointments.map((appointment) => (
                       <ScheduleTableRow
                         key={appointment.appointmentId}
                         appointment={appointment}
@@ -542,7 +604,7 @@ export default function AdminDashboard() {
           </div>
         </Card>
 
-        <Card className="p-5">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">
           <SectionHeading>{t('admin.recentRegistrations.heading')}</SectionHeading>
           <div className="mt-4 flex flex-col gap-3">
             {recentRegistrations.length === 0 ? (

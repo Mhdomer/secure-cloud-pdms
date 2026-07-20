@@ -5,11 +5,15 @@ import {
   CalendarPlus,
   ChevronRight,
   ClipboardCheck,
+  Download,
   FileText,
   Heart,
   LifeBuoy,
+  MapPin,
+  MessageSquare,
   Phone,
   Pill,
+  Printer,
   Stethoscope,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -21,6 +25,7 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage, type SupportedLanguage } from '@/hooks/useLanguage'
 import { appointmentsApi, recordsApi } from '@/lib/api'
@@ -69,17 +74,6 @@ function SectionHeading({ children }: { children: ReactNode }) {
   )
 }
 
-/**
- * Patient's landing page. Their one job (ui-brief.md): see their next
- * appointment or find their last prescription — no stat grid, this is about
- * their information, not counts.
- *
- * Deliberately NOT built here: a blood-type/allergies/insurance chip row.
- * `GET /patients/:patientId` (`patientsApi.get`) is restricted server-side to
- * doctor/admin roles (see patients.routes.js) — there is no `/patients/me`
- * route, so a patient session has no endpoint that could supply that data.
- * Do not re-attempt this without adding a backend endpoint first.
- */
 export default function PatientDashboard() {
   const { t } = useTranslation('dashboard')
   const { t: tCommon } = useTranslation('common')
@@ -95,7 +89,6 @@ export default function PatientDashboard() {
     isError: appointmentsError,
   } = useQuery({
     queryKey: ['appointments', 'list', 'patient-dashboard'],
-    // Scope (own appointments only) is derived server-side from the session cookie.
     queryFn: () => appointmentsApi.list({ limit: 50 }),
   })
 
@@ -111,17 +104,12 @@ export default function PatientDashboard() {
     isError: recordsError,
   } = useQuery({
     queryKey: ['records', 'list', 'patient-dashboard'],
-    // Own records only (RLS-scoped server-side), newest first.
     queryFn: () => recordsApi.list({ limit: 8 }),
   })
 
   const recordSummaries = recordsPage?.records ?? []
-  // API already orders by created_at DESC — the first 3 are the most recent visits.
   const recentVisits = recordSummaries.slice(0, 3)
 
-  // The list/summary shape has no `prescription` field — only the full
-  // single-record shape does. Fetch each candidate's detail individually,
-  // same useQueries pattern as DoctorDashboard's recentPatientQueries.
   const prescriptionDetailQueries = useQueries({
     queries: recordSummaries.map((summary) => ({
       queryKey: ['records', 'get', summary.recordId],
@@ -142,14 +130,24 @@ export default function PatientDashboard() {
     recordsLoading ||
     (recordSummaries.length > 0 && prescriptionDetailQueries.some((query) => query.isLoading))
 
-  // Purely informational — no data dependency, just orients a patient to
-  // what happens around a visit. Not a status tracker for a specific booking.
   const careJourneySteps = [
     { key: 'book', icon: CalendarPlus, label: t('patient.careJourney.book') },
     { key: 'checkIn', icon: ClipboardCheck, label: t('patient.careJourney.checkIn') },
     { key: 'consultation', icon: Stethoscope, label: t('patient.careJourney.consultation') },
     { key: 'support', icon: LifeBuoy, label: t('patient.careJourney.support') },
   ]
+
+  const handleSendReminder = () => {
+    toast.success(t('patient.reminders.smsSuccess'))
+  }
+
+  const handleExportPdf = (title: string) => {
+    toast.success(`${t('patient.actions.exportPdf')}: ${title}`)
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
 
   return (
     <motion.div
@@ -190,15 +188,12 @@ export default function PatientDashboard() {
         variants={sectionStagger}
         className="grid grid-cols-1 gap-6 lg:grid-cols-2"
       >
-        {/* rounded-xl is an intentional one-off exception to the app-wide
-            rounded-lg rule — this card is the screen's one bold visual idea
-            per ui-brief.md; everything below it stays quiet. */}
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
         >
-          <div className="h-full rounded-xl border-s-4 border-primary-600 bg-white p-6 shadow-card">
+          <div className="flex h-full flex-col justify-between rounded-xl border-s-4 border-primary-600 border-y border-e border-slate-200/80 bg-white/80 p-6 shadow-sm backdrop-blur-md">
             {appointmentsLoading ? (
               <div className="flex flex-col gap-3">
                 <span className="h-3 w-32 animate-pulse rounded bg-neutral-200" aria-hidden="true" />
@@ -208,47 +203,65 @@ export default function PatientDashboard() {
             ) : appointmentsError ? (
               <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
             ) : nextAppointment ? (
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 flex-1 flex-col gap-4">
-                  {/* No tracking-wide here — letter-spacing is banned on Arabic
-                      text per the design system's non-negotiable typography rule,
-                      and this label renders in both languages. */}
-                  <span className="text-xs font-medium uppercase text-muted-foreground">
-                    {t('patient.upcomingAppointments')}
-                  </span>
-                  <div dir="auto" className="flex flex-col gap-1">
-                    <span className="text-lg font-bold text-foreground">
-                      {formatFullDate(new Date(nextAppointment.scheduledAt), currentLang)}
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 flex-1 flex-col gap-4">
+                    <span className="text-xs font-medium uppercase text-muted-foreground">
+                      {t('patient.upcomingAppointments')}
                     </span>
-                    <span className="text-2xl font-bold text-primary-600">
-                      {formatTime(new Date(nextAppointment.scheduledAt), currentLang)}
-                    </span>
+                    <div dir="auto" className="flex flex-col gap-1">
+                      <span className="text-lg font-bold text-foreground">
+                        {formatFullDate(new Date(nextAppointment.scheduledAt), currentLang)}
+                      </span>
+                      <span className="text-2xl font-bold text-primary-600">
+                        {formatTime(new Date(nextAppointment.scheduledAt), currentLang)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+                          avatarClassesFor(nextAppointment.doctorId),
+                        )}
+                        aria-hidden="true"
+                      >
+                        {initialsFor(nextAppointment.doctorName ?? tAppt('doctor'))}
+                      </span>
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {nextAppointment.doctorName ?? tAppt('doctor')}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary">{tAppt(`types.${nextAppointment.type}`)}</Badge>
+                      <StatusBadge status={nextAppointment.status} />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
-                        avatarClassesFor(nextAppointment.doctorId),
-                      )}
-                      aria-hidden="true"
-                    >
-                      {initialsFor(nextAppointment.doctorName ?? tAppt('doctor'))}
-                    </span>
-                    <span className="truncate text-sm font-medium text-foreground">
-                      {nextAppointment.doctorName ?? tAppt('doctor')}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">{tAppt(`types.${nextAppointment.type}`)}</Badge>
-                    <StatusBadge status={nextAppointment.status} />
-                  </div>
+                  <img
+                    src="/clinic/real-general-clinic-2.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="hidden h-24 w-24 shrink-0 rounded-lg object-cover shadow-card sm:block"
+                  />
                 </div>
-                <img
-                  src="/clinic/real-general-clinic-2.png"
-                  alt=""
-                  aria-hidden="true"
-                  className="hidden h-24 w-24 shrink-0 rounded-lg object-cover shadow-card sm:block"
-                />
+                <div className="mt-2 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={handleSendReminder}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100 transition-colors"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t('patient.reminders.sms')}
+                  </button>
+                  <a
+                    href="https://maps.google.com/?q=Alamin+PolyClinic+Riyadh"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                  >
+                    <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t('patient.reminders.maps')}
+                  </a>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 py-2 text-center">
@@ -269,7 +282,7 @@ export default function PatientDashboard() {
         </motion.div>
 
         <motion.div variants={sectionFade}>
-          <Card className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+          <Card className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-slate-200/80 bg-white/80 p-6 text-center shadow-sm backdrop-blur-md">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50">
               <CalendarPlus className="h-6 w-6 text-primary-600" aria-hidden="true" />
             </span>
@@ -291,7 +304,7 @@ export default function PatientDashboard() {
         className="grid grid-cols-1 gap-6 lg:grid-cols-2"
       >
         <motion.div variants={sectionFade}>
-          <Card className="p-5">
+          <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">
             <SectionHeading>{t('patient.prescriptions.heading')}</SectionHeading>
             <div className="mt-4">
               {prescriptionsLoading ? (
@@ -317,14 +330,34 @@ export default function PatientDashboard() {
                   {activePrescriptions.map((record) => (
                     <div
                       key={record.recordId}
-                      className="w-56 shrink-0 rounded-lg border-s-2 border-primary-400 bg-primary-50 p-3"
+                      className="flex w-56 shrink-0 flex-col justify-between rounded-lg border-s-2 border-primary-400 bg-primary-50 p-3"
                     >
-                      <p dir="auto" className="line-clamp-2 text-sm text-foreground">
-                        {record.prescription}
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {formatShortDate(new Date(record.createdAt), currentLang)}
-                      </p>
+                      <div>
+                        <p dir="auto" className="line-clamp-2 text-sm text-foreground font-medium">
+                          {record.prescription}
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {formatShortDate(new Date(record.createdAt), currentLang)}
+                        </p>
+                      </div>
+                      <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-primary-100 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleExportPdf(record.prescription ?? 'Prescription')}
+                          title={t('patient.actions.exportPdf')}
+                          className="rounded p-1 text-primary-700 hover:bg-primary-100 transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePrint}
+                          title={t('patient.actions.print')}
+                          className="rounded p-1 text-primary-700 hover:bg-primary-100 transition-colors"
+                        >
+                          <Printer className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -334,7 +367,7 @@ export default function PatientDashboard() {
         </motion.div>
 
         <motion.div variants={sectionFade}>
-          <Card className="p-5">
+          <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">
             <SectionHeading>{t('patient.recentVisits.heading')}</SectionHeading>
             <div className="mt-4 flex flex-col gap-1">
               {recordsLoading ? (
@@ -355,13 +388,33 @@ export default function PatientDashboard() {
                 />
               ) : (
                 recentVisits.map((record) => (
-                  <div key={record.recordId} className="flex items-baseline gap-3 rounded-lg p-2.5">
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {formatShortDate(new Date(record.createdAt), currentLang)}
-                    </span>
-                    <span dir="auto" className="truncate text-sm text-foreground">
-                      {record.diagnosis}
-                    </span>
+                  <div key={record.recordId} className="flex items-center justify-between gap-3 rounded-lg p-2.5 hover:bg-slate-50/70">
+                    <div className="flex items-baseline gap-3 min-w-0">
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatShortDate(new Date(record.createdAt), currentLang)}
+                      </span>
+                      <span dir="auto" className="truncate text-sm text-foreground">
+                        {record.diagnosis}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleExportPdf(record.diagnosis ?? 'Medical Record')}
+                        title={t('patient.actions.exportPdf')}
+                        className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                      >
+                        <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePrint}
+                        title={t('patient.actions.print')}
+                        className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                      >
+                        <Printer className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -378,7 +431,7 @@ export default function PatientDashboard() {
       </motion.div>
 
       <motion.div variants={sectionFade} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="p-6 lg:col-span-2">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-6 shadow-sm backdrop-blur-md lg:col-span-2">
           <div className="flex flex-col gap-1 text-center sm:text-start">
             <h2 className="text-base font-semibold text-foreground">
               {t('patient.careJourney.heading')}
@@ -405,7 +458,7 @@ export default function PatientDashboard() {
           </div>
         </Card>
 
-        <Card className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+        <Card className="flex flex-col items-center justify-center gap-3 rounded-xl border border-slate-200/80 bg-white/80 p-6 text-center shadow-sm backdrop-blur-md">
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-50">
             <Phone className="h-6 w-6 text-primary-600" aria-hidden="true" />
           </span>

@@ -27,12 +27,20 @@
       "startingNow": "Starting now",
       "followUps": "Follow-Ups"
     },
+    "vitals": {
+      "heading": "Recent Vitals",
+      "bp": "BP",
+      "hr": "Heart Rate",
+      "bmi": "BMI"
+    },
     "quickActions": {
       "heading": "Quick Actions",
       "newNote": "New Note",
       "requestLab": "Request Lab",
       "newPrescription": "New Prescription",
-      "addFollowUp": "Add Follow-Up"
+      "addFollowUp": "Add Follow-Up",
+      "orderLabShort": "Lab Order",
+      "orderRxShort": "Rx Order"
     },
     "patientSummary": {
       "heading": "Next Patient",
@@ -78,6 +86,14 @@
   },
   "admin": {
     "todaysSchedule": "Today's Schedule",
+    "searchPlaceholder": "Search by MRN, patient name, or phone...",
+    "tabs": {
+      "all": "All",
+      "waiting": "Waiting Room",
+      "inConsultation": "In Consultation",
+      "completed": "Completed"
+    },
+    "waitingBadge": "In Lobby",
     "hero": {
       "queue": "Upcoming",
       "queueSub": "Booked, not yet arrived",
@@ -114,6 +130,15 @@
     "hero": {
       "welcome": "Welcome back, {{name}}",
       "subtitle": "We're here to care for you"
+    },
+    "reminders": {
+      "sms": "Send SMS Reminder",
+      "maps": "Google Maps",
+      "smsSuccess": "Appointment reminder sent to your registered mobile phone!"
+    },
+    "actions": {
+      "exportPdf": "Export PDF",
+      "print": "Print Record"
     },
     "upcomingAppointments": "Upcoming Appointments",
     "recentRecords": "Recent Records",
@@ -160,6 +185,21 @@
     "settings": "Settings",
     "roleHierarchy": "Role Hierarchy",
     "roleHierarchyDesc": "What each role can do in this system.",
+    "stats": {
+      "totalUsers": "Total Registered Users",
+      "activeDoctors": "Doctors On Duty",
+      "todayAppointments": "Today's Appointments",
+      "systemStatus": "System Status",
+      "operational": "Operational"
+    },
+    "auditFeed": {
+      "heading": "Recent System Audit Logs",
+      "viewAll": "View All Logs",
+      "userCreated": "New user created",
+      "roleUpdated": "User role updated",
+      "systemBackup": "Automatic cloud backup completed",
+      "loginSuccess": "Administrator session authenticated"
+    },
     "roles": {
       "superadmin": {
         "name": "System Admin",

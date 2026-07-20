@@ -27,12 +27,20 @@
       "startingNow": "يبدأ الآن",
       "followUps": "المتابعات"
     },
+    "vitals": {
+      "heading": "المؤشرات الحيوية الأخيرة",
+      "bp": "ضغط الدم",
+      "hr": "نبض القلب",
+      "bmi": "كتلة الجسم"
+    },
     "quickActions": {
       "heading": "إجراءات سريعة",
       "newNote": "ملاحظة جديدة",
       "requestLab": "طلب تحليل",
       "newPrescription": "وصفة طبية جديدة",
-      "addFollowUp": "إضافة متابعة"
+      "addFollowUp": "إضافة متابعة",
+      "orderLabShort": "طلب مختبر",
+      "orderRxShort": "وصف علاج"
     },
     "patientSummary": {
       "heading": "المريض القادم",
@@ -78,6 +86,14 @@
   },
   "admin": {
     "todaysSchedule": "جدول اليوم",
+    "searchPlaceholder": "البحث برقم الملف، اسم المريض، أو الهاتف...",
+    "tabs": {
+      "all": "الكل",
+      "waiting": "غرفة الانتظار",
+      "inConsultation": "قيد الاستشارة",
+      "completed": "مكتمل"
+    },
+    "waitingBadge": "في الانتظار",
     "hero": {
       "queue": "القادمون",
       "queueSub": "محجوزون، لم يصلوا بعد",
@@ -114,6 +130,15 @@
     "hero": {
       "welcome": "أهلاً بعودتك، {{name}}",
       "subtitle": "نحن هنا لرعايتك"
+    },
+    "reminders": {
+      "sms": "إرسال تذكير نصي",
+      "maps": "خرائط جوجل",
+      "smsSuccess": "تم إرسال تذكير بالموعد إلى هاتفك المحمول المسجل!"
+    },
+    "actions": {
+      "exportPdf": "تصدير PDF",
+      "print": "طباعة السجل"
     },
     "upcomingAppointments": "المواعيد القادمة",
     "recentRecords": "السجلات الأخيرة",
@@ -160,6 +185,21 @@
     "settings": "الإعدادات",
     "roleHierarchy": "تسلسل الأدوار",
     "roleHierarchyDesc": "ما يمكن لكل دور القيام به في هذا النظام.",
+    "stats": {
+      "totalUsers": "إجمالي المستخدمين المسجلين",
+      "activeDoctors": "الأطباء المناوبون",
+      "todayAppointments": "مواعيد العيادة اليوم",
+      "systemStatus": "حالة النظام",
+      "operational": "يعمل بكفاءة"
+    },
+    "auditFeed": {
+      "heading": "سجل نشاط النظام الحديث",
+      "viewAll": "عرض كل السجلات",
+      "userCreated": "تم إنشاء حساب جديد",
+      "roleUpdated": "تم تحديث صلاحيات الحساب",
+      "systemBackup": "تم اكتمال النسخ الاحتياطي السحابي بنجاح",
+      "loginSuccess": "تم التوثيق وتسجيل دخول مسؤول النظام"
+    },
     "roles": {
       "superadmin": {
         "name": "مدير النظام",

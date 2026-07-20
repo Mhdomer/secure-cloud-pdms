@@ -523,7 +523,7 @@ exports.listMine = async (req, res) => {
 // string here so the query always takes exactly one date param either way.
 exports.getDailyReport = async (req, res) => {
   const reportDate = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
-  const dayStart = `($1::date AT TIME ZONE 'Asia/Riyadh')`;
+  const dayStart = `($1::timestamp AT TIME ZONE 'Asia/Riyadh')`;
   const dayCondition = `paid_at >= ${dayStart} AND paid_at < ${dayStart} + INTERVAL '1 day'`;
 
   const result = await withTransaction(req.rlsSession, async (client) => {
@@ -584,7 +584,7 @@ exports.getDailyReport = async (req, res) => {
 exports.getDailyInvoices = async (req, res) => {
   const reportDate = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
   const { doctor_id: doctorId, clinic } = req.query;
-  const dayStart = `($1::date AT TIME ZONE 'Asia/Riyadh')`;
+  const dayStart = `($1::timestamp AT TIME ZONE 'Asia/Riyadh')`;
   const conditions = [`vi.paid_at >= ${dayStart}`, `vi.paid_at < ${dayStart} + INTERVAL '1 day'`];
   const params = [reportDate];
 

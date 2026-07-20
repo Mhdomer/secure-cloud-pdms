@@ -10,6 +10,15 @@
  * silently drop fields express-validator doesn't declare).
  */
 
+export interface VitalSigns {
+  bp?: string
+  hr?: string
+  bmi?: string
+  temp?: string
+  weight?: string
+  height?: string
+}
+
 /** Fields common to every list endpoint (`GET /records`, `GET /patients/:id/records`). */
 export interface MedicalRecordSummary {
   recordId: string
@@ -21,6 +30,9 @@ export interface MedicalRecordSummary {
    */
   patientId?: string
   diagnosis: string
+  prescription?: string | null
+  notes?: string | null
+  vitalSigns?: VitalSigns | null
   createdAt: string
   updatedAt: string
 }
@@ -32,6 +44,7 @@ export interface MedicalRecord {
   diagnosis: string
   prescription: string | null
   notes: string | null
+  vitalSigns?: VitalSigns | null
   createdAt: string
   updatedAt: string
 }

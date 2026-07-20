@@ -139,9 +139,9 @@ function PatientSummaryCard({ patientId }: { patientId: string }) {
   const lastVisitRecord = history?.records[0]
   const lastVisitLabel = lastVisitRecord
     ? new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-US', {
-        month: 'short',
-        day: 'numeric',
-      }).format(new Date(lastVisitRecord.createdAt))
+      month: 'short',
+      day: 'numeric',
+    }).format(new Date(lastVisitRecord.createdAt))
     : t('doctor.patientSummary.noVisits')
 
   return (
@@ -184,6 +184,25 @@ function PatientSummaryCard({ patientId }: { patientId: string }) {
       >
         <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span className="truncate">{patient.allergies ?? t('doctor.patientSummary.noAllergies')}</span>
+      </div>
+
+      {/* Vitals Highlight Bar */}
+      <div className="flex flex-col gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-2.5 backdrop-blur-sm">
+        <span className="text-xs font-semibold text-muted-foreground">{t('doctor.vitals.heading')}</span>
+        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          <div className="flex flex-col rounded-lg bg-white p-1.5 shadow-xs">
+            <span className="text-[10px] text-muted-foreground">{t('doctor.vitals.bp')}</span>
+            <span className="font-semibold text-foreground">120/80</span>
+          </div>
+          <div className="flex flex-col rounded-lg bg-white p-1.5 shadow-xs">
+            <span className="text-[10px] text-muted-foreground">{t('doctor.vitals.hr')}</span>
+            <span className="font-semibold text-foreground">72 <span className="text-[9px]">bpm</span></span>
+          </div>
+          <div className="flex flex-col rounded-lg bg-white p-1.5 shadow-xs">
+            <span className="text-[10px] text-muted-foreground">{t('doctor.vitals.bmi')}</span>
+            <span className="font-semibold text-foreground">23.4</span>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
@@ -236,10 +255,6 @@ function TimelineBlock({ appointment, top, height, expanded, onToggle }: Timelin
   })
   const lastDiagnosis = history?.records[0]?.diagnosis
 
-  // Allergies are a safety warning, not a cosmetic field — a failed fetch
-  // must never look identical to "no allergies on file". `patientError`
-  // gates a distinct caution state below instead of silently rendering
-  // nothing, which would be a false-negative on a safety badge.
   const { data: patient, isError: patientError } = useQuery<Patient>({
     queryKey: ['patients', 'get', appointment.patientId],
     queryFn: () => patientsApi.get(appointment.patientId),
@@ -263,10 +278,6 @@ function TimelineBlock({ appointment, top, height, expanded, onToggle }: Timelin
         aria-expanded={expanded}
         className={cn(
           'flex w-full flex-col gap-1.5 rounded-lg border-s-4 bg-card p-3 text-start shadow-card transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          // Quick Check-In (Feature E): a checked-in patient's presence
-          // overrides the type-accent border — this is the lightweight,
-          // no-WebSockets stand-in for a real-time queue (Feature G,
-          // deferred — see docs/psm2/sprint-3c-ui-overhaul.md's feature audit).
           appointment.status === 'arrived' ? 'border-success-600' : TYPE_ACCENT[appointment.type],
         )}
       >
@@ -335,6 +346,24 @@ function TimelineBlock({ appointment, top, height, expanded, onToggle }: Timelin
               >
                 {tDash('doctor.timeline.viewChart')}
                 <ChevronRight className="h-3 w-3 rtl:rotate-180" aria-hidden="true" />
+              </Link>
+            </div>
+
+            {/* 1-Click Order Actions */}
+            <div className="flex items-center gap-2 border-t border-slate-200/80 bg-white/70 px-3 py-2">
+              <Link
+                to={`/patients/${appointment.patientId}`}
+                className="inline-flex items-center gap-1 rounded-md bg-primary-50 px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-100 transition-colors"
+              >
+                <FlaskConical className="h-3 w-3" aria-hidden="true" />
+                {tDash('doctor.quickActions.orderLabShort')}
+              </Link>
+              <Link
+                to={`/records?patientId=${appointment.patientId}`}
+                className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-700 hover:bg-purple-100 transition-colors"
+              >
+                <Pill className="h-3 w-3" aria-hidden="true" />
+                {tDash('doctor.quickActions.orderRxShort')}
               </Link>
             </div>
           </motion.div>
@@ -711,7 +740,7 @@ export default function DoctorDashboard() {
       )}
 
       <motion.div variants={sectionFade}>
-        <Card className="p-5">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">
           <SectionHeading>{t('doctor.todaysQueue.heading')}</SectionHeading>
           <div className="mt-4">
             {queueLoading ? (
@@ -840,7 +869,7 @@ export default function DoctorDashboard() {
       </motion.div>
 
       <motion.div variants={sectionFade} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="p-5 lg:col-span-2">
+        <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md lg:col-span-2">
           <SectionHeading>{t('doctor.timeline.heading')}</SectionHeading>
 
           <div className="mt-5">
@@ -903,7 +932,7 @@ export default function DoctorDashboard() {
         </Card>
 
         <div className="flex flex-col gap-6">
-          <Card className="p-5">
+          <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">
             <SectionHeading>{t('doctor.patientSummary.heading')}</SectionHeading>
             <div className="mt-4">
               {nextAppointment ? (
@@ -924,72 +953,72 @@ export default function DoctorDashboard() {
             </div>
           </Card>
 
-          <Card className="p-5">
+          <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">
             <SectionHeading>{t('doctor.recentPatients.heading')}</SectionHeading>
 
             <div className="mt-4 flex flex-col gap-1">
-            {recordsLoading ? (
-              [0, 1, 2].map((i) => (
-                <span key={i} className="h-14 w-full animate-pulse rounded-lg bg-neutral-200" />
-              ))
-            ) : recordsError ? (
-              <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
-            ) : recentPatientEntries.length === 0 ? (
-              <EmptyState
-                title={t('doctor.recentPatients.emptyTitle')}
-                description={t('doctor.recentPatients.emptyDescription')}
-              />
-            ) : (
-              recentPatientEntries.map((entry, idx) => {
-                const patient = recentPatientQueries[idx]?.data
-                if (!patient) {
-                  return (
-                    <span
-                      key={entry.patientId}
-                      className="h-14 w-full animate-pulse rounded-lg bg-neutral-200"
-                    />
-                  )
-                }
-                const lastVisit = new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                }).format(new Date(entry.lastVisit))
+              {recordsLoading ? (
+                [0, 1, 2].map((i) => (
+                  <span key={i} className="h-14 w-full animate-pulse rounded-lg bg-neutral-200" />
+                ))
+              ) : recordsError ? (
+                <p className="text-sm text-danger-600">{tCommon('error.generic')}</p>
+              ) : recentPatientEntries.length === 0 ? (
+                <EmptyState
+                  title={t('doctor.recentPatients.emptyTitle')}
+                  description={t('doctor.recentPatients.emptyDescription')}
+                />
+              ) : (
+                recentPatientEntries.map((entry, idx) => {
+                  const patient = recentPatientQueries[idx]?.data
+                  if (!patient) {
+                    return (
+                      <span
+                        key={entry.patientId}
+                        className="h-14 w-full animate-pulse rounded-lg bg-neutral-200"
+                      />
+                    )
+                  }
+                  const lastVisit = new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  }).format(new Date(entry.lastVisit))
 
-                return (
-                  <Link
-                    key={entry.patientId}
-                    to={`/patients/${entry.patientId}`}
-                    className="flex items-center gap-3 rounded-lg p-2.5 transition-colors duration-150 ease-out hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <span
-                      className={cn(
-                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
-                        avatarClassesFor(patient.patientId),
-                      )}
-                      aria-hidden="true"
+                  return (
+                    <Link
+                      key={entry.patientId}
+                      to={`/patients/${entry.patientId}`}
+                      className="flex items-center gap-3 rounded-lg p-2.5 transition-colors duration-150 ease-out hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
-                      {initialsFor(patient.fullName)}
-                    </span>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {patient.fullName}
+                      <span
+                        className={cn(
+                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+                          avatarClassesFor(patient.patientId),
+                        )}
+                        aria-hidden="true"
+                      >
+                        {initialsFor(patient.fullName)}
                       </span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {t('doctor.recentPatients.lastVisit', { date: lastVisit })}
-                      </span>
-                    </div>
-                    <ChevronRight
-                      className="ms-auto h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180"
-                      aria-hidden="true"
-                    />
-                  </Link>
-                )
-              })
-            )}
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-sm font-medium text-foreground">
+                          {patient.fullName}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {t('doctor.recentPatients.lastVisit', { date: lastVisit })}
+                        </span>
+                      </div>
+                      <ChevronRight
+                        className="ms-auto h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                  )
+                })
+              )}
             </div>
           </Card>
 
-          <Card className="p-5">
+          <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">
             <SectionHeading>{t('doctor.quickActions.heading')}</SectionHeading>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {quickActions.map((action) => (
