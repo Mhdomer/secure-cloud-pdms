@@ -11,6 +11,7 @@ import { useSessionWatcher } from '@/hooks/useSessionWatcher'
 import { ROLE_HOME } from '@/lib/roleHome'
 import LandingPage from '@/pages/landing/LandingPage'
 import ServicesPage from '@/pages/landing/ServicesPage'
+import SpecialtyDetailPage from '@/pages/landing/SpecialtyDetailPage'
 import FacilitiesPage from '@/pages/landing/FacilitiesPage'
 import PatientInfoPage from '@/pages/landing/PatientInfoPage'
 import LoginPage from '@/pages/auth/LoginPage'
@@ -74,6 +75,7 @@ function App() {
           <Routes>
             <Route path="/" element={<RoleAwareRedirect />} />
             <Route path="/services" element={<ServicesPage />} />
+            <Route path="/specialties/:slug" element={<SpecialtyDetailPage />} />
             <Route path="/facilities" element={<FacilitiesPage />} />
             <Route path="/patient-info" element={<PatientInfoPage />} />
             <Route path="/login" element={<LoginPage />} />

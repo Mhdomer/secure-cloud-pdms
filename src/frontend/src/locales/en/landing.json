@@ -208,5 +208,46 @@
     "rights": "© 2024 Alamin Clinic. All rights reserved.",
     "privacy": "Privacy Policy",
     "terms": "Terms of Use"
+  },
+  "specialtyDetail": {
+    "backLink": "Back to Our Speciality Centres",
+    "selectBranch": "Select Branch",
+    "generalLine": "General Line",
+    "ourDoctors": "Our Doctors",
+    "ourDoctorsDesc": "Meet our specialist physicians",
+    "services": "Services",
+    "servicesDesc": "Comprehensive medical services",
+    "patientCare": "Patient Care",
+    "patientCareDesc": "Your comfort is our priority",
+    "learnMore": "Learn More",
+    "bestInIndustry": "Best In Industry",
+    "ourServices": "Our Services",
+    "ourServicesDesc": "We provide comprehensive services tailored to your needs, delivered by experienced professionals using the latest medical technology.",
+    "seeMore": "See More",
+    "contact": "Contact",
+    "bookAppointment": "Book Appointment",
+    "qualifications": "Qualifications",
+    "location": "Location",
+    "findUs": "Find Us",
+    "email": "info@alaminclinic.com",
+    "branches": {
+      "namar": {
+        "name": "Al-Amin Clinic 1 — Namar",
+        "phone": "+966 11 422 2000",
+        "address": "Dirab Branch Road, Namar, Riyadh 14961, Saudi Arabia"
+      },
+      "dirab": {
+        "name": "Al-Amin Clinic 2 — Dirab",
+        "phone": "+966 11 422 2000",
+        "address": "Dirab Branch Rd, Dirab, Riyadh 14969, Saudi Arabia"
+      }
+    },
+    "descriptions": {
+      "dental": "Our dental centre provides comprehensive oral healthcare services including preventive care, restorative treatments, cosmetic dentistry, and emergency dental services. Our team of experienced dentists uses the latest technology to ensure comfortable and effective treatment for patients of all ages.",
+      "general-medicine": "Our general medicine department offers primary healthcare services including routine check-ups, chronic disease management, preventive care, and health screenings. Our physicians take the time to understand your health history and develop personalized care plans.",
+      "laboratory": "Our in-house laboratory provides fast, accurate diagnostic testing with results shared directly to your digital health record. We offer a comprehensive range of tests including blood work, urinalysis, and specialized diagnostics.",
+      "pediatrics": "Our pediatrics department provides gentle, attentive care for children from newborns through adolescence. Our pediatricians are experienced in childhood development, vaccinations, and managing common childhood illnesses.",
+      "dermatology": "Our dermatology centre offers specialized care for skin, hair, and nail conditions. From routine skin checks to advanced laser treatments and cosmetic procedures, our dermatologists provide personalized treatment plans."
+    }
   }
 }

@@ -60,6 +60,81 @@ export const SERVICE_IMAGES = {
   preventiveCare: '/clinic/waiting-area.png',
 } as const
 
+export interface Doctor {
+  name: string
+  nameEn: string
+  specialty: string
+  specialtyEn: string
+  image: string
+  position: string
+  experience: string
+}
+
+export const REAL_DOCTORS: Doctor[] = [
+  {
+    name: 'د. محمد موسى',
+    nameEn: 'Dr. Mohamed Moussa',
+    specialty: 'طب عام',
+    specialtyEn: 'General Medicine',
+    image: '/clinic/dr-mohamed-moussa.jpg',
+    position: 'object-[center_15%]',
+    experience: '15+ Years Experience',
+  },
+  {
+    name: 'د. أسماء نجم',
+    nameEn: 'Dr. Asmaa Najm',
+    specialty: 'نساء وتوليد',
+    specialtyEn: 'Obstetrics & Gynecology',
+    image: '/clinic/dr-asmaa.jpg',
+    position: 'object-[center_20%]',
+    experience: '12+ Years Experience',
+  },
+  {
+    name: 'د. مصطفى',
+    nameEn: 'Dr. Mustafa',
+    specialty: 'طب الأطفال',
+    specialtyEn: 'Pediatrics',
+    image: '/clinic/dr-mustafa.jpg',
+    position: 'object-[center_10%]',
+    experience: '10+ Years Experience',
+  },
+  {
+    name: 'د. شيماء السيسي',
+    nameEn: 'Dr. Shaimaa Al-Sisi',
+    specialty: 'الجلدية والتجميل',
+    specialtyEn: 'Dermatology & Cosmetology',
+    image: '/clinic/dr-shaimaa.jpg',
+    position: 'object-[center_15%]',
+    experience: '14+ Years Experience',
+  },
+  {
+    name: 'د. أخصائية الجلدية',
+    nameEn: 'Dr. Dermatology Specialist',
+    specialty: 'الجلدية والليزر',
+    specialtyEn: 'Advanced Dermatology & Laser',
+    image: '/clinic/dr-dermatology-2.jpg',
+    position: 'object-[center_15%]',
+    experience: '13+ Years Experience',
+  },
+  {
+    name: 'د. طاقم التخصصات',
+    nameEn: 'Dr. Clinical Specialist',
+    specialty: 'الفحوصات الشاملة',
+    specialtyEn: 'Internal Diagnostics',
+    image: '/clinic/dr-doctor-5.jpg',
+    position: 'object-[center_15%]',
+    experience: '11+ Years Experience',
+  },
+]
+
+export const SPECIALTY_IMAGES: Record<string, string> = {
+  dental: '/clinic/spec-dental.png',
+  'general-medicine': '/clinic/spec-general-medicine.png',
+  laboratory: '/clinic/spec-laboratory.png',
+  pediatrics: '/clinic/spec-pediatrics.png',
+  dermatology: '/clinic/spec-dermatology.png',
+}
+
 export const FACILITY_IMAGES = ['/clinic/main-hall.png', '/clinic/branch-2.png']
 
 /** Anchors that only exist on the landing page (`/`). Called from any page —

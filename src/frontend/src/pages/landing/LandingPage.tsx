@@ -29,67 +29,11 @@ import {
   fadeUp,
   LandingFooter,
   LandingNav,
+  REAL_DOCTORS,
   SERVICE_IMAGES,
   staggerContainer,
   useScrollOnArrival,
 } from '@/pages/landing/shared'
-
-const REAL_DOCTORS = [
-  {
-    name: 'د. محمد موسى',
-    nameEn: 'Dr. Mohamed Moussa',
-    specialty: 'طب عام',
-    specialtyEn: 'General Medicine',
-    image: '/clinic/dr-mohamed-moussa.jpg',
-    position: 'object-[center_15%]',
-    experience: '15+ Years Experience',
-  },
-  {
-    name: 'د. أسماء نجم',
-    nameEn: 'Dr. Asmaa Najm',
-    specialty: 'نساء وتوليد',
-    specialtyEn: 'Obstetrics & Gynecology',
-    image: '/clinic/dr-asmaa.jpg',
-    position: 'object-[center_20%]',
-    experience: '12+ Years Experience',
-  },
-  {
-    name: 'د. مصطفى',
-    nameEn: 'Dr. Mustafa',
-    specialty: 'طب الأطفال',
-    specialtyEn: 'Pediatrics',
-    image: '/clinic/dr-mustafa.jpg',
-    position: 'object-[center_10%]',
-    experience: '10+ Years Experience',
-  },
-  {
-    name: 'د. شيماء السيسي',
-    nameEn: 'Dr. Shaimaa Al-Sisi',
-    specialty: 'الجلدية والتجميل',
-    specialtyEn: 'Dermatology & Cosmetology',
-    image: '/clinic/dr-shaimaa.jpg',
-    position: 'object-[center_15%]',
-    experience: '14+ Years Experience',
-  },
-  {
-    name: 'د. أخصائية الجلدية',
-    nameEn: 'Dr. Dermatology Specialist',
-    specialty: 'الجلدية والليزر',
-    specialtyEn: 'Advanced Dermatology & Laser',
-    image: '/clinic/dr-dermatology-2.jpg',
-    position: 'object-[center_15%]',
-    experience: '13+ Years Experience',
-  },
-  {
-    name: 'د. طاقم التخصصات',
-    nameEn: 'Dr. Clinical Specialist',
-    specialty: 'الفحوصات الشاملة',
-    specialtyEn: 'Internal Diagnostics',
-    image: '/clinic/dr-doctor-5.jpg',
-    position: 'object-[center_15%]',
-    experience: '11+ Years Experience',
-  },
-]
 
 export default function LandingPage() {
   useScrollOnArrival()
@@ -543,6 +487,7 @@ const SPECIALTY_IMAGES: Record<string, string> = {
 }
 
 function SpecialtyCentresSection() {
+  const navigate = useNavigate()
   const { t, i18n } = useTranslation('landing')
   const specialties = t('specialtyCentres.list', { returnObjects: true }) as Array<{ key: string; name: string }>
   const [activeKey, setActiveKey] = useState('dental')
@@ -553,7 +498,7 @@ function SpecialtyCentresSection() {
   const nextSpecialty = specialties[(activeIndex + 1) % specialties.length]
 
   return (
-    <section className="relative overflow-hidden bg-[#f4f4f2] text-slate-900">
+    <section id="specialty-centres" className="relative overflow-hidden bg-[#f4f4f2] text-slate-900">
       {/* Top/Rear High-Res B&W Header Banner Frame */}
       <div className="absolute inset-x-0 top-0 h-48 z-0 overflow-hidden bg-neutral-900">
         <img
@@ -579,24 +524,39 @@ function SpecialtyCentresSection() {
                 {specialties.map((item) => {
                   const isActive = item.key === activeKey
                   return (
-                    <button
+                    <div
                       key={item.key}
-                      type="button"
-                      onClick={() => setActiveKey(item.key)}
                       className={cn(
-                        'group flex items-center text-start transition-all duration-200 cursor-pointer outline-none px-3.5 py-2.5 rounded-xl',
+                        'group flex items-center justify-between transition-all duration-200 px-3.5 py-2 rounded-xl',
                         isActive
                           ? 'text-[#967d58] font-bold text-base bg-[#967d58]/10 shadow-sm'
                           : 'text-slate-600 font-semibold text-sm hover:text-slate-900 hover:bg-slate-50',
                       )}
                     >
-                      {isActive ? (
-                        <span className="w-5 h-[3px] bg-[#967d58] me-3 rounded-full inline-block shrink-0" />
-                      ) : (
-                        <span className="w-5 h-[3px] bg-transparent me-3 inline-block shrink-0" />
-                      )}
-                      <span className="truncate">{item.name}</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveKey(item.key)}
+                        className="flex flex-1 items-center text-start cursor-pointer outline-none truncate py-0.5 me-2"
+                      >
+                        {isActive ? (
+                          <span className="w-5 h-[3px] bg-[#967d58] me-3 rounded-full inline-block shrink-0" />
+                        ) : (
+                          <span className="w-5 h-[3px] bg-transparent me-3 inline-block shrink-0" />
+                        )}
+                        <span className="truncate">{item.name}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/specialties/${item.key}`)
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-[#967d58] hover:text-amber-700 hover:underline shrink-0 cursor-pointer px-2 py-1 rounded-lg hover:bg-brand-gold-500/10 transition-colors"
+                      >
+                        <span>{isArabic ? 'اعرف المزيد' : 'Learn More'}</span>
+                        <span className="rtl:rotate-180">→</span>
+                      </button>
+                    </div>
                   )
                 })}
               </div>
@@ -606,7 +566,10 @@ function SpecialtyCentresSection() {
           {/* Right Column: Staggered Feature Cards */}
           <div className="lg:col-span-7 flex flex-col sm:flex-row items-start sm:items-end justify-center lg:justify-end gap-6 pt-2">
             {/* Card 1: Main Active Card (Significantly Larger, Royal Purple Gradient) */}
-            <div className="relative h-[520px] w-full max-w-[340px] sm:w-[340px] shrink-0 rounded-[32px] overflow-hidden shadow-2xl flex flex-col justify-end p-7 text-white bg-[#220d3b] z-20 border border-white/20">
+            <div
+              onClick={() => navigate(`/specialties/${activeKey}`)}
+              className="group relative h-[520px] w-full max-w-[340px] sm:w-[340px] shrink-0 rounded-[32px] overflow-hidden shadow-2xl flex flex-col justify-end p-7 text-white bg-[#220d3b] z-20 border border-white/20 cursor-pointer transition-transform duration-300 hover:scale-[1.02]"
+            >
               <AnimatePresence mode="wait">
                 <motion.img
                   key={activeKey}
@@ -616,7 +579,7 @@ function SpecialtyCentresSection() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.4 }}
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
               </AnimatePresence>
 
@@ -630,11 +593,15 @@ function SpecialtyCentresSection() {
                 <h3 className="text-3xl font-bold text-white drop-shadow mb-3">
                   {activeSpecialty?.name}
                 </h3>
-                <p className="text-xs text-white/85 leading-relaxed font-normal line-clamp-3">
+                <p className="text-xs text-white/85 leading-relaxed font-normal line-clamp-3 mb-4">
                   {isArabic
                     ? 'مركز تخصصي متكامل يوفر أفضل أطباء واستشاريين الرعاية المتقدمة بأعلى معايير الأمان.'
                     : 'KPJ Centre For Sight is one stop eye centre with a team of professional surgeons...'}
                 </p>
+                <div className="inline-flex items-center gap-2 rounded-full border border-brand-gold-400/40 bg-brand-gold-500/20 px-4 py-2 text-xs font-bold text-brand-gold-300 backdrop-blur-md transition-all group-hover:bg-brand-gold-500 group-hover:text-slate-950 group-hover:shadow-lg">
+                  <span>{isArabic ? 'اعرف المزيد' : 'Learn More'}</span>
+                  <span className="transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1 rtl:rotate-180">→</span>
+                </div>
               </div>
             </div>
 
@@ -658,9 +625,13 @@ function SpecialtyCentresSection() {
                   <span className="text-xs font-medium text-white/80 tracking-wide uppercase mb-1 block">
                     {isArabic ? 'التالي' : 'Overview'}
                   </span>
-                  <h4 className="text-xl font-bold text-white drop-shadow">
+                  <h4 className="text-xl font-bold text-white drop-shadow mb-2">
                     {nextSpecialty.name}
                   </h4>
+                  <div className="inline-flex items-center gap-1 text-xs font-bold text-brand-gold-300 group-hover:text-brand-gold-200">
+                    <span>{isArabic ? 'اعرف المزيد' : 'Learn More'}</span>
+                    <span className="transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1 rtl:rotate-180">→</span>
+                  </div>
                 </div>
               </button>
             )}

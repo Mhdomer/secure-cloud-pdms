@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { fadeUp, LandingFooter, LandingNav, PageHeader, SERVICE_IMAGES, staggerContainer } from '@/pages/landing/shared'
 
 const SERVICE_ICONS: Record<keyof typeof SERVICE_IMAGES, LucideIcon> = {
@@ -27,14 +28,23 @@ const SERVICE_ICONS: Record<keyof typeof SERVICE_IMAGES, LucideIcon> = {
   preventiveCare: Shield,
 }
 
+const SERVICE_SPECIALTY_SLUG_MAP: Record<string, string> = {
+  dental: 'dental',
+  pediatrics: 'pediatrics',
+  generalMedicine: 'general-medicine',
+  dermatology: 'dermatology',
+  laboratory: 'laboratory',
+}
+
 /**
  * Standalone services/departments page — reached from the nav mega-menu
  * instead of a landing-page anchor, per the "click a department, get its own
  * page" navigation redesign (see docs/psm2/report-delta.md DELTA-016).
  */
 export default function ServicesPage() {
-  const { t } = useTranslation('landing')
+  const { t, i18n } = useTranslation('landing')
   const navigate = useNavigate()
+  const isArabic = i18n.language === 'ar'
   const serviceKeys = Object.keys(SERVICE_IMAGES) as Array<keyof typeof SERVICE_IMAGES>
 
   return (
@@ -53,28 +63,44 @@ export default function ServicesPage() {
           >
             {serviceKeys.map((key) => {
               const Icon = SERVICE_ICONS[key]
+              const slug = SERVICE_SPECIALTY_SLUG_MAP[key]
               return (
                 <motion.div
                   key={key}
                   variants={fadeUp}
                   transition={{ duration: 0.45 }}
-                  className="group overflow-hidden rounded-2xl bg-white shadow-card transition-all duration-200 ease-out hover:scale-[1.02] hover:shadow-md"
+                  onClick={slug ? () => navigate(`/specialties/${slug}`) : undefined}
+                  className={cn(
+                    'group flex flex-col justify-between overflow-hidden rounded-2xl bg-white shadow-card transition-all duration-200 ease-out hover:scale-[1.02] hover:shadow-md',
+                    slug && 'cursor-pointer',
+                  )}
                 >
-                  <div className="h-44 overflow-hidden">
-                    <img
-                      src={SERVICE_IMAGES[key]}
-                      alt=""
-                      aria-hidden="true"
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
+                  <div>
+                    <div className="h-44 overflow-hidden">
+                      <img
+                        src={SERVICE_IMAGES[key]}
+                        alt=""
+                        aria-hidden="true"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="p-5">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-gold/10">
+                        <Icon className="h-5 w-5 text-brand-gold-600" aria-hidden="true" />
+                      </span>
+                      <h2 className="mt-3 text-lg font-semibold text-neutral-900">{t(`services.${key}.title`)}</h2>
+                      <p className="mt-1 text-sm text-neutral-500">{t(`services.${key}.desc`)}</p>
+                    </div>
                   </div>
-                  <div className="p-5">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-gold/10">
-                      <Icon className="h-5 w-5 text-brand-gold-600" aria-hidden="true" />
-                    </span>
-                    <h2 className="mt-3 text-lg font-semibold text-neutral-900">{t(`services.${key}.title`)}</h2>
-                    <p className="mt-1 text-neutral-500">{t(`services.${key}.desc`)}</p>
-                  </div>
+
+                  {slug && (
+                    <div className="px-5 pb-5 pt-0">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-brand-gold-700 group-hover:text-brand-gold-800 transition-colors">
+                        <span>{isArabic ? 'اعرف المزيد' : 'Learn More'}</span>
+                        <span className="transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1 rtl:rotate-180">→</span>
+                      </span>
+                    </div>
+                  )}
                 </motion.div>
               )
             })}
