@@ -99,6 +99,13 @@ trivy fs src/backend --severity CRITICAL
 - `*.tfstate` or `*.tfstate.backup`
 - AWS Access Key IDs or Secret Access Keys
 
+Before committing any change to `src/backend/src/config/schema.sql` that adds
+or edits an RLS policy: every `app.current_user_id` / `app.current_doctor_id`
+/ `app.current_patient_id` cast to `::uuid` MUST be guarded with
+`NULLIF(..., '')` first, or admin/superadmin sessions 500 on that table
+(empty-string session GUC → invalid uuid cast). See
+`docs/psm2/rls-policy-guidelines.md` — this already broke local dev once.
+
 ---
 
 ## User Roles & Permissions
@@ -202,3 +209,4 @@ Apply font family switch as part of the same language toggle that sets dir="rtl"
 - Sprint 3c UI overhaul plan + screen-by-screen status: `docs/psm2/sprint-3c-ui-overhaul.md`
 - Sprint 3c self-registration (OTP) + self-booking design: `docs/psm2/self-registration-design.md`
 - Report edits still owed for Sprint 3c work: `docs/psm2/report-delta.md`
+- RLS policy gotcha (empty-string UUID cast) + rules for writing new RLS policies: `docs/psm2/rls-policy-guidelines.md`

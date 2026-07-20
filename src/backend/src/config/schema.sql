@@ -872,21 +872,23 @@ CREATE POLICY admin_all_visits ON visits
   FOR ALL
   USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
 
+DROP POLICY IF EXISTS doctor_own_visits ON visits;
 CREATE POLICY doctor_own_visits ON visits
   FOR ALL
   USING (
     current_setting('app.current_role', true) = 'doctor'
     AND doctor_id = (
       SELECT doctor_id FROM doctors
-      WHERE user_id = current_setting('app.current_user_id', true)::uuid
+      WHERE user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid
     )
   );
 
+DROP POLICY IF EXISTS patient_own_visits ON visits;
 CREATE POLICY patient_own_visits ON visits
   FOR SELECT
   USING (
     current_setting('app.current_role', true) = 'patient'
-    AND patient_id = current_setting('app.current_patient_id', true)::uuid
+    AND patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::uuid
   );
 
 -- visit_invoices -----------------------------------------------------------
@@ -894,21 +896,23 @@ CREATE POLICY admin_all_invoices ON visit_invoices
   FOR ALL
   USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
 
+DROP POLICY IF EXISTS doctor_own_invoices ON visit_invoices;
 CREATE POLICY doctor_own_invoices ON visit_invoices
   FOR ALL
   USING (
     current_setting('app.current_role', true) = 'doctor'
     AND doctor_id = (
       SELECT doctor_id FROM doctors
-      WHERE user_id = current_setting('app.current_user_id', true)::uuid
+      WHERE user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid
     )
   );
 
+DROP POLICY IF EXISTS patient_own_invoices ON visit_invoices;
 CREATE POLICY patient_own_invoices ON visit_invoices
   FOR SELECT
   USING (
     current_setting('app.current_role', true) = 'patient'
-    AND patient_id = current_setting('app.current_patient_id', true)::uuid
+    AND patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::uuid
   );
 
 -- invoice_items ------------------------------------------------------------
@@ -919,6 +923,7 @@ CREATE POLICY admin_all_items ON invoice_items
   FOR ALL
   USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
 
+DROP POLICY IF EXISTS doctor_own_items ON invoice_items;
 CREATE POLICY doctor_own_items ON invoice_items
   FOR ALL
   USING (
@@ -927,18 +932,19 @@ CREATE POLICY doctor_own_items ON invoice_items
       SELECT invoice_id FROM visit_invoices
       WHERE doctor_id = (
         SELECT doctor_id FROM doctors
-        WHERE user_id = current_setting('app.current_user_id', true)::uuid
+        WHERE user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid
       )
     )
   );
 
+DROP POLICY IF EXISTS patient_own_items ON invoice_items;
 CREATE POLICY patient_own_items ON invoice_items
   FOR SELECT
   USING (
     current_setting('app.current_role', true) = 'patient'
     AND invoice_id IN (
       SELECT invoice_id FROM visit_invoices
-      WHERE patient_id = current_setting('app.current_patient_id', true)::uuid
+      WHERE patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::uuid
     )
   );
 
@@ -947,13 +953,14 @@ CREATE POLICY admin_all_care_team ON patient_care_team
   FOR ALL
   USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
 
+DROP POLICY IF EXISTS doctor_own_care_team ON patient_care_team;
 CREATE POLICY doctor_own_care_team ON patient_care_team
   FOR ALL
   USING (
     current_setting('app.current_role', true) = 'doctor'
     AND doctor_id = (
       SELECT doctor_id FROM doctors
-      WHERE user_id = current_setting('app.current_user_id', true)::uuid
+      WHERE user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid
     )
   );
 
