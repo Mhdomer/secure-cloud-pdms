@@ -42,6 +42,7 @@ docs/references/Final Report Ammar yasser.pdf
 docs/references/mindcraft refrence files/
 .claude/
 claude-sessions/
+.agents/
 
 # MCP config — contains GitHub token, never commit
 .mcp.json

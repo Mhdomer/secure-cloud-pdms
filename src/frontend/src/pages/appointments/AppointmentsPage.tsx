@@ -139,7 +139,6 @@ type ViewMode = 'day' | 'list'
  */
 export default function AppointmentsPage() {
   const { t } = useTranslation('appointments')
-  const { t: tCommon } = useTranslation('common')
   const { isAdmin, isDoctor, isPatient } = useAuth()
   const { currentLang } = useLanguage()
   const [viewMode, setViewMode] = useState<ViewMode>('day')

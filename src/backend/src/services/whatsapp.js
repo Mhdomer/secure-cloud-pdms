@@ -50,7 +50,7 @@ async function sendAppointmentConfirmation({ appointmentId, patientName, patient
 
   const body =
     `مرحباً ${patientName}،\n` +
-    `تم تأكيد موعدك في عيادة الأمين مع د. ${doctorName}\n` +
+    `تم تأكيد موعدك في مجمع الأمين مع د. ${doctorName}\n` +
     `التاريخ: ${date} | الوقت: ${time}\n\n` +
     `Hello ${patientName}, your appointment with Dr. ${doctorName} ` +
     `is confirmed for ${date} at ${time}. – Alamin Clinic`;

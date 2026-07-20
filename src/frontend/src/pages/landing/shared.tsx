@@ -7,12 +7,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ClinicLogo } from '@/components/shared/ClinicLogo'
 import { LanguageToggle } from '@/components/shared/LanguageToggle'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useLanguage } from '@/hooks/useLanguage'
 import { cn } from '@/lib/utils'
 
@@ -175,12 +169,15 @@ function useNavGroups(): NavMenuGroup[] {
 }
 
 export function LandingNav() {
-  const { t } = useTranslation('landing')
+  const { t, i18n } = useTranslation('landing')
   const navigate = useNavigate()
   const goToSection = useGoToSection()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null)
+  const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
   const navGroups = useNavGroups()
+  const isArabic = i18n.language === 'ar'
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -193,66 +190,77 @@ export function LandingNav() {
     setMobileOpen(false)
   }, [scrolled])
 
+  const handleMouseEnterGroup = (groupKey: string) => {
+    if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current)
+    setActiveGroupKey(groupKey)
+  }
+
+  const handleMouseLeaveNav = () => {
+    leaveTimeoutRef.current = setTimeout(() => {
+      setActiveGroupKey(null)
+    }, 200)
+  }
+
   const goToItem = (item: NavMenuItem) => {
+    setActiveGroupKey(null)
     if (item.to) navigate(item.to)
     else if (item.sectionId) goToSection(item.sectionId)
   }
 
-  const triggerClass = cn(
-    'flex items-center gap-1 text-sm font-medium outline-none transition-colors duration-150 ease-out',
-    scrolled ? 'text-neutral-600 hover:text-brand-charcoal' : 'text-white/90 hover:text-white',
-  )
+  const activeGroup = navGroups.find((g) => g.key === activeGroupKey)
+
+  const triggerClass = (groupKey: string) =>
+    cn(
+      'relative flex items-center gap-1.5 text-sm font-bold outline-none transition-all duration-200 ease-out rounded-full px-4 py-2 cursor-pointer',
+      activeGroupKey === groupKey
+        ? 'bg-brand-gold-500/20 text-brand-gold-600 shadow-sm'
+        : scrolled
+        ? 'text-neutral-700 hover:text-brand-gold-700 hover:bg-neutral-100'
+        : 'text-white/90 hover:text-white hover:bg-white/15',
+    )
 
   return (
     <header
+      onMouseLeave={handleMouseLeaveNav}
       className={cn(
-        'sticky top-0 z-50 backdrop-blur-md transition-colors duration-150 ease-out',
+        'sticky top-0 z-50 transition-all duration-300 ease-out backdrop-blur-2xl',
         scrolled
-          ? 'border-b border-border bg-neutral-50/95 shadow-sm'
-          : 'border-b border-white/10 bg-neutral-900/55',
+          ? 'border-b border-neutral-200/80 bg-white/90 shadow-md shadow-neutral-900/5'
+          : 'border-b border-white/15 bg-neutral-950/75 shadow-2xl shadow-black/40',
       )}
     >
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <button type="button" onClick={() => navigate('/')} className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring transition-transform hover:scale-105"
+        >
           <ClinicLogo light={!scrolled} />
         </button>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        {/* Liquid Glass Navigation Menu Header Triggers */}
+        <nav className="hidden items-center gap-1.5 md:flex">
           {navGroups.map((group) => (
-            <DropdownMenu key={group.key}>
-              <DropdownMenuTrigger className={cn(triggerClass, 'rounded-md px-2.5 py-1.5 data-[state=open]:bg-white/10')}>
-                {group.label}
-                <ChevronDown className="h-3.5 w-3.5 transition-transform duration-150 ease-out data-[state=open]:rotate-180" aria-hidden="true" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className={cn(
-                  'grid gap-1 p-3',
-                  group.items.length > 4 ? 'w-[38rem] grid-cols-2' : 'w-[22rem] grid-cols-1',
-                )}
+            <div
+              key={group.key}
+              onMouseEnter={() => handleMouseEnterGroup(group.key)}
+              className="relative"
+            >
+              <button
+                type="button"
+                onClick={() => handleMouseEnterGroup(group.key)}
+                className={triggerClass(group.key)}
               >
-                {group.items.map((item) => (
-                  <DropdownMenuItem
-                    key={item.label}
-                    onSelect={() => goToItem(item)}
-                    className="group cursor-pointer items-start gap-3 rounded-lg p-2.5 focus:bg-brand-gold/10 focus:text-brand-charcoal data-[highlighted]:bg-brand-gold/10"
-                  >
-                    <span className="h-20 w-20 shrink-0 overflow-hidden rounded-lg">
-                      <img
-                        src={item.image}
-                        alt=""
-                        aria-hidden="true"
-                        className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-110"
-                      />
-                    </span>
-                    <span className="flex flex-col gap-0.5 pt-1">
-                      <span className="text-sm font-semibold text-neutral-900">{item.label}</span>
-                      <span className="text-xs leading-snug text-neutral-500 line-clamp-2">{item.desc}</span>
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <span>{group.label}</span>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 transition-transform duration-300 ease-out',
+                    activeGroupKey === group.key && 'rotate-180 text-brand-gold-500',
+                  )}
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
           ))}
         </nav>
 
@@ -260,7 +268,7 @@ export function LandingNav() {
           <LanguageToggle className="hidden sm:inline-flex" />
           <Button
             size="sm"
-            className="bg-brand-gold text-white hover:bg-brand-gold-600"
+            className="rounded-full bg-gradient-to-r from-brand-gold-500 via-amber-500 to-brand-gold-600 px-5 text-neutral-950 font-bold shadow-md shadow-brand-gold-500/20 hover:shadow-lg hover:shadow-brand-gold-500/40 hover:scale-105 transition-all"
             onClick={() => navigate('/login')}
           >
             {t('nav.login')}
@@ -271,14 +279,116 @@ export function LandingNav() {
             aria-label={t('nav.menu')}
             aria-expanded={mobileOpen}
             className={cn(
-              'flex h-9 w-9 items-center justify-center rounded-md transition-colors duration-150 ease-out md:hidden',
-              scrolled ? 'text-neutral-700 hover:bg-neutral-200' : 'text-white hover:bg-white/10',
+              'flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-150 ease-out md:hidden',
+              scrolled ? 'text-neutral-800 hover:bg-neutral-100' : 'text-white hover:bg-white/10',
             )}
           >
             {mobileOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
           </button>
         </div>
       </div>
+
+      {/* Modern Liquid Glass Mega-Menu Panel */}
+      <AnimatePresence>
+        {activeGroup && (
+          <motion.div
+            key={activeGroup.key}
+            initial={{ opacity: 0, y: -12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            onMouseEnter={() => handleMouseEnterGroup(activeGroup.key)}
+            className="absolute inset-x-0 top-full z-50 px-4 pt-2 pb-6 sm:px-6"
+          >
+            <div className="mx-auto max-w-6xl overflow-hidden rounded-3xl border border-white/80 bg-white/95 p-6 backdrop-blur-3xl shadow-2xl shadow-neutral-900/20 text-neutral-900">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_260px] lg:grid-cols-[1fr_300px]">
+                {/* Left Side: Interactive Items Grid */}
+                <div>
+                  <div className="mb-4 flex items-center justify-between border-b border-neutral-200/80 pb-3">
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-brand-gold-700">
+                      {activeGroup.label}
+                    </span>
+                    <span className="text-xs font-semibold text-neutral-400">
+                      {isArabic ? 'اختر للذهاب مباشرة' : 'Select to navigate directly'}
+                    </span>
+                  </div>
+
+                  <div
+                    className={cn(
+                      'grid gap-3',
+                      activeGroup.items.length > 3
+                        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2'
+                        : 'grid-cols-1 sm:grid-cols-2',
+                    )}
+                  >
+                    {activeGroup.items.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => goToItem(item)}
+                        className="group flex items-start gap-3.5 rounded-2xl border border-neutral-100 bg-neutral-50/70 p-3 text-start transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-gold-500/40 hover:bg-amber-50/70 hover:shadow-md hover:shadow-brand-gold-500/10"
+                      >
+                        <span className="h-16 w-20 shrink-0 overflow-hidden rounded-xl border border-white/80 shadow-sm">
+                          <img
+                            src={item.image}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-115"
+                          />
+                        </span>
+                        <span className="flex flex-col gap-0.5 pt-0.5 min-w-0 flex-1">
+                          <span className="text-sm font-bold text-neutral-900 group-hover:text-brand-gold-700 transition-colors flex items-center justify-between">
+                            <span className="truncate">{item.label}</span>
+                            <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-all text-brand-gold-600 shrink-0 rtl:rotate-180" />
+                          </span>
+                          <span className="text-xs leading-relaxed text-neutral-500 line-clamp-2 font-medium">
+                            {item.desc}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right Side: Featured Highlight Banner Card */}
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-brand-gold-500/30 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 p-5 text-white shadow-xl">
+                  <div className="relative h-28 w-full overflow-hidden rounded-xl border border-white/10 mb-4">
+                    <img
+                      src="/clinic/canva-services-collage.png"
+                      alt="Featured Center"
+                      className="h-full w-full object-cover filter brightness-95"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent" />
+                    <span className="absolute bottom-2 start-2 rounded-md bg-brand-gold-500 px-2 py-0.5 text-[10px] font-bold text-neutral-950 uppercase tracking-wider">
+                      {isArabic ? 'خدمة متميزة' : 'Featured Center'}
+                    </span>
+                  </div>
+
+                  <h4 className="text-base font-bold text-white">
+                    {isArabic ? 'عيادات تخصصية متكاملة' : 'Specialized PolyClinic Units'}
+                  </h4>
+                  <p className="mt-1 text-xs text-neutral-300 leading-relaxed font-medium">
+                    {isArabic
+                      ? 'نوفر لك أفضل الاستشاريين والتجهيزات الطبية الحديثة من 8 ص حتى 1 ص'
+                      : 'Equipped with state-of-the-art diagnostic suites and expert consultants (8 AM – 1 AM)'}
+                  </p>
+
+                  <Button
+                    size="sm"
+                    className="mt-4 rounded-xl bg-brand-gold-500 text-neutral-950 font-bold hover:bg-brand-gold-400 transition-all text-xs"
+                    onClick={() => {
+                      setActiveGroupKey(null)
+                      navigate('/login')
+                    }}
+                  >
+                    {isArabic ? 'احجز موعدك الآن' : 'Book Appointment Now'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence initial={false}>
         {mobileOpen && (
@@ -322,6 +432,45 @@ export function LandingNav() {
   )
 }
 
+const SOCIAL_LINKS = [
+  {
+    name: 'Snapchat',
+    href: 'https://snapchat.com/add/alaminclinic',
+    icon: (
+      <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24">
+        <path d="M12 2.75c-3.1 0-5.25 2.1-5.25 4.5 0 .8.2 1.6.45 2.2-.6.1-1.35.45-1.5 1.05-.1.45.1.85.45 1.15.15.1.2.25.1.4-.4.8-1.55 1.85-2.6 1.75-.4 0-.75.25-.85.6-.1.4.15.8.5 1 .95.55 2.15 1.3 2.1 2.3 0 .2-.1.4-.3.45-1.1.35-1.95 1.1-1.7 2.1.2 1 .95 1.1 1.75 1.15.8.05 1.6-.2 2.25.5.75.8 2.3 1.35 4.6 1.35s3.85-.55 4.6-1.35c.65-.7 1.45-.45 2.25-.5.8-.05 1.55-.15 1.75-1.15.25-1-.6-1.75-1.7-2.1-.2-.05-.3-.25-.3-.45-.05-1 1.15-1.75 2.1-2.3.35-.2.6-.6.5-1-.1-.35-.45-.6-.85-.6-1.05.1-2.2-.95-2.6-1.75-.1-.15-.05-.3.1-.4.35-.3.55-.7.45-1.15-.15-.6-.9-.95-1.5-1.05.25-.6.45-1.4.45-2.2 0-2.4-2.15-4.5-5.25-4.5z" />
+      </svg>
+    ),
+  },
+  {
+    name: 'Facebook',
+    href: 'https://facebook.com/Alamin-Clinicss',
+    icon: (
+      <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24">
+        <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H7.5v-3H10V9.69c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.45 3h-2.33v6.8c4.56-.93 8-4.96 8-9.8z" />
+      </svg>
+    ),
+  },
+  {
+    name: 'Instagram',
+    href: 'https://instagram.com/alaminclinic',
+    icon: (
+      <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24">
+        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+      </svg>
+    ),
+  },
+  {
+    name: 'Twitter',
+    href: 'https://twitter.com/alaminclinic',
+    icon: (
+      <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+    ),
+  },
+]
+
 export function LandingFooter() {
   const { t } = useTranslation('landing')
   const navigate = useNavigate()
@@ -333,6 +482,20 @@ export function LandingFooter() {
         <div>
           <ClinicLogo light className="mb-4" />
           <p>{t('footer.about')}</p>
+          <div className="mt-6 flex items-center gap-3">
+            {SOCIAL_LINKS.map((social) => (
+              <a
+                key={social.name}
+                href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={social.name}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-800 text-neutral-400 transition-all duration-200 hover:bg-brand-gold-500 hover:text-neutral-950 hover:scale-110 shadow-sm"
+              >
+                {social.icon}
+              </a>
+            ))}
+          </div>
         </div>
 
         <div>

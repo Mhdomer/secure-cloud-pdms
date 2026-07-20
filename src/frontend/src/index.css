@@ -93,11 +93,12 @@
 
   /* Arabic language — font + size + line-height */
   :root[lang='ar'] body,
-  [lang='ar'] {
-    font-family: 'Thmanyah', 'Noto Sans Arabic', system-ui, sans-serif;
+  [lang='ar'],
+  [dir='rtl'] {
+    font-family: 'Thmanyah', 'Noto Sans Arabic', system-ui, sans-serif !important;
     font-size: 17px;
     line-height: 1.75;
-    letter-spacing: 0;
+    letter-spacing: 0 !important;
   }
 
   /* Arabic headings — slightly larger to match visual weight of Latin */

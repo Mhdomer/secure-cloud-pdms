@@ -2,17 +2,15 @@ import { useEffect, useRef, useState, type ComponentType, type FormEvent } from 
 import { AnimatePresence, motion, useInView } from 'framer-motion'
 import {
   ArrowRight,
-  Baby,
   Calendar,
-  ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Clock,
-  FlaskConical,
   LayoutGrid,
   MapPin,
   Phone,
   Search,
-  Smile,
+  ShieldCheck,
   Sparkles,
   Star,
   Stethoscope,
@@ -24,32 +22,80 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/toaster'
-import { avatarClassesFor } from '@/lib/avatar'
+import { useLanguage } from '@/hooks/useLanguage'
 import { cn } from '@/lib/utils'
 import {
-  doctorEmojiFor,
   EMERGENCY_TEL,
   fadeUp,
   LandingFooter,
   LandingNav,
-  ScrollableCarousel,
   SERVICE_IMAGES,
   staggerContainer,
   useScrollOnArrival,
 } from '@/pages/landing/shared'
 
-/**
- * Public marketing homepage shown at `/` to anyone who isn't signed in.
- * Kept intentionally short — a "who we are, what we do" overview — with
- * Services, Medical Facilities, and Patient & Visitor content living on
- * their own pages (reached via the nav mega-menu) instead of an ever-longer
- * scroll. See docs/psm2/report-delta.md DELTA-016.
- */
+const REAL_DOCTORS = [
+  {
+    name: 'د. محمد موسى',
+    nameEn: 'Dr. Mohamed Moussa',
+    specialty: 'طب عام',
+    specialtyEn: 'General Medicine',
+    image: '/clinic/dr-mohamed-moussa.jpg',
+    position: 'object-[center_15%]',
+    experience: '15+ Years Experience',
+  },
+  {
+    name: 'د. أسماء نجم',
+    nameEn: 'Dr. Asmaa Najm',
+    specialty: 'نساء وتوليد',
+    specialtyEn: 'Obstetrics & Gynecology',
+    image: '/clinic/dr-asmaa.jpg',
+    position: 'object-[center_20%]',
+    experience: '12+ Years Experience',
+  },
+  {
+    name: 'د. مصطفى',
+    nameEn: 'Dr. Mustafa',
+    specialty: 'طب الأطفال',
+    specialtyEn: 'Pediatrics',
+    image: '/clinic/dr-mustafa.jpg',
+    position: 'object-[center_10%]',
+    experience: '10+ Years Experience',
+  },
+  {
+    name: 'د. شيماء السيسي',
+    nameEn: 'Dr. Shaimaa Al-Sisi',
+    specialty: 'الجلدية والتجميل',
+    specialtyEn: 'Dermatology & Cosmetology',
+    image: '/clinic/dr-shaimaa.jpg',
+    position: 'object-[center_15%]',
+    experience: '14+ Years Experience',
+  },
+  {
+    name: 'د. أخصائية الجلدية',
+    nameEn: 'Dr. Dermatology Specialist',
+    specialty: 'الجلدية والليزر',
+    specialtyEn: 'Advanced Dermatology & Laser',
+    image: '/clinic/dr-dermatology-2.jpg',
+    position: 'object-[center_15%]',
+    experience: '13+ Years Experience',
+  },
+  {
+    name: 'د. طاقم التخصصات',
+    nameEn: 'Dr. Clinical Specialist',
+    specialty: 'الفحوصات الشاملة',
+    specialtyEn: 'Internal Diagnostics',
+    image: '/clinic/dr-doctor-5.jpg',
+    position: 'object-[center_15%]',
+    experience: '11+ Years Experience',
+  },
+]
+
 export default function LandingPage() {
   useScrollOnArrival()
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="relative min-h-screen bg-[#f8fafc] font-sans rtl:font-arabic text-slate-900 selection:bg-brand-gold-400 selection:text-slate-950">
       <LandingNav />
       <HeroSection />
       <QuickAccessSection />
@@ -70,9 +116,10 @@ function scrollToId(id: string) {
 }
 
 function HeroSection() {
-  const { t } = useTranslation('landing')
+  const { t, i18n } = useTranslation('landing')
   const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
+  const isArabic = i18n.language === 'ar'
 
   const handleSearch = (event: FormEvent) => {
     event.preventDefault()
@@ -81,78 +128,87 @@ function HeroSection() {
   }
 
   return (
-    <section className="relative flex min-h-screen items-center overflow-hidden">
-      <div className="absolute inset-0">
-        <img
-          src="/clinic/main-hall.png"
-          alt=""
-          aria-hidden="true"
-          className="h-full w-full object-cover object-center"
-        />
-        <div className="absolute inset-0 bg-neutral-900/60" />
+    <section className="relative flex min-h-[85vh] items-center justify-center overflow-hidden pt-16">
+      {/* High-Clarity Video Background Layer (HMG Style) */}
+      <div className="absolute inset-0 z-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="h-full w-full object-cover opacity-90 filter brightness-100 contrast-105"
+        >
+          <source src="/clinic/hero-motion.mp4" type="video/mp4" />
+        </video>
+
+        {/* Soft Clinical Vignette Mask */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/40 to-transparent" />
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: 'easeOut' }}
-        className="relative z-10 mx-auto max-w-3xl px-6 text-center"
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+        className="relative z-10 mx-auto max-w-4xl px-6 text-center pb-16"
       >
-        <p lang="ar" dir="rtl" className="text-3xl font-bold text-brand-gold-300">
-          مجمع الأمين الطبي
-        </p>
-        <p lang="en" dir="ltr" className="mt-1 text-lg text-white/70">
-          Alamin PolyClinic
-        </p>
+        {/* Frosted Gold Badge */}
+        <motion.div
+          whileHover={{ scale: 1.03 }}
+          className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-slate-950/60 px-4 py-1.5 backdrop-blur-xl shadow-xl text-sm font-semibold text-brand-gold-300"
+        >
+          <Sparkles className="h-4 w-4 animate-pulse text-brand-gold-400" />
+          <span>{isArabic ? 'مجمع الأمين الطبي — رعاية صحية متكاملة' : 'Alamin PolyClinic — Trusted Medical Care'}</span>
+        </motion.div>
 
-        <h1 className="mt-4 text-5xl font-bold tracking-tight text-white md:text-6xl">
+        <h1 className="mt-6 text-5xl font-extrabold tracking-tight text-white md:text-7xl leading-tight drop-shadow-md">
           {t('hero.tagline')}
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-xl text-white/80">{t('hero.subtext')}</p>
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-100 md:text-xl leading-relaxed font-medium drop-shadow">
+          {t('hero.subtext')}
+        </p>
 
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        {/* Action Buttons */}
+        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button
             size="lg"
-            className="bg-brand-gold text-neutral-900 font-semibold hover:bg-brand-gold-400"
+            className="group relative overflow-hidden rounded-full bg-gradient-to-r from-brand-gold-500 via-amber-500 to-brand-gold-600 px-8 py-6 text-base font-bold text-slate-950 shadow-xl shadow-brand-gold-500/25 hover:shadow-brand-gold-500/40 hover:scale-105 transition-all duration-300"
             onClick={() => navigate('/login')}
           >
-            {t('hero.cta')}
+            <span className="relative z-10 flex items-center gap-2">
+              {t('hero.cta')}
+              <ArrowRight className="h-5 w-5 rtl:rotate-180 transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1" />
+            </span>
           </Button>
+
           <Button
             size="lg"
             variant="outline"
-            className="border-white text-white hover:bg-white/10"
+            className="rounded-full border border-white/40 bg-slate-950/50 px-8 py-6 text-base font-bold text-white backdrop-blur-xl hover:bg-slate-900/80 hover:border-white/60 transition-all duration-300 shadow-md"
             onClick={() => navigate('/services')}
           >
             {t('hero.ctaSecondary')}
           </Button>
         </div>
 
-        <form onSubmit={handleSearch} className="relative mx-auto mt-6 max-w-lg">
-          <Search
-            className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60"
-            aria-hidden="true"
-          />
-          <Input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            placeholder={t('hero.searchPlaceholder')}
-            aria-label={t('hero.searchPlaceholder')}
-            className="h-12 border-white/30 bg-white/10 ps-10 text-white placeholder:text-white/60 focus-visible:ring-white/50"
-          />
+        {/* Search Bar */}
+        <form onSubmit={handleSearch} className="relative mx-auto mt-8 max-w-xl">
+          <div className="group relative rounded-2xl border border-white/30 bg-slate-950/65 p-1.5 backdrop-blur-2xl shadow-2xl shadow-black/30 transition-all duration-300 focus-within:border-brand-gold-400 focus-within:ring-2 focus-within:ring-brand-gold-400/30">
+            <div className="flex items-center px-3">
+              <Search className="h-5 w-5 text-white/80 transition-colors group-focus-within:text-brand-gold-400" />
+              <Input
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                placeholder={t('hero.searchPlaceholder')}
+                aria-label={t('hero.searchPlaceholder')}
+                className="h-11 border-0 bg-transparent text-white placeholder:text-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0 text-base font-medium"
+              />
+              <Button type="submit" size="sm" className="rounded-xl bg-brand-gold-500 text-slate-950 font-bold hover:bg-brand-gold-400">
+                {isArabic ? 'بحث' : 'Search'}
+              </Button>
+            </div>
+          </div>
         </form>
       </motion.div>
-
-      <motion.button
-        type="button"
-        onClick={() => scrollToId('trust')}
-        aria-label={t('hero.ctaSecondary')}
-        className="absolute inset-x-0 bottom-20 z-10 mx-auto flex w-fit text-white/50 transition-colors duration-150 ease-out hover:text-white"
-        animate={{ y: [0, 8, 0] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <ChevronDown className="h-8 w-8" aria-hidden="true" />
-      </motion.button>
     </section>
   )
 }
@@ -167,39 +223,37 @@ function QuickAccessSection() {
     href?: string
     onClick?: () => void
   }> = [
-    { key: 'book', icon: Calendar, onClick: () => navigate('/login') },
-    { key: 'findDoctor', icon: Users, onClick: () => scrollToId('doctors') },
-    { key: 'emergency', icon: Phone, href: EMERGENCY_TEL },
-    { key: 'departments', icon: LayoutGrid, onClick: () => navigate('/services') },
-  ]
+      { key: 'book', icon: Calendar, onClick: () => navigate('/login') },
+      { key: 'findDoctor', icon: Users, onClick: () => scrollToId('doctors') },
+      { key: 'emergency', icon: Phone, href: EMERGENCY_TEL },
+      { key: 'departments', icon: LayoutGrid, onClick: () => navigate('/services') },
+    ]
 
   return (
-    <section className="relative z-20 -mt-8 px-4 sm:px-6">
-      <div className="mx-auto max-w-5xl rounded-2xl bg-white p-4 shadow-modal sm:p-6">
+    <section id="quick-access" className="relative z-20 py-8 px-4 sm:px-6">
+      <div className="mx-auto max-w-5xl rounded-3xl border border-slate-200/80 bg-white p-4 shadow-xl shadow-slate-900/5 sm:p-6">
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, amount: 0.4 }}
+          viewport={{ once: true, amount: 0.3 }}
           variants={staggerContainer}
           className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4"
         >
           {items.map((item) => {
             const cardClass =
-              'flex w-full flex-col items-center gap-2 rounded-xl p-3 text-center transition-colors duration-150 ease-out hover:bg-brand-gold/5 sm:p-4'
+              'group relative flex w-full flex-col items-center gap-3 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/70 p-4 text-center transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-gold-500/50 hover:bg-white hover:shadow-xl hover:shadow-brand-gold-500/10'
             const content = (
               <>
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gold/10">
-                  <item.icon className="h-5 w-5 text-brand-gold-600" aria-hidden="true" />
-                </span>
-                <span className="text-sm font-semibold text-neutral-900">
-                  {t(`quickAccess.${item.key}.title`)}
-                </span>
-                <span className="text-xs text-neutral-500">{t(`quickAccess.${item.key}.desc`)}</span>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-gold-500/15 border border-brand-gold-500/30 transition-transform duration-300 group-hover:scale-110">
+                  <item.icon className="h-6 w-6 text-brand-gold-600" />
+                </div>
+                <span className="text-sm font-bold text-slate-900">{t(`quickAccess.${item.key}.title`)}</span>
+                <span className="text-xs text-slate-500 font-medium">{t(`quickAccess.${item.key}.desc`)}</span>
               </>
             )
 
             return (
-              <motion.div key={item.key} variants={fadeUp} transition={{ duration: 0.4 }}>
+              <motion.div key={item.key} variants={fadeUp}>
                 {item.href ? (
                   <a href={item.href} className={cardClass}>
                     {content}
@@ -218,9 +272,6 @@ function QuickAccessSection() {
   )
 }
 
-/** Parses a localized numeric stat string ("15+", "+٥٠٬٠٠٠"…) down to a plain
- * integer so it can be counted up from zero. Arabic-Indic digits are mapped
- * to their Western equivalents first since `parseInt` doesn't read them. */
 function parseStatTarget(value: string): number {
   const arabicIndicDigits = '٠١٢٣٤٥٦٧٨٩'
   const normalized = value.replace(/[٠-٩]/g, (digit) => String(arabicIndicDigits.indexOf(digit)))
@@ -228,22 +279,47 @@ function parseStatTarget(value: string): number {
   return digitsOnly ? parseInt(digitsOnly, 10) : 0
 }
 
-interface CountUpStatProps {
-  value: string
-  label: string
-  icon: ComponentType<{ className?: string }>
+function formatDisplayCount(count: number, rawValue: string): string {
+  const hasPlus = rawValue.includes('+')
+  const hasComma = rawValue.includes('٬') || rawValue.includes(',')
+  const isArabicDigit = /[٠-٩]/.test(rawValue)
+
+  let numStr = count.toLocaleString()
+  if (isArabicDigit) {
+    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
+    numStr = String(count).replace(/[0-9]/g, (d) => arabicDigits[parseInt(d, 10)])
+    if (hasComma) {
+      numStr = numStr.replace(/\B(?=(\d{3})+(?!\d))/g, '٬')
+    }
+  }
+
+  return hasPlus ? `${numStr}+` : numStr
 }
 
-function CountUpStat({ value, label, icon: Icon }: CountUpStatProps) {
+function PopOutStatCard({
+  icon: Icon,
+  value,
+  label,
+  className,
+}: {
+  icon: ComponentType<{ className?: string }>
+  value: string
+  label: string
+  className?: string
+}) {
   const ref = useRef<HTMLDivElement>(null)
-  const isInView = useInView(ref, { once: true, amount: 0.5 })
+  const isInView = useInView(ref, { once: true, margin: '-40px' })
   const [count, setCount] = useState(0)
   const [done, setDone] = useState(false)
 
   useEffect(() => {
     if (!isInView) return
-
     const target = parseStatTarget(value)
+    if (target === 0) {
+      setDone(true)
+      return
+    }
+
     const durationMs = 1500
     const stepMs = 30
     const totalSteps = Math.max(1, Math.round(durationMs / stepMs))
@@ -262,21 +338,30 @@ function CountUpStat({ value, label, icon: Icon }: CountUpStatProps) {
     return () => clearInterval(interval)
   }, [isInView, value])
 
+  const formattedCount = formatDisplayCount(count, value)
+
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 16 }}
-      animate={isInView ? { opacity: 1, y: 0 } : undefined}
-      transition={{ duration: 0.5 }}
-      className="relative flex items-center justify-between gap-3 overflow-hidden rounded-2xl bg-white p-5 shadow-sm sm:p-6"
+      initial={{ opacity: 0, scale: 0.85, y: 15 }}
+      animate={isInView ? { opacity: 1, scale: 1, y: 0 } : undefined}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className={cn(
+        'absolute flex items-center gap-3 rounded-2xl border border-white/80 bg-white/95 p-3 sm:p-4 shadow-2xl shadow-slate-900/20 backdrop-blur-md transition-transform duration-300 hover:scale-105 hover:z-30 cursor-default',
+        className,
+      )}
     >
-      <div className="flex flex-col gap-1">
-        <span className="text-sm text-brand-gold-700">{label}</span>
-        <span className="text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
-          {done ? value : count}
+      <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-brand-gold-400 shadow-inner">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="flex flex-col text-start me-1">
+        <span className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight leading-none">
+          {done ? value : formattedCount}
+        </span>
+        <span className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-1 whitespace-nowrap">
+          {label}
         </span>
       </div>
-      <Icon className="h-10 w-10 shrink-0 text-neutral-200" aria-hidden="true" />
     </motion.div>
   )
 }
@@ -285,36 +370,92 @@ function TrustSection() {
   const { t } = useTranslation('landing')
 
   return (
-    <section id="trust" className="relative overflow-hidden px-4 pb-20 pt-24 sm:px-6 lg:pt-28">
-      <div className="absolute inset-0">
-        <img src="/clinic/main-hall-3.png" alt="" aria-hidden="true" className="h-full w-full object-cover object-center" />
-        <div className="absolute inset-0 bg-brand-charcoal/90" />
+    <section id="trust" className="relative overflow-hidden bg-[#f8fafc] px-4 py-24 sm:px-6 lg:py-28 border-b border-slate-100">
+      {/* Background Brand Emblem Watermark */}
+      <div className="absolute start-4 sm:start-12 top-1/2 -translate-y-1/2 opacity-25 pointer-events-none select-none z-0 mix-blend-multiply">
+        <img
+          src="/clinic/brand-emblem-watermark.png"
+          alt=""
+          className="h-[420px] sm:h-[500px] w-auto object-contain filter contrast-300 brightness-75"
+        />
       </div>
 
-      <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 gap-12 lg:grid-cols-2 lg:items-center lg:gap-16">
+      <div className="relative z-10 mx-auto grid max-w-6xl grid-cols-1 gap-12 lg:grid-cols-12 lg:items-center">
+        {/* Left Column: Text & CTA */}
         <motion.div
           initial={{ opacity: 0, x: -24 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.6 }}
+          className="lg:col-span-6"
         >
-          <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{t('trust.heading')}</h2>
-          <p className="mt-5 max-w-md text-white/70">{t('trust.description')}</p>
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand-gold-500/30 bg-brand-gold-500/10 px-4 py-1.5 text-xs font-bold text-brand-gold-700">
+            <ShieldCheck className="h-4 w-4" />
+            <span>Top Healthcare Standards</span>
+          </div>
+
+          <h2 className="mt-4 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl leading-tight">
+            {t('trust.heading')}
+          </h2>
+          <p className="mt-5 text-lg text-slate-600 leading-relaxed font-normal">{t('trust.description')}</p>
+
           <Button
             size="lg"
-            className="mt-8 rounded-full bg-white text-brand-charcoal hover:bg-white/90"
+            className="mt-8 rounded-full bg-gradient-to-r from-brand-gold-500 to-amber-600 px-8 text-slate-950 font-bold shadow-lg shadow-brand-gold-500/20 hover:shadow-xl hover:shadow-brand-gold-500/35 hover:scale-105 transition-all"
             onClick={() => scrollToId('contact')}
           >
             {t('trust.cta')}
           </Button>
         </motion.div>
 
-        <div className="rounded-3xl bg-white/5 p-3 sm:p-4">
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-            <CountUpStat icon={Stethoscope} value={t('trust.physicians.value')} label={t('trust.physicians.label')} />
-            <CountUpStat icon={Clock} value={t('trust.experience.value')} label={t('trust.experience.label')} />
-            <CountUpStat icon={Users} value={t('trust.patients.value')} label={t('trust.patients.label')} />
-            <CountUpStat icon={LayoutGrid} value={t('trust.specialties.value')} label={t('trust.specialties.label')} />
+        {/* Right Column: Main Image with Pop-Out Stat Cards */}
+        <div className="lg:col-span-6 flex justify-center py-6">
+          <div className="relative w-full max-w-[460px] px-4">
+            {/* Red / Gold Accent Background Shape */}
+            <div className="absolute -top-4 -start-2 h-44 w-44 rounded-tl-[40px] rounded-br-[100px] bg-gradient-to-br from-red-500 via-amber-500 to-brand-gold-600 opacity-80 -z-10 blur-[1px]" />
+            <div className="absolute -bottom-4 -end-2 h-40 w-40 rounded-br-[40px] rounded-tl-[100px] bg-slate-900 opacity-15 -z-10" />
+
+            {/* Central Main Frame Image */}
+            <div className="relative h-[380px] sm:h-[440px] w-full overflow-hidden rounded-[36px] border border-white/80 bg-slate-100 shadow-2xl">
+              <img
+                src="/clinic/brand-card-variant-2.png"
+                alt="Alamin Polyclinic - Trusted Healthcare Provider"
+                className="h-full w-full object-cover"
+              />
+            </div>
+
+            {/* Pop-Out Stat Cards Popping Beyond the Frame */}
+            {/* Card 1: Top Right (Physicians) */}
+            <PopOutStatCard
+              icon={Stethoscope}
+              value={t('trust.physicians.value')}
+              label={t('trust.physicians.label')}
+              className="-top-5 -end-4 sm:-end-8 z-20"
+            />
+
+            {/* Card 2: Middle Left (Specialties) */}
+            <PopOutStatCard
+              icon={LayoutGrid}
+              value={t('trust.specialties.value')}
+              label={t('trust.specialties.label')}
+              className="top-1/3 -start-6 sm:-start-10 z-20"
+            />
+
+            {/* Card 3: Bottom Left (Experience) */}
+            <PopOutStatCard
+              icon={Clock}
+              value={t('trust.experience.value')}
+              label={t('trust.experience.label')}
+              className="-bottom-5 -start-4 sm:-start-8 z-20"
+            />
+
+            {/* Card 4: Bottom Right (Patients Served) */}
+            <PopOutStatCard
+              icon={Users}
+              value={t('trust.patients.value')}
+              label={t('trust.patients.label')}
+              className="-bottom-5 -end-4 sm:-end-8 z-20"
+            />
           </div>
         </div>
       </div>
@@ -322,21 +463,14 @@ function TrustSection() {
   )
 }
 
-/** Condensed "what we offer" preview — replaces a full in-page Services grid
- * with 3 hover-lift cards that route out to their own pages, keeping the
- * landing page short instead of an ever-longer scroll. */
 const SPECIALTY_PREVIEW: Array<keyof typeof SERVICE_IMAGES> = ['generalMedicine', 'dental', 'laboratory', 'dermatology']
 
 function OfferingsTeaserSection() {
   const { t } = useTranslation('landing')
   const navigate = useNavigate()
 
-  const offerings: Array<{ key: 'facilities'; image: string; to: string }> = [
-    { key: 'facilities', image: '/clinic/branch-2.png', to: '/facilities' },
-  ]
-
   return (
-    <section id="services" className="bg-neutral-50 px-4 py-24 sm:px-6">
+    <section id="services" className="relative bg-[#f8fafc] px-4 py-24 sm:px-6">
       <div className="mx-auto max-w-6xl">
         <motion.div
           initial="hidden"
@@ -346,8 +480,8 @@ function OfferingsTeaserSection() {
           transition={{ duration: 0.5 }}
           className="mx-auto max-w-2xl text-center"
         >
-          <h2 className="text-4xl font-extrabold tracking-tight text-neutral-900">{t('offerings.heading')}</h2>
-          <p className="mt-5 text-neutral-500">{t('offerings.sub')}</p>
+          <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">{t('offerings.heading')}</h2>
+          <p className="mt-4 text-lg text-slate-600 font-medium">{t('offerings.sub')}</p>
         </motion.div>
 
         <motion.div
@@ -362,97 +496,42 @@ function OfferingsTeaserSection() {
               key={key}
               type="button"
               variants={fadeUp}
-              transition={{ duration: 0.4 }}
-              whileHover={{ y: -4 }}
+              whileHover={{ y: -6, scale: 1.02 }}
               onClick={() => navigate('/services')}
-              className="group relative aspect-square overflow-hidden rounded-xl text-start shadow-card transition-shadow duration-150 ease-out hover:shadow-card-hover"
+              className="group relative aspect-[3/4] overflow-hidden rounded-3xl border border-slate-200/80 bg-white text-start shadow-xl shadow-slate-200/60 transition-all duration-300"
             >
               <img
                 src={SERVICE_IMAGES[key]}
                 alt=""
-                aria-hidden="true"
-                className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-neutral-900/80 via-neutral-900/10 to-transparent" />
-              <span className="absolute bottom-0 start-0 p-3 text-sm font-semibold text-white">
-                {t(`services.${key}.title`)}
-              </span>
-            </motion.button>
-          ))}
-        </motion.div>
-
-        <div className="mt-5 flex justify-center">
-          <button
-            type="button"
-            onClick={() => navigate('/services')}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-gold-600 transition-colors duration-150 ease-out hover:text-brand-gold-700"
-          >
-            {t('offerings.services.cta')}
-            <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
-          </button>
-        </div>
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={staggerContainer}
-          className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2"
-        >
-          {offerings.map((offer) => (
-            <motion.button
-              key={offer.key}
-              type="button"
-              variants={fadeUp}
-              transition={{ duration: 0.45 }}
-              whileHover={{ y: -6 }}
-              onClick={() => navigate(offer.to)}
-              className="group relative aspect-[16/9] overflow-hidden rounded-2xl text-start shadow-card transition-shadow duration-150 ease-out hover:shadow-card-hover sm:aspect-[3/4]"
-            >
-              <img
-                src={offer.image}
-                alt=""
-                aria-hidden="true"
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-neutral-900/85 via-neutral-900/20 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-6 text-white">
-                <h3 className="text-xl font-semibold">{t(`offerings.${offer.key}.title`)}</h3>
-                <p className="mt-1.5 text-white/80">{t(`offerings.${offer.key}.desc`)}</p>
-                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-gold-300">
-                  {t(`offerings.${offer.key}.cta`)}
-                  <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-4">
+                <span className="block text-base font-bold text-white group-hover:text-brand-gold-300 transition-colors">
+                  {t(`services.${key}.title`)}
+                </span>
+                <span className="mt-1 flex items-center gap-1 text-xs text-slate-300">
+                  <span>Explore Service</span>
+                  <ArrowRight className="h-3 w-3 rtl:rotate-180" />
                 </span>
               </div>
             </motion.button>
           ))}
-
-          <motion.button
-            type="button"
-            variants={fadeUp}
-            transition={{ duration: 0.45 }}
-            whileHover={{ y: -6 }}
-            onClick={() => navigate('/patient-info')}
-            className="group relative aspect-[16/9] overflow-hidden rounded-2xl bg-[#e4dfd0] text-start shadow-card transition-shadow duration-150 ease-out hover:shadow-card-hover sm:aspect-[3/4]"
-          >
-            <img
-              src="/clinic/patient-visitor-guide.png"
-              alt={t('offerings.patientInfo.title')}
-              className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
-            />
-          </motion.button>
         </motion.div>
+
+        <div className="mt-10 flex justify-center">
+          <Button
+            variant="outline"
+            className="rounded-full border-slate-300 bg-white text-slate-800 hover:bg-slate-100 shadow-md font-semibold"
+            onClick={() => navigate('/services')}
+          >
+            <span>{t('offerings.services.cta')}</span>
+            <ArrowRight className="h-4 w-4 ms-2 rtl:rotate-180" />
+          </Button>
+        </div>
       </div>
     </section>
   )
-}
-
-const SPECIALTY_ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  dental: Smile,
-  'general-medicine': Stethoscope,
-  laboratory: FlaskConical,
-  pediatrics: Baby,
-  dermatology: Sparkles,
 }
 
 const SPECIALTY_IMAGES: Record<string, string> = {
@@ -464,80 +543,125 @@ const SPECIALTY_IMAGES: Record<string, string> = {
 }
 
 function SpecialtyCentresSection() {
-  const { t } = useTranslation('landing')
+  const { t, i18n } = useTranslation('landing')
   const specialties = t('specialtyCentres.list', { returnObjects: true }) as Array<{ key: string; name: string }>
   const [activeKey, setActiveKey] = useState('dental')
+  const isArabic = i18n.language === 'ar'
 
-  const activeIndex = Math.max(
-    0,
-    specialties.findIndex((item) => item.key === activeKey),
-  )
+  const activeIndex = Math.max(0, specialties.findIndex((item) => item.key === activeKey))
+  const activeSpecialty = specialties[activeIndex] ?? specialties[0]
   const nextSpecialty = specialties[(activeIndex + 1) % specialties.length]
-  const subtitle = specialties.map((item) => item.name).join(' • ')
 
   return (
-    <section className="bg-neutral-50 px-4 py-24 sm:px-6">
-      <div className="mx-auto max-w-6xl">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-[42%_1fr]">
-          <div className="rounded-2xl bg-white p-8 shadow-sm">
-            <h2 className="text-2xl font-bold text-brand-charcoal">{t('specialtyCentres.heading')}</h2>
-            <span aria-hidden="true" className="mb-6 mt-2 block h-0.5 w-8 bg-brand-gold" />
-            <p className="text-sm text-gray-400">{subtitle}</p>
+    <section className="relative overflow-hidden bg-[#f4f4f2] text-slate-900">
+      {/* Top/Rear High-Res B&W Header Banner Frame */}
+      <div className="absolute inset-x-0 top-0 h-48 z-0 overflow-hidden bg-neutral-900">
+        <img
+          src="/clinic/canva-waiting-clean.png"
+          alt=""
+          className="h-full w-full object-cover grayscale opacity-35 contrast-125 brightness-95"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/50 via-neutral-950/20 to-transparent" />
+      </div>
 
-            <div className="mt-2 flex flex-col">
-              {specialties.map((item) => {
-                const Icon = SPECIALTY_ICONS[item.key] ?? Stethoscope
-                const isActive = item.key === activeKey
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setActiveKey(item.key)}
-                    style={{ borderInlineStart: isActive ? '2px solid #f59e0b' : '2px solid transparent' }}
-                    className={cn(
-                      'flex items-center border-b border-gray-100 py-4 ps-3 pe-2 text-start transition-colors duration-150 ease-out',
-                      isActive ? 'bg-amber-50/30' : 'hover:bg-amber-50/10',
-                    )}
-                  >
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-50">
-                      <Icon className="h-5 w-5 text-amber-600" aria-hidden="true" />
-                    </span>
-                    <span className="font-medium ms-3 text-brand-charcoal">{item.name}</span>
-                    <ChevronRight className="ms-auto h-4 w-4 shrink-0 text-amber-500 rtl:rotate-180" aria-hidden="true" />
-                  </button>
-                )
-              })}
+      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 pt-10 pb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left Column: Typography & Enclosed Navigation Card Box */}
+          <div className="lg:col-span-5">
+            <div className="rounded-[28px] border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xl shadow-slate-900/5">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                {t('specialtyCentres.heading')}
+              </h2>
+              <span className="mt-2 block h-1 w-12 rounded-full bg-[#967d58]" />
+
+              {/* Interactive Menu List Inside Card Box */}
+              <div className="mt-6 flex flex-col gap-2.5">
+                {specialties.map((item) => {
+                  const isActive = item.key === activeKey
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setActiveKey(item.key)}
+                      className={cn(
+                        'group flex items-center text-start transition-all duration-200 cursor-pointer outline-none px-3.5 py-2.5 rounded-xl',
+                        isActive
+                          ? 'text-[#967d58] font-bold text-base bg-[#967d58]/10 shadow-sm'
+                          : 'text-slate-600 font-semibold text-sm hover:text-slate-900 hover:bg-slate-50',
+                      )}
+                    >
+                      {isActive ? (
+                        <span className="w-5 h-[3px] bg-[#967d58] me-3 rounded-full inline-block shrink-0" />
+                      ) : (
+                        <span className="w-5 h-[3px] bg-transparent me-3 inline-block shrink-0" />
+                      )}
+                      <span className="truncate">{item.name}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
-          <div className="flex h-[460px] gap-4">
-            <div className="relative h-full w-full max-w-[460px] flex-1 overflow-hidden rounded-2xl">
+          {/* Right Column: Staggered Feature Cards */}
+          <div className="lg:col-span-7 flex flex-col sm:flex-row items-start sm:items-end justify-center lg:justify-end gap-6 pt-2">
+            {/* Card 1: Main Active Card (Significantly Larger, Royal Purple Gradient) */}
+            <div className="relative h-[520px] w-full max-w-[340px] sm:w-[340px] shrink-0 rounded-[32px] overflow-hidden shadow-2xl flex flex-col justify-end p-7 text-white bg-[#220d3b] z-20 border border-white/20">
               <AnimatePresence mode="wait">
                 <motion.img
                   key={activeKey}
                   src={SPECIALTY_IMAGES[activeKey]}
-                  alt={specialties[activeIndex]?.name ?? ''}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  alt={activeSpecialty?.name ?? ''}
+                  initial={{ opacity: 0, scale: 1.05 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.4 }}
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               </AnimatePresence>
+
+              {/* Deep Royal Purple Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#2a0e4d] via-[#3a1563]/85 to-transparent" />
+
+              <div className="relative z-10">
+                <span className="text-xs font-medium text-white/80 tracking-wide uppercase mb-1 block">
+                  {isArabic ? 'نظرة عامة' : 'Overview'}
+                </span>
+                <h3 className="text-3xl font-bold text-white drop-shadow mb-3">
+                  {activeSpecialty?.name}
+                </h3>
+                <p className="text-xs text-white/85 leading-relaxed font-normal line-clamp-3">
+                  {isArabic
+                    ? 'مركز تخصصي متكامل يوفر أفضل أطباء واستشاريين الرعاية المتقدمة بأعلى معايير الأمان.'
+                    : 'KPJ Centre For Sight is one stop eye centre with a team of professional surgeons...'}
+                </p>
+              </div>
             </div>
 
+            {/* Card 2: Second Teaser Card (Smaller, Shifted Lower, Dark Teal Gradient) */}
             {nextSpecialty && (
               <button
                 type="button"
                 onClick={() => setActiveKey(nextSpecialty.key)}
-                aria-label={nextSpecialty.name}
-                className="relative hidden h-full w-32 shrink-0 overflow-hidden rounded-2xl transition-opacity duration-200 ease-out hover:opacity-90 sm:block sm:w-40"
+                className="group relative h-[360px] w-full max-w-[240px] sm:w-[240px] shrink-0 rounded-[28px] overflow-hidden shadow-xl flex flex-col justify-end p-6 text-start text-white bg-[#002f3c] cursor-pointer hover:scale-103 transition-all duration-300 z-10 border border-white/20 self-end"
               >
                 <img
                   src={SPECIALTY_IMAGES[nextSpecialty.key]}
                   alt={nextSpecialty.name}
-                  className="h-full w-full object-cover"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                 />
+
+                {/* Dark Teal / Cyan Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#003847] via-[#004e63]/80 to-transparent" />
+
+                <div className="relative z-10">
+                  <span className="text-xs font-medium text-white/80 tracking-wide uppercase mb-1 block">
+                    {isArabic ? 'التالي' : 'Overview'}
+                  </span>
+                  <h4 className="text-xl font-bold text-white drop-shadow">
+                    {nextSpecialty.name}
+                  </h4>
+                </div>
               </button>
             )}
           </div>
@@ -548,61 +672,112 @@ function SpecialtyCentresSection() {
 }
 
 function DoctorsSection() {
-  const { t } = useTranslation('landing')
+  const { t, i18n } = useTranslation('landing')
   const navigate = useNavigate()
-  const doctors = t('doctors.list', { returnObjects: true }) as Array<{
-    name: string
-    specialty: string
-    bio: string
-  }>
+  const { isRtl } = useLanguage()
+  const isArabic = i18n.language === 'ar'
+  const carouselRef = useRef<HTMLDivElement>(null)
+
+  const scrollCarousel = (direction: 'left' | 'right') => {
+    const el = carouselRef.current
+    if (!el) return
+    const amount = direction === 'left' ? -340 : 340
+    const scrollDir = isRtl ? -amount : amount
+    el.scrollBy({ left: scrollDir, behavior: 'smooth' })
+  }
+
+  // Auto-advance loop
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const el = carouselRef.current
+      if (!el) return
+      const maxScroll = el.scrollWidth - el.clientWidth
+      if (maxScroll <= 10) return
+      const current = Math.abs(el.scrollLeft)
+      if (maxScroll - current <= 20) {
+        el.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        const dir = isRtl ? -1 : 1
+        el.scrollBy({ left: dir * 320, behavior: 'smooth' })
+      }
+    }, 3200)
+
+    return () => clearInterval(interval)
+  }, [isRtl])
 
   return (
-    <section id="doctors" className="relative overflow-hidden py-24">
-      <div className="absolute inset-0">
-        <img src="/clinic/reception.png" alt="" aria-hidden="true" className="h-full w-full object-cover object-center" />
-        <div className="absolute inset-0 bg-neutral-900/80" />
-      </div>
-
+    <section id="doctors" className="relative overflow-hidden bg-[#f8fafc] text-slate-900 py-24 sm:py-32">
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.4 }}
-          variants={fadeUp}
-          transition={{ duration: 0.5 }}
-          className="mx-auto max-w-2xl text-center"
-        >
-          <h2 className="text-4xl font-extrabold tracking-tight text-white">{t('doctors.heading')}</h2>
-          <p className="mt-5 text-white/70">{t('doctors.sub')}</p>
-        </motion.div>
+        <div className="flex flex-col items-center justify-between gap-6 md:flex-row md:items-end">
+          <div>
+            <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">{t('doctors.heading')}</h2>
+            <p className="mt-3 text-lg text-slate-600 font-medium">{t('doctors.sub')}</p>
+          </div>
 
-        <div className="mt-16 rounded-3xl bg-white p-4 shadow-modal sm:p-6">
-          <ScrollableCarousel prevLabel={t('carousel.prev')} nextLabel={t('carousel.next')}>
-            {doctors.map((doctor) => (
-              <div
-                key={doctor.name}
-                className="group mx-3 flex w-72 shrink-0 snap-center flex-col items-center rounded-2xl bg-neutral-50 px-6 py-8 text-center transition-all duration-200 ease-out hover:-translate-y-1.5 hover:shadow-card-hover"
-              >
-                <span
-                  className={cn(
-                    'flex h-20 w-20 items-center justify-center rounded-full text-4xl transition-transform duration-200 ease-out group-hover:scale-105',
-                    avatarClassesFor(doctor.name),
-                  )}
-                >
-                  {doctorEmojiFor(doctor.name)}
-                </span>
-                <h3 className="mt-4 text-lg font-semibold text-neutral-900">{doctor.name}</h3>
-                <p className="mt-1 text-sm text-brand-gold-600">{doctor.specialty}</p>
-                <p className="mt-2 line-clamp-2 text-neutral-500">{doctor.bio}</p>
-              </div>
-            ))}
-          </ScrollableCarousel>
+          {/* Carousel Controls */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => scrollCarousel('left')}
+              aria-label={t('carousel.prev')}
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-800 transition-all hover:bg-brand-gold-500 hover:text-slate-950 hover:border-brand-gold-500 shadow-sm"
+            >
+              <ChevronLeft className="h-6 w-6 rtl:rotate-180" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollCarousel('right')}
+              aria-label={t('carousel.next')}
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-800 transition-all hover:bg-brand-gold-500 hover:text-slate-950 hover:border-brand-gold-500 shadow-sm"
+            >
+              <ChevronRight className="h-6 w-6 rtl:rotate-180" />
+            </button>
+          </div>
         </div>
 
-        <div className="mt-10 flex justify-center">
-          <Button size="lg" className="bg-brand-gold text-white hover:bg-brand-gold-600" onClick={() => navigate('/login')}>
-            {t('doctors.cta')}
-          </Button>
+        {/* Doctor Cards Carousel */}
+        <div
+          ref={carouselRef}
+          className="mt-12 flex snap-x snap-mandatory overflow-x-auto scrollbar-hide py-4 gap-6 scroll-smooth"
+        >
+          {REAL_DOCTORS.map((doc) => (
+            <div
+              key={doc.nameEn}
+              className="group relative flex w-80 shrink-0 snap-center flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/5 transition-all duration-500 hover:-translate-y-2 hover:border-brand-gold-400 hover:shadow-2xl hover:shadow-brand-gold-500/15"
+            >
+              {/* Doctor Headshot Portrait Frame */}
+              <div className="relative h-80 w-full overflow-hidden bg-slate-900">
+                <img
+                  src={doc.image}
+                  alt={doc.name}
+                  className={cn(
+                    'h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-108 filter brightness-100 group-hover:brightness-105',
+                    doc.position,
+                  )}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                <span className="absolute top-4 start-4 rounded-full border border-white/30 bg-black/60 px-3 py-1 backdrop-blur-md text-xs font-semibold text-brand-gold-300">
+                  {doc.experience}
+                </span>
+              </div>
+
+              <div className="flex flex-col p-6 text-start bg-white">
+                <h3 className="text-xl font-bold text-slate-900 group-hover:text-brand-gold-700 transition-colors">
+                  {isArabic ? doc.name : doc.nameEn}
+                </h3>
+                <p className="mt-1 text-sm font-bold text-brand-gold-600">
+                  {isArabic ? doc.specialty : doc.specialtyEn}
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-5 rounded-xl bg-slate-900 text-white hover:bg-brand-gold-500 hover:text-slate-950 font-bold transition-all"
+                  onClick={() => navigate('/login')}
+                >
+                  {t('doctors.cta')}
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -618,7 +793,7 @@ function TestimonialsSection() {
   }>
 
   return (
-    <section className="bg-stone-100 py-24">
+    <section className="bg-white py-24 border-t border-slate-100">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <motion.div
           initial="hidden"
@@ -628,27 +803,25 @@ function TestimonialsSection() {
           transition={{ duration: 0.5 }}
           className="mx-auto max-w-2xl text-center"
         >
-          <h2 className="text-4xl font-extrabold tracking-tight text-neutral-900">{t('testimonials.heading')}</h2>
-          <p className="mt-5 text-neutral-500">{t('testimonials.sub')}</p>
+          <h2 className="text-4xl font-extrabold tracking-tight text-slate-900">{t('testimonials.heading')}</h2>
+          <p className="mt-4 text-slate-600 font-medium">{t('testimonials.sub')}</p>
         </motion.div>
 
-        <div className="mt-16 rounded-3xl bg-white p-4 shadow-card sm:p-6">
-          <ScrollableCarousel prevLabel={t('carousel.prev')} nextLabel={t('carousel.next')}>
-            {testimonials.map((item) => (
-              <div
-                key={item.name}
-                className="mx-3 flex w-80 shrink-0 snap-center flex-col rounded-2xl border border-neutral-200 bg-neutral-50 p-6 transition-all duration-200 ease-out hover:-translate-y-1.5 hover:border-brand-gold/40 hover:shadow-card-hover"
-              >
-                <div className="flex gap-0.5">
-                  {Array.from({ length: item.rating }).map((_, index) => (
-                    <Star key={index} className="h-4 w-4 fill-brand-gold-400 text-brand-gold-400" aria-hidden="true" />
-                  ))}
-                </div>
-                <p className="mt-4 italic text-neutral-700">&ldquo;{item.quote}&rdquo;</p>
-                <p className="mt-4 text-sm text-neutral-400">{item.name}</p>
+        <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {testimonials.map((item) => (
+            <div
+              key={item.name}
+              className="flex flex-col rounded-3xl border border-slate-200/80 bg-slate-50/70 p-6 shadow-md shadow-slate-900/5 transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-gold-400"
+            >
+              <div className="flex gap-1">
+                {Array.from({ length: item.rating }).map((_, index) => (
+                  <Star key={index} className="h-4 w-4 fill-brand-gold-400 text-brand-gold-400" />
+                ))}
               </div>
-            ))}
-          </ScrollableCarousel>
+              <p className="mt-4 italic text-slate-700 leading-relaxed font-medium">&ldquo;{item.quote}&rdquo;</p>
+              <p className="mt-4 text-sm font-bold text-brand-gold-700">{item.name}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -664,38 +837,33 @@ function HowItWorksSection() {
   }>
 
   return (
-    <section id="how-it-works" className="bg-neutral-100 px-4 py-24 sm:px-6">
+    <section id="how-it-works" className="bg-[#f8fafc] text-slate-900 px-4 py-24 sm:px-6 border-t border-slate-100">
       <div className="mx-auto max-w-6xl">
         <motion.h2
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.5 }}
-          className="text-center text-3xl font-bold text-neutral-900"
+          className="text-center text-4xl font-extrabold text-slate-900"
         >
           {t('howItWorks.heading')}
         </motion.h2>
 
         <div className="relative mt-16 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-6">
-          <div
-            aria-hidden="true"
-            className="absolute top-6 hidden h-px w-full border-t-2 border-dashed border-brand-gold/30 md:block"
-          />
-
           {steps.map((item, index) => (
             <motion.div
               key={item.step}
-              initial={{ opacity: 0, x: index % 2 === 0 ? -32 : 32 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.4 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="relative flex flex-col items-center text-center"
+              className="group relative flex flex-col items-center rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-lg shadow-slate-900/5 transition-all duration-300 hover:border-brand-gold-400 hover:-translate-y-2"
             >
-              <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-lg bg-brand-gold text-lg font-bold text-white">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-gold-500 to-amber-600 text-xl font-bold text-slate-950 shadow-lg shadow-brand-gold-500/25">
                 {item.step}
-              </span>
-              <h3 className="mt-4 text-lg font-semibold text-neutral-900">{item.title}</h3>
-              <p className="mt-2 max-w-xs text-neutral-600">{item.desc}</p>
+              </div>
+              <h3 className="mt-6 text-xl font-bold text-slate-900">{item.title}</h3>
+              <p className="mt-3 text-slate-600 leading-relaxed font-medium">{item.desc}</p>
             </motion.div>
           ))}
         </div>
@@ -708,7 +876,7 @@ function ContactSection() {
   const { t } = useTranslation('landing')
 
   return (
-    <section id="contact" className="bg-white px-4 py-24 sm:px-6">
+    <section id="contact" className="bg-white px-4 py-24 sm:px-6 border-t border-slate-100">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-12 md:grid-cols-2">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -716,28 +884,28 @@ function ContactSection() {
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="text-3xl font-bold text-neutral-900">{t('contact.heading')}</h2>
+          <h2 className="text-4xl font-extrabold text-slate-900">{t('contact.heading')}</h2>
 
           <div className="mt-8 flex flex-col gap-6">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-gold/10">
-                <MapPin className="h-5 w-5 text-brand-gold-600" aria-hidden="true" />
+            <div className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-gold-500/10 border border-brand-gold-500/30">
+                <MapPin className="h-6 w-6 text-brand-gold-600" />
               </span>
-              <p className="pt-2 text-neutral-700">{t('contact.address')}</p>
+              <p className="pt-2 text-slate-700 font-semibold">{t('contact.address')}</p>
             </div>
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-gold/10">
-                <Phone className="h-5 w-5 text-brand-gold-600" aria-hidden="true" />
+            <div className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-gold-500/10 border border-brand-gold-500/30">
+                <Phone className="h-6 w-6 text-brand-gold-600" />
               </span>
-              <p dir="auto" className="pt-2 text-sm text-neutral-700">
+              <p dir="auto" className="pt-2 text-slate-700 font-semibold">
                 {t('contact.phone')}
               </p>
             </div>
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-gold/10">
-                <Clock className="h-5 w-5 text-brand-gold-600" aria-hidden="true" />
+            <div className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-gold-500/10 border border-brand-gold-500/30">
+                <Clock className="h-6 w-6 text-brand-gold-600" />
               </span>
-              <p className="pt-2 text-neutral-700">{t('contact.hours')}</p>
+              <p className="pt-2 text-slate-700 font-semibold">{t('contact.hours')}</p>
             </div>
           </div>
         </motion.div>
@@ -747,12 +915,12 @@ function ContactSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="min-h-[280px] overflow-hidden rounded-2xl bg-neutral-100"
+          className="min-h-[300px] overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-2xl"
         >
           <iframe
             title={t('contact.mapLabel')}
             src={`https://www.google.com/maps?q=${encodeURIComponent(t('contact.address'))}&output=embed`}
-            className="h-full min-h-[280px] w-full border-0"
+            className="h-full min-h-[300px] w-full border-0"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
           />

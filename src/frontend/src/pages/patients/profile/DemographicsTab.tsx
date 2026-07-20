@@ -21,7 +21,7 @@ import { useLanguage } from '@/hooks/useLanguage'
 import { patientsApi } from '@/lib/api'
 import { CareTeamPanel } from '@/pages/patients/CareTeamPanel'
 import { RegenerateQrCard } from '@/pages/patients/RegenerateQrCard'
-import type { BloodType, Patient, PreferredLanguage, UpdatePatientPayload } from '@/types/patient'
+import type { BloodType, Patient, UpdatePatientPayload } from '@/types/patient'
 
 const BLOOD_TYPES: BloodType[] = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 const UNSPECIFIED = '__unspecified__'

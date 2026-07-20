@@ -170,7 +170,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
                   }}
                 />
               </TooltipTrigger>
-              <TooltipContent side="end">{tCommon('appName')}</TooltipContent>
+              <TooltipContent side="right">{tCommon('appName')}</TooltipContent>
             </Tooltip>
           ) : (
             <ClinicLogo className="min-w-0" />
@@ -209,7 +209,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
             return (
               <Tooltip key={item.to}>
                 <TooltipTrigger asChild>{link}</TooltipTrigger>
-                <TooltipContent side="end">{t(item.labelKey)}</TooltipContent>
+                <TooltipContent side="right">{t(item.labelKey)}</TooltipContent>
               </Tooltip>
             )
           })}
