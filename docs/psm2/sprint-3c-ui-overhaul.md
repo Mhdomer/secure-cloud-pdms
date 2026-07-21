@@ -933,4 +933,46 @@ accuracy correction on *how* it's done, not *whether*.
   - Updated both `getDailyReport` and `getDailyInvoices` to `($1::timestamp AT TIME ZONE 'Asia/Riyadh')`.
   - Verified compilation via `cd src/frontend && npx tsc -b` (0 errors).
 
+- **Full Scalable Backend Integration for Role-Based Dashboards — 2026-07-21**:
+  - **Database Composite Indexing (`src/backend/src/config/schema.sql`)**:
+    - Added `idx_medical_records_patient_latest` on `medical_records (patient_id, created_at DESC)`.
+    - Added `idx_appointments_scheduled_at` on `appointments (scheduled_at)`.
+    - Added `idx_audit_log_timestamp` on `audit_log (timestamp DESC)`.
+    - Added `idx_doctors_is_active` on `doctors (is_active)`.
+  - **SuperAdmin Telemetry & 60s Response Cache (`src/backend/src/controllers/usersController.js` & `src/backend/src/routes/users.routes.js`)**:
+    - Implemented `getSystemHealth` (`GET /api/users/system-health`, Superadmin only) returning real DB counts (`totalUsers`, `activeDoctors`, `todayAppointments`, `systemStatus`, `auditLogs`).
+    - Added a 60-second in-memory TTL response cache (`HEALTH_CACHE_TTL = 60_000`) to prevent DB table locks and CPU spikes under high traffic.
+    - Mounted route with `authenticateJWT`, `authorizeRole(ROLES.SUPERADMIN)`, and `setupRLSContext` middleware ensuring proper RLS transaction session isolation.
+  - **Live Vitals Query Integration (`src/backend/src/models/MedicalRecord.js` & `src/backend/src/controllers/medicalRecordsController.js`)**:
+    - Included `vital_signs` column in `listByPatient` and `listByPatientAndDoctor` queries and JSON responses (`vitalSigns`).
+    - Wired `DoctorDashboard.tsx` `PatientSummaryCard` to display real blood pressure, heart rate, and BMI values from `lastVisitRecord.vitalSigns`.
+  - **Non-Blocking Async SMS Appointment Reminders (`src/backend/src/controllers/appointmentsController.js` & `src/backend/src/routes/appointments.routes.js`)**:
+    - Implemented `sendSmsReminder` (`POST /api/appointments/:appointmentId/reminder-sms`).
+    - Reads appointment info and logs `AUDIT_ACTIONS.SCHEDULE_APPOINTMENT` inside `withTransaction(req.rlsSession, ...)`.
+    - Responds immediately with HTTP 200 to the client and dispatches Twilio SMS asynchronously outside the DB transaction boundary (`setImmediate`), ensuring network latency never holds open PostgreSQL pool connections.
+    - Mounted `[SMS]` action trigger buttons on both the **Staff Dashboard** (`AdminDashboard.tsx`) and the main **Appointments Page** (`AppointmentsPage.tsx`).
+  - **Client-Side PDF Document Generator (`src/frontend/src/lib/pdfGenerator.ts`)**:
+    - Created `exportMedicalRecordPdf` using browser-native print rendering (`window.print()`), offloading 100% of PDF compilation to the client browser and keeping server RAM/CPU at zero overhead.
+    - Wired PDF export and print buttons on `PatientDashboard.tsx`.
+  - **Unrecorded Patient Vitals Medical Safety Fix**:
+    - Removed static hardcoded numeric fallback defaults (`120/80`, `72 bpm`, `23.4`) in `DoctorDashboard.tsx`. Unrecorded vitals now explicitly render `—` (em-dash) to prevent physicians from mistaking fallbacks for actual recorded patient vitals.
+  - **Client-Side Cross-Navigation Links**:
+    - Wrapped patient names across `AdminDashboard.tsx` (daily appointments & queue), `DoctorDashboard.tsx` (patient summary card, waiting list, seen today list), `AppointmentsPage.tsx` (list view cards), and `BillingHistoryPage.tsx` (transaction history table) in `<Link to={`/patients/${patientId}`}>` for 1-click patient file navigation.
+  - **Doctor Consultation Vitals Input Form (`ConsultationPage.tsx`)**:
+    - Added a 6-field Vital Signs entry grid (BP, HR, BMI, Temp, Weight, Height) to `ConsultationPage.tsx`. Saves `vital_signs` payload to `medical_records.vital_signs` via `recordsApi.create`.
+    - Added `vital_signs?: VitalSigns` to `CreateMedicalRecordPayload` in `src/frontend/src/types/medicalRecord.ts`.
+  - **Staff Fraud Prevention & Billing Attribution (`schema.sql`, `billingController.js`, `InvoicePage.tsx`)**:
+    - Added `paid_by UUID REFERENCES users(user_id) ON DELETE SET NULL` to `visit_invoices` in `schema.sql` and ran migration script `scripts/apply-rls.js`.
+    - Updated `payInvoice` in `billingController.js` to record `paid_by = req.user.userId`.
+    - Joined `users` table (`u_paid`) in `getInvoice`, `getDailyInvoices`, and `getBillingHistory` to select `u_paid.username AS paid_by_staff_name`.
+    - Updated `InvoicePage.tsx` to render explicit staff cashier attribution: **Billed By (Staff / Cashier) / صُدرت بواسطة موظف الاستقبال: `paidByStaffName`** (shows `Pending Payment` when unbilled; strictly zero doctor fallback).
+  - **Treatment-Relationship RLS Architecture & Non-Circular Policy Fix (`schema.sql`, `scripts/apply-rls.js`, `medicalRecordsController.js`)**:
+    - Implemented Option 1 Treatment-Relationship RLS: doctors automatically gain read access to a patient's profile and medical history whenever an appointment or visit exists with that doctor (eliminating manual staff PCP reassignments).
+    - Removed circular subqueries between `patients` and `medical_records` policies in `schema.sql` and `scripts/apply-rls.js`, resolving PostgreSQL `infinite recursion detected` errors.
+    - Updated `viewHistory` (`GET /medical-records/patients/:patientId/records`) in `medicalRecordsController.js` to use `MedicalRecord.listByPatient` so treating doctors see the patient's complete cross-clinic medical history timeline (allergies, prescriptions, notes, chief complaints, treating doctor names).
+  - **Verification**:
+    - Verified compilation via `cd src/frontend && npx tsc -b` (0 errors).
+    - Verified live migration via `node scripts/apply-rls.js` (`RLS POLICIES APPLIED SUCCESSFULLY!`).
+    - Verified backend queries (`PATIENTS QUERY SUCCESS`, `QUERY SUCCESS`).
+
 

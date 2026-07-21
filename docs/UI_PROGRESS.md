@@ -1,0 +1,114 @@
+# Alamin PolyClinic — Frontend UI Progress & Change Tracker
+
+> **Purpose**: This living document tracks all frontend UI redesigns, components, brand updates, and pending prompt specs. Every new AI chat session should read this file first to maintain 100% context alignment.
+
+---
+
+## 📌 Active Master Status & Latest Commit
+
+- **Latest Commit**: `a5bcb69` — `feat(landing): redesign landing page UI with KPJ specialty cards, trust section brand card, and social links`
+- **Main Landing Page**: `d:\Main_\FYP\PSM 1 SECRH\src\frontend\src\pages\landing\LandingPage.tsx`
+- **Shared Landing Components**: `d:\Main_\FYP\PSM 1 SECRH\src\frontend\src\pages\landing\shared.tsx`
+- **Current App Brand Name**: **مجمع الأمين الطبي** / **Alamin PolyClinic** (Established 1986)
+
+---
+
+## 🚀 Completed UI Overhauls (Chronological Order)
+
+### 1. Hero Section & Video Framing
+- **Background Video**: `/clinic/hero-motion.mp4` with `scale-90` framing so the full spinning Alamin PolyClinic logo animation is completely visible without edge cropping.
+- **Tagline & CTA**: Multi-language hero text with frosted gold badge and interactive booking button.
+
+### 2. Specialty Centres Section (`SpecialtyCentresSection`) — KPJ Healthcare Inspired
+- **Top Header Banner Frame**: High-res desaturated B&W clinical backdrop (`/clinic/canva-waiting-clean.png` with `grayscale opacity-35 contrast-125`).
+- **Enclosed Left Navigation Card Box**:
+  - Title & vertical list of specialties enclosed in a rounded container (`rounded-[28px] border border-slate-200/80 bg-white shadow-xl p-6 sm:p-8`).
+  - Active indicator pill (`bg-[#967d58]/10`) with gold/tan line (`#967d58`).
+  - Dedicated **"Learn More →"** action buttons per item pointing to `/specialties/:slug`.
+- **Staggered Right Feature Cards**:
+  - **Card 1 (Main Active Specialty)**: `h-[520px] rounded-[32px] shadow-2xl bg-[#220d3b] border border-white/20`, full-bleed image transitioning into a **Deep Royal Purple Gradient** (`from-[#2a0e4d] via-[#3a1563]/85`), title, overview, and interactive **"Learn More →"** badge.
+  - **Card 2 (Next Teaser Specialty)**: Shifted lower down (`h-[360px] rounded-[28px] shadow-xl bg-[#002f3c] border border-white/20`), full-bleed image transitioning into a **Dark Teal / Cyan Gradient** (`from-[#003847] via-[#004e63]/80`).
+- **New Specialty Assets (`/public/clinic/`)**:
+  - `spec-dental.png` (Dentistry)
+  - `spec-general-medicine.png` (General Medicine)
+  - `spec-laboratory.png` (Laboratory)
+  - `spec-pediatrics.png` (Pediatrics)
+  - `spec-dermatology.png` (Dermatology)
+
+### 3. Trust & Healthcare Standards Section (`TrustSection`)
+- **Brand Emblem Watermark**: `brand-emblem-watermark.png` (`Modern Hospital Landing Visuals.png`) rendered as a subtle background watermark (`mix-blend-multiply opacity-25 contrast-300 brightness-75 -start-12 h-[500px]`) behind the text.
+- **Right Image Frame**: Full-bleed `brand-card-variant-2.png` inside a `rounded-[36px]` frame with red/amber accent background badge.
+- **Pop-Out Floating Stat Cards**:
+  - 4 animated stat counters popping out beyond the frame edges with soft drop shadows and dark icon badges:
+    - 🩺 **Top-Right**: `Physicians 15+`
+    - 🗂️ **Middle-Left**: `Specialties 8`
+    - ⏱️ **Bottom-Left**: `Years of Experience 30+`
+    - 👥 **Bottom-Right**: `Patients Served 50,000+`
+  - Fixed Arabic Indic digit parsing (`٠-٩`) so counters animate smoothly from `0` up to target values in both English (`15+`) and Arabic (`+١٥`).
+
+### 4. Official Social Media Links & Footer
+- Added official social media links with custom SVG icons in `LandingFooter` ([shared.tsx](file:///d:/Main_/FYP/PSM%201%20SECRH/src/frontend/src/pages/landing/shared.tsx)):
+  - 👻 **Snapchat**: `https://snapchat.com/add/alaminclinic`
+  - 📘 **Facebook**: `https://facebook.com/Alamin-Clinicss`
+  - 📸 **Instagram**: `https://instagram.com/alaminclinic`
+  - 𝕏 **Twitter / X**: `https://twitter.com/alaminclinic`
+
+### 5. Official Operating Hours & Arabic Naming Update
+- Updated all clinic name references from **"عيادة الأمين"** to **"مجمع الأمين"** across all locales and backend services.
+- Updated emergency availability and working hours from "24/7" to **Daily: 8 AM – 1 AM (Friday: 12 PM – 1 AM)** / **يومياً: ٨ ص – ١ ص (الجمعة: ١٢ ظ – ١ ص)** across all i18n keys and mega-menu cards.
+
+---
+
+## 📋 Open Feature Specs & Prompts Ready for Execution
+
+### Spec 1: Standalone Specialty Detail Page (`/specialties/:slug`)
+- **Prompt Spec Location**: [specialty_detail_page_prompt.md](file:///C:/Users/md3om/.gemini/antigravity-ide/brain/136f4940-96ea-4884-9390-91c469ba8e85/specialty_detail_page_prompt.md)
+- **Scope**: Creates `/specialties/:slug` (dental, general-medicine, laboratory, pediatrics, dermatology) with 6 phases:
+  1. Global Header (`<LandingNav />`)
+  2. Hero with branch selector dropdown (Namar vs Dirab)
+  3. Quick Info & Learn More bar
+  4. Best In Industry split section & Our Services banner
+  5. Specialty Doctors grid filtered by specialty
+  6. Dynamic Google Maps embed centered on selected branch + `<LandingFooter />`
+
+### Spec 2: Sidebar Brand Emblem Watermark (`Sidebar.tsx`)
+- **Scope**: Adds `brand-emblem-watermark.png` (`mix-blend-multiply opacity-[0.08]`) to the lower background of the authenticated App Shell Sidebar (`Sidebar.tsx`), scaling smoothly between expanded (`w-60`) and collapsed (`w-16`) states.
+
+---
+
+## 🛠️ Available Slash Commands & Tools
+
+When working in AI chats (Gemini 3.5 / Claude / Antigravity AI), you can invoke these checkers:
+- `/ui-review` — Performs a comprehensive medical UI/UX audit on any component.
+- `/rtl-check` — Audits Arabic RTL mirroring, logical properties, and font rendering.
+- `/font-audit` — Audits Thmanyah/Tajawal font usage, line-height 1.7+, and letter-spacing.
+- `/i18n-check` — Verifies missing translation keys between `en/*.json` and `ar/*.json`.
+- `/grill-me` — Launches an interactive design review interview before major overhauls.
+
+---
+
+## 🛡️ AI Model Guidelines & Code Quality Standards (Gemini 3.5 & AI Assistants)
+
+Every AI assistant (Gemini 3.5, Claude, or Antigravity AI) working on this codebase **MUST** follow these strict principles:
+
+1. **Automated Build Verification**:
+   - After modifying code in `src/frontend`, ALWAYS verify the build by running:
+     ```bash
+     cd src/frontend && npx tsc -b
+     ```
+   - Target: **0 compilation errors**. Never leave a turn with broken TypeScript builds.
+
+2. **Clean Code & Type Safety**:
+   - Maintain strict TypeScript typing (`no any`).
+   - Keep components modular, readable, and properly formatted.
+   - Zero hardcoded English/Arabic text in JSX — always use `useTranslation()` keys from `src/locales/en/*.json` and `src/locales/ar/*.json`.
+
+3. **Strict RTL & Localization Rules**:
+   - Always use CSS logical spacing properties: `ms-`, `me-`, `ps-`, `pe-`, `start-`, `end-` (NEVER use `ml-`, `mr-`, `pl-`, `pr-`, `left-`, `right-`).
+   - Ensure the Arabic font family (`rtl:font-arabic`) is preserved.
+
+4. **Premium Design System & Aesthetics**:
+   - Use curated brand tokens (`brand-gold-500`, `brand-gold-600`, `slate-900`, `bg-[#f4f4f2]`).
+   - Implement modern glassmorphism (`backdrop-blur-md bg-white/95 border border-white/80 shadow-2xl`).
+   - Use real clinic assets from `/public/clinic/` (never plain placeholder images).
+

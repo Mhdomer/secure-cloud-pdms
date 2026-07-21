@@ -49,3 +49,8 @@ claude-sessions/
 
 # PSM1 submission PDFs/DOCX — large binaries, tracked locally only
 // docs/psm1-submission/
+
+# Large visual asset folders — keep off remote
+docs/clinic_imgs/
+docs/Modern_Hospital_Landing_Visuals/
+docs/new_landingpage/
