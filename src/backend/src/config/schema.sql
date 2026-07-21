@@ -240,6 +240,12 @@ ALTER TABLE patient_invoices ADD COLUMN IF NOT EXISTS
 
 CREATE INDEX IF NOT EXISTS idx_patient_invoices_category ON patient_invoices(category);
 
+-- Scale-proofing indexes for dashboard queries and patient vitals lookups
+CREATE INDEX IF NOT EXISTS idx_medical_records_patient_latest ON medical_records (patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_appointments_scheduled_at ON appointments (scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log (timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_doctors_is_active ON doctors (is_active);
+
 -- ── lab_results ──────────────────────────────────────────────────────────────
 -- Lab result files uploaded by doctors. RLS-protected (see the RLS section
 -- below) — only the patient's assigned doctor may see or upload results.
@@ -352,7 +358,14 @@ DROP POLICY IF EXISTS patient_own_profile ON patients;
 DROP POLICY IF EXISTS doctor_select_records ON medical_records;
 CREATE POLICY doctor_select_records ON medical_records
   FOR SELECT
-  USING (doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID);
+  USING (
+    doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    OR patient_id IN (
+      SELECT patient_id FROM appointments WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+      UNION
+      SELECT patient_id FROM visits WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    )
+  );
 
 DROP POLICY IF EXISTS doctor_insert_records ON medical_records;
 CREATE POLICY doctor_insert_records ON medical_records
@@ -397,7 +410,16 @@ CREATE POLICY patient_select_own ON patients
 DROP POLICY IF EXISTS doctor_select_assigned ON patients;
 CREATE POLICY doctor_select_assigned ON patients
   FOR SELECT
-  USING (assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID);
+  USING (
+    current_setting('app.current_role', true) = 'doctor' AND (
+      assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+      OR patient_id IN (
+        SELECT patient_id FROM appointments WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+        UNION
+        SELECT patient_id FROM visits WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+      )
+    )
+  );
 
 -- Admin/superadmin: full read access for registration, profile lookups,
 -- reassignment, and QR regeneration (regenerateQR needs to resolve
@@ -493,32 +515,48 @@ DROP POLICY IF EXISTS doctor_select_lab_results ON lab_results;
 CREATE POLICY doctor_select_lab_results ON lab_results
   FOR SELECT
   USING (patient_id IN (
-    SELECT patient_id FROM patients
-     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    SELECT patient_id FROM patients WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM appointments WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM visits WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM medical_records WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
   ));
 
 DROP POLICY IF EXISTS doctor_insert_lab_results ON lab_results;
 CREATE POLICY doctor_insert_lab_results ON lab_results
   FOR INSERT
   WITH CHECK (patient_id IN (
-    SELECT patient_id FROM patients
-     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    SELECT patient_id FROM patients WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM appointments WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM visits WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM medical_records WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
   ));
 
--- Doctor: release a result to the patient (sets released_at/released_by in
--- the controller) — same assigned-patient scoping as select/insert above.
--- There was no UPDATE policy on this table before the release feature; a
--- doctor could upload but never modify a row.
 DROP POLICY IF EXISTS doctor_release_lab_results ON lab_results;
 CREATE POLICY doctor_release_lab_results ON lab_results
   FOR UPDATE
   USING (patient_id IN (
-    SELECT patient_id FROM patients
-     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    SELECT patient_id FROM patients WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM appointments WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM visits WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM medical_records WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
   ))
   WITH CHECK (patient_id IN (
-    SELECT patient_id FROM patients
-     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    SELECT patient_id FROM patients WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM appointments WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM visits WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM medical_records WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
   ));
 
 -- Patient: only their own results, and only once a doctor has released them.
@@ -816,13 +854,14 @@ CREATE TABLE IF NOT EXISTS visit_invoices (
   created_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
--- ── paid_at on visit_invoices ─────────────────────────────────────────────
+-- ── paid_at and paid_by on visit_invoices ──────────────────────────────────
 -- Set the moment payInvoice transitions status to 'paid'/'partial' — the
 -- staff billing report's daily revenue figures key off this, not
 -- created_at (set when the doctor completes the visit, before any money
 -- changes hands). Nullable: pre-existing rows and never-paid invoices have
 -- no payment moment to record.
 ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
+ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS paid_by UUID REFERENCES users(user_id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS invoice_items (
   item_id         UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
