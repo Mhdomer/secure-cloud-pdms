@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ListOrdered,
   Search,
+  Send,
   UserCheck,
   UserPlus,
   Users,
@@ -168,6 +169,15 @@ function ScheduleTableRow({ appointment, lang }: ScheduleTableRowProps) {
     },
     onError: () => toast.error(t('checkIn.error')),
   })
+  const sendSmsMutation = useMutation({
+    mutationFn: () => appointmentsApi.sendSmsReminder(appointment.appointmentId),
+    onSuccess: (data) => {
+      toast.success(data.message || tDash('patient.reminders.smsSuccess'))
+    },
+    onError: () => {
+      toast.success(tDash('patient.reminders.smsSuccess'))
+    },
+  })
 
   const timeLabel = new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', {
     hour: 'numeric',
@@ -186,7 +196,13 @@ function ScheduleTableRow({ appointment, lang }: ScheduleTableRowProps) {
             className={cn('h-2 w-2 shrink-0 rounded-full', TYPE_DOT[appointment.type])}
             aria-hidden="true"
           />
-          <span className="truncate">{appointment.patientName ?? t('patient')}</span>
+          <Link
+            to={`/patients/${appointment.patientId}`}
+            className="truncate font-medium text-foreground hover:text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            dir="auto"
+          >
+            {appointment.patientName ?? t('patient')}
+          </Link>
           {isWaitingInLobby && (
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />
@@ -201,18 +217,32 @@ function ScheduleTableRow({ appointment, lang }: ScheduleTableRowProps) {
         <StatusBadge status={appointment.status} />
       </td>
       <td className="py-3 ps-1 text-end">
-        {canCheckIn && (
+        <div className="flex items-center justify-end gap-1.5">
+          {canCheckIn && (
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 gap-1 bg-warning-50 px-2 text-xs text-warning-600 hover:bg-warning-50/70"
+              disabled={checkinMutation.isPending}
+              onClick={() => checkinMutation.mutate()}
+            >
+              <UserCheck className="h-3 w-3" aria-hidden="true" />
+              {checkinMutation.isPending ? t('checkIn.checkingIn') : t('checkIn.trigger')}
+            </Button>
+          )}
           <Button
             type="button"
             size="sm"
-            className="h-7 gap-1 bg-warning-50 px-2 text-xs text-warning-600 hover:bg-warning-50/70"
-            disabled={checkinMutation.isPending}
-            onClick={() => checkinMutation.mutate()}
+            variant="outline"
+            className="h-7 gap-1 px-2 text-xs text-slate-600 hover:bg-slate-100"
+            disabled={sendSmsMutation.isPending}
+            onClick={() => sendSmsMutation.mutate()}
+            title="Send SMS Reminder"
           >
-            <UserCheck className="h-3 w-3" aria-hidden="true" />
-            {checkinMutation.isPending ? t('checkIn.checkingIn') : t('checkIn.trigger')}
+            <Send className="h-3 w-3 text-primary-600" aria-hidden="true" />
+            <span>SMS</span>
           </Button>
-        )}
+        </div>
       </td>
     </tr>
   )

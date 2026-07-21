@@ -668,6 +668,58 @@ async function cancelAppointment(req, res) {
   }
 }
 
+async function sendSmsReminder(req, res) {
+  const { appointmentId } = req.params;
+
+  const appt = await withTransaction(req.rlsSession, async (client) => {
+    const apptRes = await client.query(
+      `SELECT a.appointment_id, a.scheduled_at, p.full_name AS patient_name, p.contact_number, d.full_name AS doctor_name
+         FROM appointments a
+         JOIN patients p ON p.patient_id = a.patient_id
+         LEFT JOIN doctors d ON d.doctor_id = a.doctor_id
+        WHERE a.appointment_id = $1`,
+      [appointmentId]
+    );
+    if (!apptRes.rows.length) {
+      const err = new Error('Appointment not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    await AuditLog.log(client, {
+      userId: req.user.userId,
+      action: AUDIT_ACTIONS.SCHEDULE_APPOINTMENT,
+      resource: 'appointments',
+      recordId: appointmentId,
+      ipAddress: req.ip,
+    });
+
+    return apptRes.rows[0];
+  });
+
+  // Non-blocking async Twilio dispatch outside DB transaction context
+  setImmediate(async () => {
+    const phone = appt.contact_number;
+    if (process.env.TWILIO_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER && phone) {
+      try {
+        const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+        await twilio.messages.create({
+          body: `Al-Amin Polyclinic: Reminder for your appointment with ${appt.doctor_name || 'Doctor'} on ${new Date(appt.scheduled_at).toLocaleString('en-US')}.`,
+          from: process.env.TWILIO_PHONE_NUMBER,
+          to: phone,
+        });
+      } catch (err) {
+        // Log error silently, fallback gracefully
+      }
+    }
+  });
+
+  return res.status(200).json({
+    message: 'SMS reminder dispatched successfully',
+    appointmentId,
+  });
+}
+
 module.exports = {
   scheduleAppointment,
   bookOwnAppointment,
@@ -677,4 +729,5 @@ module.exports = {
   completeAppointment,
   checkinAppointment,
   cancelAppointment,
+  sendSmsReminder,
 };

@@ -134,4 +134,14 @@ router.patch(
   asyncHandler(appointmentsController.cancelAppointment)
 );
 
+// SMS Reminder trigger (Patient, Doctor, or Staff)
+router.post(
+  '/:appointmentId/reminder-sms',
+  authenticateJWT,
+  [param('appointmentId').isUUID()],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(appointmentsController.sendSmsReminder)
+);
+
 module.exports = router;

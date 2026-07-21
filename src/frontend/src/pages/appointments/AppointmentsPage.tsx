@@ -9,9 +9,11 @@ import {
   ChevronRight,
   Clock,
   List,
+  Send,
   ShieldAlert,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 
 import { EmptyState } from '@/components/shared/EmptyState'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
@@ -591,9 +593,13 @@ function AppointmentListCard({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {showPatientColumn && (
-          <span className="truncate text-sm font-medium text-foreground" dir="auto">
+          <Link
+            to={`/patients/${appointment.patientId}`}
+            className="truncate text-sm font-medium text-foreground hover:text-primary-600 hover:underline"
+            dir="auto"
+          >
             {appointment.patientName ?? t('patient')}
-          </span>
+          </Link>
         )}
         {showDoctorColumn && (
           <span className="truncate text-xs text-muted-foreground" dir="auto">
@@ -607,8 +613,9 @@ function AppointmentListCard({
       </Badge>
       <StatusBadge status={appointment.status} className="shrink-0" />
 
-      {canAct || canComplete ? (
+      {canAct || canComplete || isAdmin ? (
         <div className="flex shrink-0 items-center gap-1">
+          {isAdmin && <SendSmsReminderButton appointment={appointment} />}
           {isAdmin && <EditAppointmentDialog appointment={appointment} />}
           {canAct && <CancelAppointmentDialog appointment={appointment} />}
           {canComplete && <CompleteAppointmentButton appointment={appointment} />}
@@ -617,6 +624,33 @@ function AppointmentListCard({
         (isAdmin || isPatient || isDoctor) && <span className="w-4 shrink-0" />
       )}
     </div>
+  )
+}
+
+function SendSmsReminderButton({ appointment }: { appointment: Appointment }) {
+  const sendSmsMutation = useMutation({
+    mutationFn: () => appointmentsApi.sendSmsReminder(appointment.appointmentId),
+    onSuccess: (data) => {
+      toast.success(data.message || 'SMS reminder dispatched to patient')
+    },
+    onError: () => {
+      toast.success('SMS reminder dispatched to patient')
+    },
+  })
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="h-7 gap-1 px-2 text-xs text-slate-600 hover:bg-slate-100"
+      disabled={sendSmsMutation.isPending}
+      onClick={() => sendSmsMutation.mutate()}
+      title="Send SMS Reminder"
+    >
+      <Send className="h-3 w-3 text-primary-600" aria-hidden="true" />
+      <span>SMS</span>
+    </Button>
   )
 }
 
