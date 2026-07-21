@@ -56,6 +56,7 @@ export interface CreateMedicalRecordPayload {
   chief_complaint: string
   prescription?: string
   notes?: string
+  vital_signs?: VitalSigns
 }
 
 /** Response body for POST /api/medical-records/records. */

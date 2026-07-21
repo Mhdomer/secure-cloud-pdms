@@ -33,7 +33,7 @@ async function createRecord(req, res) {
     // assigned to the caller; a null result means "not assigned to me".
     const patient = await Patient.findById(client, patientId);
     if (!patient) {
-      const err = new Error('You are not assigned to this patient');
+      const err = new Error('You do not have a treatment relationship with this patient');
       err.statusCode = 403;
       throw err;
     }
@@ -92,6 +92,7 @@ async function listRecords(req, res) {
       recordId: r.record_id,
       patientId: r.patient_id,
       diagnosis: r.diagnosis,
+      vitalSigns: r.vital_signs,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     })),
@@ -183,25 +184,32 @@ async function updateRecord(req, res) {
 async function viewHistory(req, res) {
   const { patientId } = req.params;
   const { page, limit, offset } = parsePagination(req.query);
-  const doctorId = req.rlsSession.doctorId;
 
   const result = await withTransaction(req.rlsSession, async (client) => {
     const patient = await Patient.findById(client, patientId);
     if (!patient) {
-      const err = new Error('You are not assigned to this patient');
+      const err = new Error('You do not have a treatment relationship with this patient');
       err.statusCode = 403;
       throw err;
     }
 
-    const rows = await MedicalRecord.listByPatientAndDoctor(client, patientId, doctorId, { limit, offset });
-    const total = await MedicalRecord.countByPatientAndDoctor(client, patientId, doctorId);
+    const rows = await MedicalRecord.listByPatient(client, patientId, { limit, offset });
+    const total = await MedicalRecord.countByPatient(client, patientId);
     return { rows, total };
   });
 
   return res.status(200).json({
     records: result.rows.map((r) => ({
       recordId: r.record_id,
+      patientId: r.patient_id,
+      doctorId: r.doctor_id,
+      doctorName: r.doctor_name,
       diagnosis: r.diagnosis,
+      prescription: r.prescription,
+      notes: r.notes,
+      chiefComplaint: r.chief_complaint,
+      vitalSigns: r.vital_signs,
+      visitType: r.visit_type,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     })),

@@ -140,21 +140,45 @@ export default function ConsultationPage() {
   const [chiefComplaint, setChiefComplaint] = useState('')
   const [diagnosis, setDiagnosis] = useState('')
   const [recordNotes, setRecordNotes] = useState('')
+  const [bp, setBp] = useState('')
+  const [hr, setHr] = useState('')
+  const [bmi, setBmi] = useState('')
+  const [temp, setTemp] = useState('')
+  const [weight, setWeight] = useState('')
+  const [height, setHeight] = useState('')
   const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false)
 
   const createRecordMutation = useMutation({
-    mutationFn: () =>
-      recordsApi.create({
+    mutationFn: () => {
+      const hasVitals = bp.trim() || hr.trim() || bmi.trim() || temp.trim() || weight.trim() || height.trim()
+      return recordsApi.create({
         patient_id: visit!.patientId,
         chief_complaint: chiefComplaint.trim(),
         diagnosis: diagnosis.trim(),
         notes: recordNotes.trim() || undefined,
-      }),
+        vital_signs: hasVitals
+          ? {
+              bp: bp.trim() || undefined,
+              hr: hr.trim() || undefined,
+              bmi: bmi.trim() || undefined,
+              temp: temp.trim() || undefined,
+              weight: weight.trim() || undefined,
+              height: height.trim() || undefined,
+            }
+          : undefined,
+      })
+    },
     onSuccess: () => {
       toast.success(t('consult.recordSaved'))
       setChiefComplaint('')
       setDiagnosis('')
       setRecordNotes('')
+      setBp('')
+      setHr('')
+      setBmi('')
+      setTemp('')
+      setWeight('')
+      setHeight('')
       queryClient.invalidateQueries({ queryKey: ['records', 'patient', visit?.patientId] })
     },
     onError: () => toast.error(t('consult.recordSaveError')),
@@ -423,6 +447,37 @@ export default function ConsultationPage() {
                   value={diagnosis}
                   onChange={(event) => setDiagnosis(event.target.value)}
                 />
+              </div>
+
+              {/* Patient Vital Signs Entry Grid */}
+              <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+                <span className="text-xs font-semibold text-foreground">Patient Vital Signs / العلامات الحيوية</span>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="vital-bp" className="text-[11px] text-muted-foreground">Blood Pressure (BP)</Label>
+                    <Input id="vital-bp" placeholder="e.g. 120/80" value={bp} onChange={(e) => setBp(e.target.value)} className="h-8 text-xs bg-white" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="vital-hr" className="text-[11px] text-muted-foreground">Heart Rate (bpm)</Label>
+                    <Input id="vital-hr" placeholder="e.g. 72" value={hr} onChange={(e) => setHr(e.target.value)} className="h-8 text-xs bg-white" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="vital-bmi" className="text-[11px] text-muted-foreground">BMI</Label>
+                    <Input id="vital-bmi" placeholder="e.g. 23.4" value={bmi} onChange={(e) => setBmi(e.target.value)} className="h-8 text-xs bg-white" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="vital-temp" className="text-[11px] text-muted-foreground">Temperature (°C)</Label>
+                    <Input id="vital-temp" placeholder="e.g. 37.1" value={temp} onChange={(e) => setTemp(e.target.value)} className="h-8 text-xs bg-white" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="vital-weight" className="text-[11px] text-muted-foreground">Weight (kg)</Label>
+                    <Input id="vital-weight" placeholder="e.g. 70" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs bg-white" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor="vital-height" className="text-[11px] text-muted-foreground">Height (cm)</Label>
+                    <Input id="vital-height" placeholder="e.g. 175" value={height} onChange={(e) => setHeight(e.target.value)} className="h-8 text-xs bg-white" />
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">

@@ -58,10 +58,14 @@ class MedicalRecord {
 
   static async listByPatient(client, patientId, { limit, offset }) {
     const result = await client.query(
-      `SELECT record_id, patient_id, diagnosis, created_at, updated_at
-         FROM medical_records
-        WHERE patient_id = $1
-        ORDER BY created_at DESC
+      `SELECT mr.record_id, mr.patient_id, mr.doctor_id, mr.diagnosis, mr.prescription, mr.notes,
+              mr.chief_complaint, mr.objective, mr.assessment, mr.plan, mr.vital_signs, mr.visit_type,
+              mr.created_at, mr.updated_at,
+              d.full_name AS doctor_name
+         FROM medical_records mr
+         LEFT JOIN doctors d ON d.doctor_id = mr.doctor_id
+        WHERE mr.patient_id = $1
+        ORDER BY mr.created_at DESC
         LIMIT $2 OFFSET $3`,
       [patientId, limit, offset]
     );
@@ -71,7 +75,7 @@ class MedicalRecord {
   /** Doctor's history for one specific assigned patient (UC-13). */
   static async listByPatientAndDoctor(client, patientId, doctorId, { limit, offset }) {
     const result = await client.query(
-      `SELECT record_id, diagnosis, prescription, notes, created_at, updated_at
+      `SELECT record_id, diagnosis, prescription, notes, vital_signs, created_at, updated_at
          FROM medical_records
         WHERE patient_id = $1 AND doctor_id = $2
         ORDER BY created_at DESC
