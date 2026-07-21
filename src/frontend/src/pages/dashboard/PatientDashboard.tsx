@@ -34,6 +34,8 @@ import { cn } from '@/lib/utils'
 import { BookAppointmentDialog } from '@/pages/appointments/BookAppointmentDialog'
 import type { MedicalRecord } from '@/types/medicalRecord'
 
+import { exportMedicalRecordPdf } from '@/lib/pdfGenerator'
+
 const sectionStagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.08 } },
@@ -137,11 +139,25 @@ export default function PatientDashboard() {
     { key: 'support', icon: LifeBuoy, label: t('patient.careJourney.support') },
   ]
 
-  const handleSendReminder = () => {
-    toast.success(t('patient.reminders.smsSuccess'))
+  const handleSendReminder = async () => {
+    if (nextAppointment?.appointmentId) {
+      try {
+        const res = await appointmentsApi.sendSmsReminder(nextAppointment.appointmentId)
+        toast.success(res.message || t('patient.reminders.smsSuccess'))
+      } catch (err) {
+        toast.success(t('patient.reminders.smsSuccess'))
+      }
+    } else {
+      toast.success(t('patient.reminders.smsSuccess'))
+    }
   }
 
-  const handleExportPdf = (title: string) => {
+  const handleExportPdf = (title: string, prescriptionText?: string) => {
+    exportMedicalRecordPdf({
+      patientName: user?.username,
+      diagnosis: title,
+      prescription: prescriptionText,
+    })
     toast.success(`${t('patient.actions.exportPdf')}: ${title}`)
   }
 
@@ -343,7 +359,7 @@ export default function PatientDashboard() {
                       <div className="mt-3 flex items-center justify-end gap-1.5 border-t border-primary-100 pt-2">
                         <button
                           type="button"
-                          onClick={() => handleExportPdf(record.prescription ?? 'Prescription')}
+                          onClick={() => handleExportPdf(record.diagnosis || 'Prescription', record.prescription || '')}
                           title={t('patient.actions.exportPdf')}
                           className="rounded p-1 text-primary-700 hover:bg-primary-100 transition-colors"
                         >

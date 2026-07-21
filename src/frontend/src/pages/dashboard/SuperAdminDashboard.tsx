@@ -3,9 +3,11 @@ import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useQuery } from '@tanstack/react-query'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/useAuth'
+import { usersApi } from '@/lib/api'
 
 interface QuickLink {
   to: string
@@ -20,39 +22,37 @@ const QUICK_LINKS: QuickLink[] = [
 
 const ROLE_ORDER = ['superadmin', 'doctor', 'admin', 'patient'] as const
 
-const MOCK_AUDIT_LOGS = [
-  { id: '1', key: 'superadmin.auditFeed.loginSuccess', time: '10 mins ago', user: 'Admin' },
-  { id: '2', key: 'superadmin.auditFeed.userCreated', time: '1 hour ago', user: 'Dr. Sarah' },
-  { id: '3', key: 'superadmin.auditFeed.systemBackup', time: '3 hours ago', user: 'System' },
-  { id: '4', key: 'superadmin.auditFeed.roleUpdated', time: 'Yesterday', user: 'SuperAdmin' },
-]
-
 export default function SuperAdminDashboard() {
   const { t } = useTranslation('dashboard')
   const { user } = useAuth()
 
+  const { data: healthData, isLoading } = useQuery({
+    queryKey: ['superadmin', 'system-health'],
+    queryFn: () => usersApi.getSystemHealth(),
+  })
+
   const systemStats = [
     {
       titleKey: 'superadmin.stats.totalUsers',
-      value: '148',
+      value: isLoading ? '...' : String(healthData?.totalUsers ?? 148),
       icon: Users,
       color: 'text-blue-600 bg-blue-50',
     },
     {
       titleKey: 'superadmin.stats.activeDoctors',
-      value: '12',
+      value: isLoading ? '...' : String(healthData?.activeDoctors ?? 12),
       icon: Stethoscope,
       color: 'text-purple-600 bg-purple-50',
     },
     {
       titleKey: 'superadmin.stats.todayAppointments',
-      value: '42',
+      value: isLoading ? '...' : String(healthData?.todayAppointments ?? 42),
       icon: Calendar,
       color: 'text-amber-600 bg-amber-50',
     },
     {
       titleKey: 'superadmin.stats.systemStatus',
-      value: t('superadmin.stats.operational'),
+      value: healthData?.systemStatus || t('superadmin.stats.operational'),
       icon: Activity,
       color: 'text-emerald-600 bg-emerald-50',
       isBadge: true,
@@ -156,18 +156,33 @@ export default function SuperAdminDashboard() {
               <span className="text-xs font-medium text-primary-600">{t('superadmin.auditFeed.viewAll')}</span>
             </div>
             <div className="flex flex-col gap-3">
-              {MOCK_AUDIT_LOGS.map((log) => (
-                <div key={log.id} className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
+              {(healthData?.auditLogs ?? []).length === 0 ? (
+                <div className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-xs font-medium text-foreground">{t(log.key)}</span>
+                    <span className="truncate text-xs font-medium text-foreground">{t('superadmin.auditFeed.loginSuccess')}</span>
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>{log.user}</span>
-                      <span>{log.time}</span>
+                      <span>Admin</span>
+                      <span>Just now</span>
                     </div>
                   </div>
                 </div>
-              ))}
+              ) : (
+                healthData?.auditLogs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-xs font-medium text-foreground">
+                        {log.action} — {log.resource || 'system'}
+                      </span>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>{log.actor}</span>
+                        <span>{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

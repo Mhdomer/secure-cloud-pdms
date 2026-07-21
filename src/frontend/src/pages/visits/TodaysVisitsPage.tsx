@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ListOrdered } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -50,7 +50,7 @@ type FilterValue = (typeof FILTER_VALUES)[number]
 export default function TodaysVisitsPage() {
   const { t } = useTranslation('visits')
   const { t: tCommon } = useTranslation('common')
-  const [filter, setFilter] = useState<FilterValue>('all')
+  const [filter, setFilter] = useState<FilterValue>('completed')
 
   const { data, isLoading, isError } = useQuery({
     queryKey: VISITS_TODAY_QUERY_KEY,
@@ -64,10 +64,62 @@ export default function TodaysVisitsPage() {
   const departments = departmentsData?.departments ?? []
 
   const visits = data?.visits ?? []
-  const filtered = useMemo(
-    () => (filter === 'all' ? visits : visits.filter((v) => v.status === filter)),
-    [visits, filter],
-  )
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
+  const prevPendingRef = useRef<number>(0)
+
+  useEffect(() => {
+    const currentPending = visits?.filter((v) => v.status === 'completed').length ?? 0
+    const prev = prevPendingRef.current
+
+    if (prev !== 0 && currentPending > prev) {
+      // Browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(t('pendingBilling.notificationTitle', { defaultValue: 'Patient ready to pay' }), {
+          body: t('pendingBilling.notificationBody', {
+            count: currentPending,
+            defaultValue: `${currentPending} patient(s) waiting at billing counter`,
+          }),
+          icon: '/clinic/logo.jpg',
+          tag: 'billing-alert', // replaces previous notification instead of stacking
+        })
+      }
+
+      // Sound chime — short, non-intrusive
+      try {
+        const ctx = new AudioContext()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.value = 880
+        gain.gain.setValueAtTime(0.3, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + 0.4)
+      } catch {
+        // AudioContext blocked in some browsers — silent failure is fine
+      }
+    }
+
+    prevPendingRef.current = currentPending
+  }, [visits, t])
+  const filtered = useMemo(() => {
+    const list = filter === 'all' ? visits : visits.filter((v) => v.status === filter)
+    if (filter === 'completed') {
+      return [...list].sort((a, b) => {
+        const timeA = a.completedAt ? new Date(a.completedAt).getTime() : 0
+        const timeB = b.completedAt ? new Date(b.completedAt).getTime() : 0
+        return timeA - timeB
+      })
+    }
+    return list
+  }, [visits, filter])
 
   return (
     <div className="flex flex-col gap-6">

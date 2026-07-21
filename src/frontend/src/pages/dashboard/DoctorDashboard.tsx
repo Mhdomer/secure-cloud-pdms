@@ -157,9 +157,13 @@ function PatientSummaryCard({ patientId }: { patientId: string }) {
           {initialsFor(patient.fullName)}
         </span>
         <div className="flex min-w-0 flex-col">
-          <span className="truncate text-base font-semibold text-foreground" dir="auto">
+          <Link
+            to={`/patients/${patient.patientId}`}
+            className="truncate text-base font-semibold text-foreground hover:text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            dir="auto"
+          >
             {patient.fullName}
-          </span>
+          </Link>
           <span className="truncate text-xs text-muted-foreground" dir="ltr">
             {t('doctor.patientSummary.mrn', { id: patient.nationalId ?? '—' })}
           </span>
@@ -192,15 +196,17 @@ function PatientSummaryCard({ patientId }: { patientId: string }) {
         <div className="grid grid-cols-3 gap-2 text-center text-xs">
           <div className="flex flex-col rounded-lg bg-white p-1.5 shadow-xs">
             <span className="text-[10px] text-muted-foreground">{t('doctor.vitals.bp')}</span>
-            <span className="font-semibold text-foreground">120/80</span>
+            <span className="font-semibold text-foreground">{lastVisitRecord?.vitalSigns?.bp || '—'}</span>
           </div>
           <div className="flex flex-col rounded-lg bg-white p-1.5 shadow-xs">
             <span className="text-[10px] text-muted-foreground">{t('doctor.vitals.hr')}</span>
-            <span className="font-semibold text-foreground">72 <span className="text-[9px]">bpm</span></span>
+            <span className="font-semibold text-foreground">
+              {lastVisitRecord?.vitalSigns?.hr ? `${lastVisitRecord.vitalSigns.hr} bpm` : '—'}
+            </span>
           </div>
           <div className="flex flex-col rounded-lg bg-white p-1.5 shadow-xs">
             <span className="text-[10px] text-muted-foreground">{t('doctor.vitals.bmi')}</span>
-            <span className="font-semibold text-foreground">23.4</span>
+            <span className="font-semibold text-foreground">{lastVisitRecord?.vitalSigns?.bmi || '—'}</span>
           </div>
         </div>
       </div>
@@ -807,9 +813,13 @@ export default function DoctorDashboard() {
                           {v.queueNo}
                         </span>
                         <div>
-                          <p className="font-medium text-foreground" dir="auto">
+                          <Link
+                            to={`/patients/${v.patientId}`}
+                            className="font-medium text-foreground hover:text-primary-600 hover:underline"
+                            dir="auto"
+                          >
                             {v.patientName}
-                          </p>
+                          </Link>
                           <div className="flex items-center gap-1.5">
                             <p className="font-mono text-xs text-muted-foreground" dir="ltr">
                               {t('doctor.todaysQueue.fileNoLine', { fileNo: v.fileNo })}
@@ -856,7 +866,13 @@ export default function DoctorDashboard() {
                             #{v.queueNo}
                           </span>
                           <span aria-hidden="true">—</span>
-                          <span dir="auto">{v.patientName}</span>
+                          <Link
+                            to={`/patients/${v.patientId}`}
+                            className="hover:text-primary-600 hover:underline"
+                            dir="auto"
+                          >
+                            {v.patientName}
+                          </Link>
                         </span>
                       ))}
                     </div>
