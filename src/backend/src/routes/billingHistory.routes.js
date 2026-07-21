@@ -63,4 +63,19 @@ router.get(
   asyncHandler(ctrl.getDailyInvoices)
 );
 
+// Staff & superadmin full billing history list
+router.get(
+  '/invoices/history',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.SUPERADMIN),
+  [
+    query('from').optional().isISO8601(),
+    query('to').optional().isISO8601(),
+    query('status').optional().isIn(['all', 'paid', 'pending_billing', 'partial', 'cancelled', 'draft']),
+  ],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(ctrl.getBillingHistory)
+);
+
 module.exports = router;

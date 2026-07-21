@@ -31,6 +31,8 @@ function toInvoiceRow(r) {
     amountBalance: parseFloat(r.amount_balance),
     status: r.status,
     createdBy: r.created_by,
+    paidBy: r.paid_by,
+    paidAt: r.paid_at,
     createdAt: r.created_at,
   };
 }
@@ -156,11 +158,15 @@ exports.getInvoice = async (req, res) => {
       `SELECT vi.*,
               p.full_name AS patient_name, p.file_no, p.national_id,
               d.full_name AS doctor_name,
+              u_created.username AS created_by_staff_name,
+              u_paid.username AS paid_by_staff_name,
               v.queue_no, v.clinic, v.prescription_notes, v.checked_in_at
          FROM visit_invoices vi
          JOIN visits   v ON v.visit_id   = vi.visit_id
          JOIN patients p ON p.patient_id = vi.patient_id
          JOIN doctors  d ON d.doctor_id  = vi.doctor_id
+         LEFT JOIN users u_created ON u_created.user_id = vi.created_by
+         LEFT JOIN users u_paid    ON u_paid.user_id    = vi.paid_by
         WHERE vi.visit_id = $1`,
       [req.params.visitId]
     );
@@ -176,6 +182,8 @@ exports.getInvoice = async (req, res) => {
       fileNo: rows[0].file_no,
       nationalId: rows[0].national_id,
       doctorName: rows[0].doctor_name,
+      createdByStaffName: rows[0].created_by_staff_name,
+      paidByStaffName: rows[0].paid_by_staff_name,
       queueNo: rows[0].queue_no,
       clinic: rows[0].clinic,
       prescriptionNotes: rows[0].prescription_notes,
@@ -448,9 +456,9 @@ exports.payInvoice = async (req, res) => {
     const { rows: updated } = await client.query(
       `UPDATE visit_invoices
           SET payment_method=$1, insurance_co=$2, amount_paid=$3,
-              amount_balance=$4, status=$5, paid_at=NOW()
+              amount_balance=$4, status=$5, paid_at=NOW(), paid_by=$7
         WHERE invoice_id=$6 RETURNING *`,
-      [payment_method, insurance_co ?? null, paid, balance, status, inv.invoice_id]
+      [payment_method, insurance_co ?? null, paid, balance, status, inv.invoice_id, req.user.userId]
     );
     await client.query(
       `UPDATE visits SET status='billed' WHERE visit_id=$1`, [req.params.visitId]
@@ -607,11 +615,13 @@ exports.getDailyInvoices = async (req, res) => {
               vi.payment_method, vi.grand_total, vi.amount_paid, vi.amount_balance, vi.paid_at,
               p.full_name AS patient_name, p.file_no,
               d.full_name AS doctor_name,
+              u_paid.username AS paid_by_staff_name,
               v.queue_no, v.clinic
          FROM visit_invoices vi
          JOIN patients p ON p.patient_id = vi.patient_id
          JOIN doctors  d ON d.doctor_id  = vi.doctor_id
          JOIN visits   v ON v.visit_id   = vi.visit_id
+         LEFT JOIN users u_paid ON u_paid.user_id = vi.paid_by
         WHERE ${conditions.join(' AND ')}
         ORDER BY vi.paid_at DESC`,
       params
@@ -629,6 +639,7 @@ exports.getDailyInvoices = async (req, res) => {
       fileNo: r.file_no,
       doctorId: r.doctor_id,
       doctorName: r.doctor_name,
+      paidByStaffName: r.paid_by_staff_name,
       clinic: r.clinic,
       queueNo: r.queue_no,
       status: r.status,
@@ -640,3 +651,80 @@ exports.getDailyInvoices = async (req, res) => {
     })),
   });
 };
+
+// ── GET /invoices/history?from=&to=&status= (admin + superadmin) ───────────
+exports.getBillingHistory = async (req, res) => {
+  const result = await withTransaction(req.rlsSession, async (client) => {
+    const { from, to, status } = req.query;
+    const params = [];
+    const conditions = ['1=1'];
+
+    if (from) {
+      params.push(from);
+      conditions.push(`vi.created_at::date >= $${params.length}`);
+    }
+    if (to) {
+      params.push(to);
+      conditions.push(`vi.created_at::date <= $${params.length}`);
+    }
+    if (status && status !== 'all') {
+      params.push(status);
+      conditions.push(`vi.status = $${params.length}`);
+    }
+
+    const queryRes = await client.query(
+      `SELECT
+         vi.invoice_id, vi.inv_no, vi.status,
+         vi.grand_total, vi.amount_paid, vi.amount_balance,
+         vi.payment_method, vi.created_at, vi.visit_id, vi.patient_id,
+         p.full_name AS patient_name, p.file_no,
+         d.full_name AS doctor_name,
+         u_paid.username AS paid_by_staff_name,
+         v.queue_no, v.clinic
+       FROM visit_invoices vi
+       JOIN visits v ON v.visit_id = vi.visit_id
+       JOIN patients p ON p.patient_id = vi.patient_id
+       JOIN doctors d ON d.doctor_id = vi.doctor_id
+       LEFT JOIN users u_paid ON u_paid.user_id = vi.paid_by
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY vi.created_at DESC
+       LIMIT 200`,
+      params
+    );
+
+    const totals = queryRes.rows.reduce(
+      (acc, row) => {
+        acc.grandTotal += parseFloat(row.grand_total) || 0;
+        acc.collected += parseFloat(row.amount_paid) || 0;
+        acc.outstanding += parseFloat(row.amount_balance) || 0;
+        return acc;
+      },
+      { grandTotal: 0, collected: 0, outstanding: 0 }
+    );
+
+    return {
+      invoices: queryRes.rows.map((r) => ({
+        invoiceId: r.invoice_id,
+        invNo: r.inv_no,
+        visitId: r.visit_id,
+        patientId: r.patient_id,
+        status: r.status,
+        grandTotal: parseFloat(r.grand_total),
+        amountPaid: parseFloat(r.amount_paid),
+        amountBalance: parseFloat(r.amount_balance),
+        paymentMethod: r.payment_method,
+        createdAt: r.created_at,
+        patientName: r.patient_name,
+        fileNo: r.file_no,
+        doctorName: r.doctor_name,
+        paidByStaffName: r.paid_by_staff_name,
+        queueNo: r.queue_no,
+        clinic: r.clinic,
+      })),
+      totals,
+    };
+  });
+
+  res.json(result);
+};
+

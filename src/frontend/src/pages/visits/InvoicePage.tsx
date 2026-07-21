@@ -197,6 +197,12 @@ export default function InvoicePage() {
           <span>
             Status / الحالة: <strong>{INVOICE_STATUS_LABEL[invoice.status] ?? invoice.status}</strong>
           </span>
+          <span className="col-span-2 border-t border-dashed border-neutral-200 pt-1.5">
+            Billed By (Staff / Cashier) / صُدرت بواسطة موظف الاستقبال:{' '}
+            <strong className="font-semibold text-neutral-800">
+              {invoice.paidByStaffName ? invoice.paidByStaffName : 'Pending Payment (Not Billed Yet) / بانتظار إتمام المحاسبة'}
+            </strong>
+          </span>
         </div>
 
         <div className="border-t border-neutral-300 pt-3 text-center text-xs text-neutral-500">

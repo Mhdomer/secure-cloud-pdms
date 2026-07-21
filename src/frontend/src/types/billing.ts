@@ -38,6 +38,8 @@ export interface VisitInvoice {
   amountBalance: number
   status: InvoiceStatus
   createdBy: string | null
+  paidBy?: string | null
+  paidAt?: string | null
   createdAt: string
 }
 
@@ -47,6 +49,8 @@ export interface VisitInvoiceDetail extends VisitInvoice {
   fileNo: number
   nationalId: string | null
   doctorName: string
+  createdByStaffName?: string
+  paidByStaffName?: string
   queueNo: number
   clinic: string | null
   prescriptionNotes: string | null
