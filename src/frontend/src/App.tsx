@@ -33,6 +33,7 @@ import PatientProfilePage from '@/pages/patients/PatientProfilePage'
 import MyInvoicesPage from '@/pages/invoices/MyInvoicesPage'
 import BillingReportPage from '@/pages/invoices/BillingReportPage'
 import BillingReportInvoicesPage from '@/pages/invoices/BillingReportInvoicesPage'
+import BillingHistoryPage from '@/pages/billing/BillingHistoryPage'
 import MedicalRecordsPage from '@/pages/records/MedicalRecordsPage'
 import RecordDetailPage from '@/pages/records/RecordDetailPage'
 import SettingsPage from '@/pages/settings/SettingsPage'
@@ -192,6 +193,16 @@ function App() {
                 <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
                   <AppShell>
                     <BillingReportInvoicesPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/billing-history"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                  <AppShell>
+                    <BillingHistoryPage />
                   </AppShell>
                 </ProtectedRoute>
               }

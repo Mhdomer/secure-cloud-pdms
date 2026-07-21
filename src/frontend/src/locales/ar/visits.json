@@ -39,7 +39,7 @@
       "all": "الكل",
       "waiting": "بالانتظار",
       "in_progress": "قيد الكشف",
-      "completed": "مكتملة",
+      "completed": "جاهز للفوترة",
       "billed": "مفوترة"
     },
     "columns": {
@@ -223,5 +223,53 @@
     "invoicesTitle": "الفواتير",
     "allDoctors": "كل الأطباء",
     "allClinics": "كل العيادات"
+  },
+  "pendingBilling": {
+    "tabLabel": "جاهز للفوترة",
+    "emptyState": "لا يوجد مرضى بانتظار الدفع",
+    "waitingSince": "بانتظار {{duration}}",
+    "notificationTitle": "مريض جاهز للدفع",
+    "notificationBody": "{{count}} مريض/مرضى بانتظار الفوترة"
+  },
+  "billingHistoryPage": {
+    "title": "سجل الفواتير",
+    "description": "عرض سجل فواتير العيادة والمؤشرات المالية السابقة.",
+    "filters": {
+      "fromDate": "من:",
+      "toDate": "إلى:",
+      "status": "الحالة:",
+      "allStatuses": "جميع الحالات",
+      "paid": "مدفوعة",
+      "pending": "بانتظار الدفع",
+      "partial": "جزئي",
+      "cancelled": "ملغاة",
+      "searchPlaceholder": "ابحث برقم الفاتورة، اسم المريض، رقم الملف…"
+    },
+    "summary": {
+      "collected": "المحصل",
+      "outstanding": "المتبقي",
+      "grandTotal": "الإجمالي الكلي"
+    },
+    "table": {
+      "invNo": "رقم الفاتورة",
+      "date": "التاريخ",
+      "patient": "المريض",
+      "fileNo": "رقم الملف",
+      "doctor": "الطبيب",
+      "totalSar": "الإجمالي (ريال)",
+      "paidSar": "المدفوع (ريال)",
+      "balanceSar": "الرصيد (ريال)",
+      "status": "الحالة",
+      "action": "الإجراء",
+      "viewInvoice": "عرض الفاتورة"
+    },
+    "statusPills": {
+      "paid": "مدفوعة",
+      "pending_billing": "قيد الفوترة",
+      "partial": "دفع جزئي",
+      "cancelled": "ملغاة"
+    },
+    "empty": "لم يتم العثور على فواتير للفترة المحددة",
+    "loadError": "تعذّر تحميل سجل الفواتير."
   }
 }

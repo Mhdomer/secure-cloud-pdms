@@ -39,7 +39,7 @@
       "all": "All",
       "waiting": "Waiting",
       "in_progress": "In Progress",
-      "completed": "Completed",
+      "completed": "Ready to Bill",
       "billed": "Billed"
     },
     "columns": {
@@ -223,5 +223,53 @@
     "invoicesTitle": "Invoices",
     "allDoctors": "All Doctors",
     "allClinics": "All Clinics"
+  },
+  "pendingBilling": {
+    "tabLabel": "Ready to Bill",
+    "emptyState": "No patients waiting to pay",
+    "waitingSince": "Waiting {{duration}}",
+    "notificationTitle": "Patient ready to pay",
+    "notificationBody": "{{count}} patient(s) waiting at billing counter"
+  },
+  "billingHistoryPage": {
+    "title": "Billing History",
+    "description": "View historical clinic billing records and financial metrics.",
+    "filters": {
+      "fromDate": "From:",
+      "toDate": "To:",
+      "status": "Status:",
+      "allStatuses": "All Statuses",
+      "paid": "Paid",
+      "pending": "Pending",
+      "partial": "Partial",
+      "cancelled": "Cancelled",
+      "searchPlaceholder": "Search invoice #, patient, file #…"
+    },
+    "summary": {
+      "collected": "Collected",
+      "outstanding": "Outstanding",
+      "grandTotal": "Grand Total"
+    },
+    "table": {
+      "invNo": "Inv #",
+      "date": "Date",
+      "patient": "Patient",
+      "fileNo": "File #",
+      "doctor": "Doctor",
+      "totalSar": "Total (SAR)",
+      "paidSar": "Paid (SAR)",
+      "balanceSar": "Balance (SAR)",
+      "status": "Status",
+      "action": "Action",
+      "viewInvoice": "View Invoice"
+    },
+    "statusPills": {
+      "paid": "Paid",
+      "pending_billing": "Pending",
+      "partial": "Partial",
+      "cancelled": "Cancelled"
+    },
+    "empty": "No invoices found for the selected period",
+    "loadError": "Could not load billing history."
   }
 }

@@ -27,6 +27,13 @@ router.post('/',
   asyncHandler(ctrl.create)
 );
 
+router.get('/pending-count',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.SUPERADMIN),
+  setupRLSContext,
+  asyncHandler(ctrl.getPendingBillingCount)
+);
+
 router.get('/today',
   authenticateJWT,
   authorizeRole(ROLES.ADMIN, ROLES.DOCTOR),

@@ -12,6 +12,7 @@ import {
   ListOrdered,
   LogOut,
   Receipt,
+  ReceiptText,
   Settings,
   Stethoscope,
   UserCog,
@@ -51,6 +52,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { to: '/departments', labelKey: 'departments', icon: Building2 },
     { to: '/catalog', labelKey: 'catalog', icon: ClipboardList },
     { to: '/billing-report', labelKey: 'billingReport', icon: Receipt },
+    { to: '/billing-history', labelKey: 'billingHistory', icon: ReceiptText },
     { to: '/settings', labelKey: 'settings', icon: Settings },
   ],
   doctor: [
@@ -67,6 +69,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { to: '/visits', labelKey: 'visits', icon: ListOrdered },
     { to: '/catalog', labelKey: 'catalog', icon: ClipboardList },
     { to: '/billing-report', labelKey: 'billingReport', icon: Receipt },
+    { to: '/billing-history', labelKey: 'billingHistory', icon: ReceiptText },
     { to: '/settings', labelKey: 'settings', icon: Settings },
   ],
   patient: [
@@ -115,6 +118,13 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
     refetchInterval: 30_000,
   })
   const activeVisit = role === 'doctor' ? (queueData?.visits.find((v) => v.status === 'in_progress') ?? null) : null
+
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ['pending-billing-count'],
+    queryFn: visitsApi.pendingBillingCount,
+    refetchInterval: 30_000,
+    enabled: role === 'admin' || role === 'superadmin',
+  })
 
   if (!role) return null
   const items: NavItem[] = activeVisit
@@ -205,14 +215,27 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
                 to={item.to}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 rounded-lg border-s-4 border-transparent px-3 py-2 text-sm font-medium text-neutral-700 transition-colors duration-150 ease-out hover:bg-primary-50 hover:text-primary-700',
+                    'relative flex items-center gap-3 rounded-lg border-s-4 border-transparent px-3 py-2 text-sm font-medium text-neutral-700 transition-colors duration-150 ease-out hover:bg-primary-50 hover:text-primary-700',
                     isActive && 'border-s-primary-600 bg-primary-50 text-primary-700',
                     item.highlight && !isActive && 'border-s-primary-200 bg-primary-50/60 text-primary-700',
                   )
                 }
               >
                 <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {!collapsed && <span className="truncate">{t(item.labelKey)}</span>}
+                {!collapsed ? (
+                  <span className="flex flex-1 items-center justify-between truncate">
+                    <span className="truncate">{t(item.labelKey)}</span>
+                    {item.to === '/visits' && pendingCount > 0 && (
+                      <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger-600 px-1 text-[11px] font-semibold text-white">
+                        {pendingCount > 99 ? '99+' : pendingCount}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  item.to === '/visits' && pendingCount > 0 && (
+                    <span className="absolute -top-0.5 -end-0.5 h-2.5 w-2.5 rounded-full bg-danger-600 ring-2 ring-neutral-100" />
+                  )
+                )}
               </NavLink>
             )
 

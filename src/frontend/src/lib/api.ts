@@ -51,6 +51,7 @@ import type {
   CreateUserPayload,
   CreateUserResponse,
   ListUsersResponse,
+  SystemHealthResponse,
   UserStatusResponse,
 } from '@/types/user'
 import type {
@@ -172,6 +173,7 @@ export const usersApi = {
     api.patch<UserStatusResponse>(`/users/${userId}/reactivate`).then((res) => res.data),
   changeMyPassword: (payload: ChangePasswordPayload) =>
     api.patch<{ message: string }>('/users/me/password', payload).then((res) => res.data),
+  getSystemHealth: () => api.get<SystemHealthResponse>('/users/system-health').then((res) => res.data),
 }
 
 // ── Doctors ──────────────────────────────────────────────────────────────
@@ -329,6 +331,8 @@ export const appointmentsApi = {
   /** UC-20 — Patient books their own appointment; patient_id is never sent, it's derived server-side from the session. */
   bookMine: (payload: BookOwnAppointmentPayload) =>
     api.post<BookOwnAppointmentResponse>('/appointments/mine', payload).then((res) => res.data),
+  sendSmsReminder: (appointmentId: string) =>
+    api.post<{ message: string; appointmentId: string }>(`/appointments/${appointmentId}/reminder-sms`).then((res) => res.data),
 }
 
 // ── Invoices (billing documents — admin uploads, admin + doctor view) ──────
@@ -426,6 +430,8 @@ export const visitsApi = {
     api.get<VisitDetail>(`/visits/${visitId}`).then((r) => r.data),
   updateStatus: (visitId: string, status: VisitStatus) =>
     api.patch<UpdateVisitStatusResponse>(`/visits/${visitId}/status`, { status }).then((r) => r.data),
+  pendingBillingCount: () =>
+    api.get<{ count: number }>('/visits/pending-count').then((r) => r.data.count),
 }
 
 // ── Billing (doctor adds items during consultation, staff discounts + collects payment) ──
@@ -474,5 +480,28 @@ export const billingApi = {
       .get<BillingReportInvoicesResponse>('/billing/report/invoices', {
         params: { date: params.date, doctor_id: params.doctorId, clinic: params.clinic },
       })
+      .then((r) => r.data),
+  history: (params?: { from?: string; to?: string; status?: string }) =>
+    api
+      .get<{
+        invoices: Array<{
+          invoiceId: string
+          invNo: string
+          visitId: string
+          patientId: string
+          status: string
+          grandTotal: number
+          amountPaid: number
+          amountBalance: number
+          paymentMethod?: string
+          createdAt: string
+          patientName: string
+          fileNo: number
+          doctorName: string
+          queueNo: number
+          clinic?: string
+        }>
+        totals: { grandTotal: number; collected: number; outstanding: number }
+      }>('/invoices/history', { params })
       .then((r) => r.data),
 }

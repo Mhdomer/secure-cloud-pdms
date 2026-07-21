@@ -196,6 +196,18 @@ exports.create = async (req, res) => {
   res.status(201).json(toRow(result.rows[0]));
 };
 
+exports.getPendingBillingCount = async (req, res) => {
+  const result = await withTransaction(req.rlsSession, async (client) => {
+    return client.query(
+      `SELECT COUNT(*)::int AS count
+         FROM visits
+        WHERE status = 'completed'
+          AND DATE(checked_in_at) = CURRENT_DATE`
+    );
+  });
+  res.json({ count: result.rows[0].count });
+};
+
 /**
  * `visits` has no RLS (see schema.sql — only patients/medical_records/
  * lab_results are RLS-protected), so this controller is the only place a
@@ -222,13 +234,15 @@ exports.listToday = async (req, res) => {
       params.push(doctor_id);
       conditions.push(`v.doctor_id = $${params.length}`);
     }
+    const orderBy = status === 'completed' ? 'v.completed_at ASC NULLS LAST' : 'v.queue_no ASC';
     return client.query(
-      `${VISIT_SELECT} WHERE ${conditions.join(' AND ')} ORDER BY v.queue_no ASC`,
+      `${VISIT_SELECT} WHERE ${conditions.join(' AND ')} ORDER BY ${orderBy}`,
       params
     );
   });
   res.json({ visits: result.rows.map(toRow) });
 };
+
 
 /**
  * Same doctor self-scoping as listToday above — see that comment. Backs the
