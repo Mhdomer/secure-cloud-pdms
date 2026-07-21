@@ -6,6 +6,7 @@ const { body, param } = require('express-validator');
 const validateRequest = require('../middleware/validateRequest');
 const { authenticateJWT } = require('../middleware/authMiddleware');
 const { authorizeRole } = require('../middleware/rbacMiddleware');
+const { setupRLSContext } = require('../middleware/rlsContext');
 const asyncHandler = require('../utils/asyncHandler');
 const usersController = require('../controllers/usersController');
 const { ROLES } = require('../config/constants');
@@ -16,6 +17,9 @@ const router = Router();
 // here (see User.listStaffAndDoctors). Backs the "how many staff/doctor
 // accounts do I have" view on the User Management page.
 router.get('/', authenticateJWT, authorizeRole(ROLES.SUPERADMIN), asyncHandler(usersController.listUsers));
+
+// Superadmin's system telemetry & audit log stream (60s cached)
+router.get('/system-health', authenticateJWT, authorizeRole(ROLES.SUPERADMIN), setupRLSContext, asyncHandler(usersController.getSystemHealth));
 
 // UC-04 — Superadmin Creates Staff Account (doctor or admin).
 // Regular admin/staff cannot create other elevated accounts.

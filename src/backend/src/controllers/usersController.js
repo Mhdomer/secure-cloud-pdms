@@ -204,12 +204,55 @@ async function listUsers(req, res) {
       createdAt: r.created_at,
       fullName: r.full_name,
       specialisation: r.specialisation,
-      // Doctor accounts only — null for admin/staff. Lets the frontend link
-      // straight to /doctors/:doctorId/availability without a separate
-      // lookup (doctors.doctor_id is a different UUID space from users.user_id).
       doctorId: r.doctor_id,
     })),
   });
 }
 
-module.exports = { listUsers, createUser, deactivateUser, reactivateUser, changeOwnPassword };
+let systemHealthCache = null;
+let systemHealthCacheTime = 0;
+const HEALTH_CACHE_TTL = 60_000; // 60 seconds
+
+async function getSystemHealth(req, res) {
+  const now = Date.now();
+  if (systemHealthCache && now - systemHealthCacheTime < HEALTH_CACHE_TTL) {
+    return res.status(200).json(systemHealthCache);
+  }
+
+  const result = await withTransaction(req.rlsSession, async (client) => {
+    const totalUsers = await client.query(`SELECT COUNT(*)::int AS count FROM users`);
+    const activeDoctors = await client.query(`SELECT COUNT(*)::int AS count FROM doctors WHERE is_active = true`);
+    const todayAppointments = await client.query(
+      `SELECT COUNT(*)::int AS count FROM appointments WHERE scheduled_at >= (date_trunc('day', NOW() AT TIME ZONE 'Asia/Riyadh') AT TIME ZONE 'Asia/Riyadh') AND scheduled_at < (date_trunc('day', NOW() AT TIME ZONE 'Asia/Riyadh') AT TIME ZONE 'Asia/Riyadh') + INTERVAL '1 day'`
+    );
+
+    const auditFeed = await client.query(
+      `SELECT a.log_id, a.action, a.resource, a.timestamp AS created_at, u.username
+         FROM audit_log a
+         LEFT JOIN users u ON u.user_id = a.user_id
+        ORDER BY a.timestamp DESC
+        LIMIT 5`
+    );
+
+    return {
+      totalUsers: totalUsers.rows[0].count,
+      activeDoctors: activeDoctors.rows[0].count,
+      todayAppointments: todayAppointments.rows[0].count,
+      systemStatus: 'Operational',
+      auditLogs: auditFeed.rows.map((r) => ({
+        id: String(r.log_id),
+        action: r.action,
+        resource: r.resource,
+        actor: r.username || 'System',
+        createdAt: r.created_at,
+      })),
+    };
+  });
+
+  systemHealthCache = result;
+  systemHealthCacheTime = now;
+
+  return res.status(200).json(result);
+}
+
+module.exports = { listUsers, createUser, deactivateUser, reactivateUser, changeOwnPassword, getSystemHealth };

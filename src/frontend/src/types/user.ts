@@ -53,3 +53,19 @@ export interface ChangePasswordPayload {
   currentPassword: string
   newPassword: string
 }
+
+export interface SystemAuditLog {
+  id: string
+  action: string
+  resource?: string | null
+  actor: string
+  createdAt: string
+}
+
+export interface SystemHealthResponse {
+  totalUsers: number
+  activeDoctors: number
+  todayAppointments: number
+  systemStatus: string
+  auditLogs: SystemAuditLog[]
+}
