@@ -15,6 +15,7 @@ import {
   ReceiptText,
   Settings,
   Stethoscope,
+  TrendingUp,
   UserCog,
   Users,
 } from 'lucide-react'
@@ -51,6 +52,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { to: '/users', labelKey: 'users', icon: UserCog },
     { to: '/departments', labelKey: 'departments', icon: Building2 },
     { to: '/catalog', labelKey: 'catalog', icon: ClipboardList },
+    { to: '/financial-analytics', labelKey: 'financialAnalytics', icon: TrendingUp },
     { to: '/billing-report', labelKey: 'billingReport', icon: Receipt },
     { to: '/billing-history', labelKey: 'billingHistory', icon: ReceiptText },
     { to: '/settings', labelKey: 'settings', icon: Settings },

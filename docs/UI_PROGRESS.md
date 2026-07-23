@@ -57,6 +57,40 @@
 - Updated all clinic name references from **"عيادة الأمين"** to **"مجمع الأمين"** across all locales and backend services.
 - Updated emergency availability and working hours from "24/7" to **Daily: 8 AM – 1 AM (Friday: 12 PM – 1 AM)** / **يومياً: ٨ ص – ١ ص (الجمعة: ١٢ ظ – ١ ص)** across all i18n keys and mega-menu cards.
 
+### 6. Polyclinic PDMS Core UI Redesign & Functional Modules (Latest Additions)
+- **⚡ Command Palette (`CommandPalette.tsx`)**:
+  - Global `Ctrl+K` keyboard shortcut modal with search & jump-to navigation for all roles.
+- **📋 Lobby Kanban Board (`LobbyKanbanBoard.tsx`)**:
+  - 3-column interactive waiting room board (`Waiting Room` $\rightarrow$ `In Consultation` $\rightarrow$ `Completed`) with live wait-time color alerts.
+- **🦷 Odontogram & Body Charting (`OdontogramBodyChart.tsx`)**:
+  - Interactive 32-tooth FDI dental diagram & anatomical body chart generating Arabic/English clinical finding summaries.
+- **💊 Wasfaty SFDA E-Prescription Builder (`EPrescriptionModal.tsx` & `ConsultationPage.tsx`)**:
+  - Interactive structured medication table builder + official Wasfaty SFDA e-prescription printable document.
+- **🎙️ Voice-to-Text Clinical Dictation (`VoiceDictationButton.tsx`)**:
+  - Native Web Speech API speech-to-text dictation button supporting Arabic (`ar-SA`) and English (`en-US`) across consultation fields.
+- **⚠️ Smart Drug-Allergy Warning System (`allergyChecker.ts`)**:
+  - Live cross-sensitivity evaluation engine for Penicillins, NSAIDs, Sulfa, Opioids, and Cephalosporins.
+- **🚪 Clinic Room Allocation Grid (`RoomStatusGrid.tsx` & `roomsController.js`)**:
+  - Real-time room allocation grid for Rooms 101-501 with status controls (`available`, `occupied`, `cleaning`, `maintenance`).
+- **🏥 NPHIES Insurance Co-Pay Engine (`BillVisitPage.tsx`, `InvoicePage.tsx`, `invoiceCalc.js`)**:
+  - Insurance provider selection, policy number, approval code, and automated coverage % co-pay split on invoices.
+- **🧾 Cashier Z-Report Reconciliation (`CashierZReportModal.tsx`)**:
+  - Shift reconciliation modal breaking down Cash vs Card vs Insurance co-pay sales.
+- **📊 Financial Revenue Analytics Page & Real PostgreSQL Backend (`FinancialAnalyticsPage.tsx`, `FinancialAnalyticsWidget.tsx`, `billingController.js`)**:
+  - Dedicated full-page financial dashboard at `/financial-analytics` with sidebar navigation (`Sidebar.tsx`) exclusive to SuperAdmin (`ROLES.SUPERADMIN`).
+  - Real PostgreSQL aggregation endpoint `GET /api/billing/analytics` filtered strictly by today's date (`Asia/Riyadh`) where $\text{Gross Revenue} = \text{Cash} + \text{Card} + \text{Insurance}$.
+  - Removed financial widgets from general receptionist / staff dashboard (`AdminDashboard.tsx`) for strict role confidentiality.
+- **🔍 Barcode / QR Fast Check-in (`QuickBarcodeScannerDialog.tsx`)**:
+  - Scanner dialog to scan National ID cards or ticket QR codes for instant patient check-in.
+- **👨‍⚕️ Treating Doctor Attribution & Shared Vital Signs (`MedicalRecordsTab.tsx`, `RecordDetailPage.tsx`, `MedicalRecord.js`, `medicalRecordsController.js`)**:
+  - Joined `doctors` table in `MedicalRecord.findById` to fetch `d.full_name AS doctor_name`.
+  - Added `doctorName` badge (e.g. `👨‍⚕️ الطبيب المعالج: د. طارق المنصور`) on patient medical record history cards and detail views.
+  - Added shared Patient Vital Signs grid (BP, HR, Temp, BMI, Weight, Height) and Chief Complaint sections to medical record cards and detail views.
+- **📱 Lobby Self-Service Patient Kiosk (`PatientKioskPage.tsx`)**:
+  - Full-screen touchscreen tablet kiosk (`/kiosk`) for self-service ticket issuance.
+- **🏛️ Official Riyadh Shifa Area Letterhead**:
+  - Updated all invoice footers and e-prescriptions with official Riyadh Shifa Area address, Dirab Branch Road, License 00699, phone numbers (011 4222000 / 011 4215656), and email.
+
 ---
 
 ## 📋 Open Feature Specs & Prompts Ready for Execution

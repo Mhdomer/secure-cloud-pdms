@@ -515,4 +515,19 @@ export const billingApi = {
         totals: { grandTotal: number; collected: number; outstanding: number }
       }>('/invoices/history', { params })
       .then((r) => r.data),
+  /** Superadmin only — live financial analytics metrics from PostgreSQL. */
+  getFinancialAnalytics: () =>
+    api
+      .get<{
+        gross: number
+        cash: number
+        card: number
+        insurance: number
+        totalInvoices: number
+        subtotal: number
+        totalDiscount: number
+        totalVat: number
+        departments: Array<{ nameEn: string; nameAr: string; revenue: number; percent: number; color: string }>
+      }>('/billing/analytics')
+      .then((r) => r.data),
 }

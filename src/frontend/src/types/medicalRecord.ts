@@ -22,14 +22,11 @@ export interface VitalSigns {
 /** Fields common to every list endpoint (`GET /records`, `GET /patients/:id/records`). */
 export interface MedicalRecordSummary {
   recordId: string
-  /**
-   * Present on `GET /medical-records/records` (doctor/patient own-records
-   * list). Absent on `GET /medical-records/patients/:patientId/records`
-   * (doctor's per-patient history) — that endpoint's rows only ever belong
-   * to the one `patientId` already in the URL, so the backend omits it.
-   */
   patientId?: string
+  doctorId?: string
+  doctorName?: string
   diagnosis: string
+  chiefComplaint?: string | null
   prescription?: string | null
   notes?: string | null
   vitalSigns?: VitalSigns | null
@@ -41,7 +38,10 @@ export interface MedicalRecordSummary {
 export interface MedicalRecord {
   recordId: string
   patientId: string
+  doctorId?: string
+  doctorName?: string
   diagnosis: string
+  chiefComplaint?: string | null
   prescription: string | null
   prescriptionsData?: any[] | null
   notes: string | null

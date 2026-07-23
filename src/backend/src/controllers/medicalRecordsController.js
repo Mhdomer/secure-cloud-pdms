@@ -117,6 +117,8 @@ async function viewRecord(req, res) {
   return res.status(200).json({
     recordId: record.record_id,
     patientId: record.patient_id,
+    doctorId: record.doctor_id,
+    doctorName: record.doctor_name,
     diagnosis: record.diagnosis,
     prescription: record.prescription,
     notes: record.notes,

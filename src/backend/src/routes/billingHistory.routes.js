@@ -78,4 +78,13 @@ router.get(
   asyncHandler(ctrl.getBillingHistory)
 );
 
+// Superadmin exclusive real-time financial analytics endpoint
+router.get(
+  '/billing/analytics',
+  authenticateJWT,
+  authorizeRole(ROLES.SUPERADMIN),
+  setupRLSContext,
+  asyncHandler(ctrl.getFinancialAnalytics)
+);
+
 module.exports = router;

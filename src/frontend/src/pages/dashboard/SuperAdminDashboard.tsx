@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/useAuth'
 import { usersApi } from '@/lib/api'
+import { FinancialAnalyticsWidget } from '@/components/dashboard/FinancialAnalyticsWidget'
 
 interface QuickLink {
   to: string
@@ -104,6 +105,9 @@ export default function SuperAdminDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Exclusive Superadmin Financial Analytics & Cashier Z-Report Widget */}
+      <FinancialAnalyticsWidget />
 
       {/* Quick Actions & Audit Feed */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

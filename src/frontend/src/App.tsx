@@ -18,6 +18,7 @@ import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import SetupPasswordPage from '@/pages/auth/SetupPasswordPage'
 import PublicQueueTrackerPage from '@/pages/public/PublicQueueTrackerPage'
+import PatientKioskPage from '@/pages/public/PatientKioskPage'
 import AdminDashboard from '@/pages/dashboard/AdminDashboard'
 import DoctorDashboard from '@/pages/dashboard/DoctorDashboard'
 import PatientDashboard from '@/pages/dashboard/PatientDashboard'
@@ -35,6 +36,7 @@ import MyInvoicesPage from '@/pages/invoices/MyInvoicesPage'
 import BillingReportPage from '@/pages/invoices/BillingReportPage'
 import BillingReportInvoicesPage from '@/pages/invoices/BillingReportInvoicesPage'
 import BillingHistoryPage from '@/pages/billing/BillingHistoryPage'
+import FinancialAnalyticsPage from '@/pages/billing/FinancialAnalyticsPage'
 import MedicalRecordsPage from '@/pages/records/MedicalRecordsPage'
 import RecordDetailPage from '@/pages/records/RecordDetailPage'
 import SettingsPage from '@/pages/settings/SettingsPage'
@@ -84,6 +86,7 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/setup-password" element={<SetupPasswordPage />} />
             <Route path="/queue-tracker" element={<PublicQueueTrackerPage />} />
+            <Route path="/kiosk" element={<PatientKioskPage />} />
 
             <Route
               path="/dashboard/superadmin"
@@ -290,6 +293,16 @@ function App() {
                 <ProtectedRoute allowedRoles={['superadmin']}>
                   <AppShell>
                     <UserManagementPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/financial-analytics"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin']}>
+                  <AppShell>
+                    <FinancialAnalyticsPage />
                   </AppShell>
                 </ProtectedRoute>
               }

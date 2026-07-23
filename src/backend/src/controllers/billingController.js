@@ -765,3 +765,74 @@ exports.getBillingHistory = async (req, res) => {
   res.json(result);
 };
 
+exports.getFinancialAnalytics = async (req, res) => {
+  const targetDate = req.query.date || null;
+
+  const result = await withTransaction(req.rlsSession, async (client) => {
+    const dateClause = targetDate
+      ? `vi.created_at::date = $1::date`
+      : `vi.created_at::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Riyadh')::date`;
+    const params = targetDate ? [targetDate] : [];
+
+    const summaryRes = await client.query(
+      `SELECT 
+         COUNT(*)::int AS total_invoices,
+         COALESCE(SUM(vi.grand_total), 0)::numeric AS gross,
+         COALESCE(SUM(vi.subtotal), 0)::numeric AS subtotal,
+         COALESCE(SUM(vi.total_discount), 0)::numeric AS total_discount,
+         COALESCE(SUM(vi.total_vat), 0)::numeric AS total_vat,
+         COALESCE(SUM(vi.amount_paid), 0)::numeric AS total_collected,
+         COALESCE(SUM(CASE WHEN vi.payment_method = 'cash' THEN vi.amount_paid ELSE 0 END), 0)::numeric AS cash,
+         COALESCE(SUM(CASE WHEN vi.payment_method = 'card' THEN vi.amount_paid ELSE 0 END), 0)::numeric AS card,
+         COALESCE(SUM(CASE WHEN vi.payment_method = 'insurance' OR vi.insurance_co IS NOT NULL THEN vi.amount_paid ELSE 0 END), 0)::numeric AS insurance
+       FROM visit_invoices vi
+       WHERE ${dateClause} AND vi.status IN ('paid', 'partial')`,
+      params
+    );
+
+    const deptRes = await client.query(
+      `SELECT 
+         COALESCE(v.clinic, 'General') AS dept_name, 
+         COALESCE(SUM(vi.grand_total), 0)::numeric AS dept_revenue
+       FROM visit_invoices vi
+       JOIN visits v ON v.visit_id = vi.visit_id
+       WHERE ${dateClause} AND vi.status IN ('paid', 'partial')
+       GROUP BY v.clinic`,
+      params
+    );
+
+    const row = summaryRes.rows[0] || {};
+    const totalCollected = parseFloat(row.total_collected) || 0;
+    const cash = parseFloat(row.cash) || 0;
+    const card = parseFloat(row.card) || 0;
+    const insurance = parseFloat(row.insurance) || 0;
+
+    const depts = deptRes.rows.map((d, idx) => {
+      const rev = parseFloat(d.dept_revenue) || 0;
+      const pct = totalCollected > 0 ? Math.round((rev / totalCollected) * 100) : 0;
+      const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-rose-500'];
+      return {
+        nameEn: d.dept_name,
+        nameAr: d.dept_name,
+        revenue: rev,
+        percent: pct,
+        color: colors[idx % colors.length],
+      };
+    });
+
+    return {
+      gross: totalCollected, // Matches exact sum of cash + card + insurance collected today
+      cash,
+      card,
+      insurance,
+      totalInvoices: parseInt(row.total_invoices) || 0,
+      subtotal: parseFloat(row.subtotal) || 0,
+      totalDiscount: parseFloat(row.total_discount) || 0,
+      totalVat: parseFloat(row.total_vat) || 0,
+      departments: depts,
+    };
+  });
+
+  res.json(result);
+};
+

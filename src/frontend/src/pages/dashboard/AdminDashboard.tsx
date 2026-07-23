@@ -11,6 +11,7 @@ import {
   UserCheck,
   UserPlus,
   Users,
+  QrCode,
   type LucideIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +37,7 @@ import { RegisterPatientDialog } from '@/pages/patients/RegisterPatientDialog'
 import { NewWalkInDialog } from '@/pages/visits/NewWalkInDialog'
 import { LobbyKanbanBoard } from '@/components/visits/LobbyKanbanBoard'
 import { RoomStatusGrid } from '@/components/rooms/RoomStatusGrid'
+import { QuickBarcodeScannerDialog } from '@/components/visits/QuickBarcodeScannerDialog'
 import { useRecentRegistrationsStore, type RecentRegistration } from '@/store/recentRegistrationsStore'
 import type { Appointment, AppointmentType } from '@/types/appointment'
 
@@ -309,6 +311,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'waiting' | 'inConsultation' | 'completed'>('all')
   const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'rooms'>('table')
+  const [scannerOpen, setScannerOpen] = useState(false)
 
   const queryClient = useQueryClient()
   const updateVisitStatusMutation = useMutation({
@@ -555,6 +558,13 @@ export default function AdminDashboard() {
             />
           }
         />
+        <div onClick={() => setScannerOpen(true)} className="cursor-pointer">
+          <AdminActionTile
+            icon={QrCode}
+            label={currentLang === 'ar' ? 'ماسح البار كود السريع' : 'Barcode Fast Check-in'}
+            hint={currentLang === 'ar' ? 'مسح هوية المريض أو تذكرة الانتظار' : 'Scan patient ID or queue barcode'}
+          />
+        </div>
       </motion.div>
 
       <motion.div variants={sectionFade} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -715,6 +725,8 @@ export default function AdminDashboard() {
           </div>
         </Card>
       </motion.div>
+
+      <QuickBarcodeScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} />
     </motion.div>
   )
 }

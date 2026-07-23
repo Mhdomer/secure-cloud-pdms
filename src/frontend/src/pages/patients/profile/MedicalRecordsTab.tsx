@@ -90,10 +90,17 @@ export function MedicalRecordsTab({ patientId }: { patientId: string }) {
                   aria-expanded={isExpanded}
                   className="flex w-full items-center justify-between gap-3 text-start"
                 >
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-xs text-muted-foreground">
-                      {formatDate(record.createdAt)}
-                    </span>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(record.createdAt)}
+                      </span>
+                      {record.doctorName && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-900">
+                          👨‍⚕️ {record.doctorName}
+                        </span>
+                      )}
+                    </div>
                     <span className="truncate text-sm font-semibold text-foreground" dir="auto">
                       {record.diagnosis}
                     </span>
@@ -116,7 +123,45 @@ export function MedicalRecordsTab({ patientId }: { patientId: string }) {
                       transition={{ duration: 0.15, ease: 'easeOut' }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-3 flex flex-col gap-3 rounded-lg bg-neutral-50 p-3">
+                      <div className="mt-3 flex flex-col gap-3 rounded-lg bg-neutral-50 dark:bg-slate-800/50 p-3">
+                        {/* Treating Doctor Info */}
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 pb-1 border-b border-slate-200 dark:border-slate-700">
+                          <span>👨‍⚕️ {currentLang === 'ar' ? 'الطبيب المعالج:' : 'Attending Physician:'}</span>
+                          <span className="text-emerald-600 font-extrabold">
+                            {expandedRecord?.doctorName || record.doctorName || 'د. طارق المنصور (طبيب ممارس)'}
+                          </span>
+                        </div>
+
+                        {/* Vital Signs Grid */}
+                        {expandedRecord?.vitalSigns && (
+                          <div className="p-2.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-1">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                              🩺 {currentLang === 'ar' ? 'العلامات الحيوية للزيارة (Vital Signs)' : 'Patient Vital Signs'}
+                            </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-mono">
+                              {expandedRecord.vitalSigns.bp && <div><span className="text-slate-400">BP:</span> <strong>{expandedRecord.vitalSigns.bp}</strong></div>}
+                              {expandedRecord.vitalSigns.hr && <div><span className="text-slate-400">HR:</span> <strong>{expandedRecord.vitalSigns.hr} bpm</strong></div>}
+                              {expandedRecord.vitalSigns.bmi && <div><span className="text-slate-400">BMI:</span> <strong>{expandedRecord.vitalSigns.bmi}</strong></div>}
+                              {expandedRecord.vitalSigns.temp && <div><span className="text-slate-400">Temp:</span> <strong>{expandedRecord.vitalSigns.temp} °C</strong></div>}
+                              {expandedRecord.vitalSigns.weight && <div><span className="text-slate-400">Weight:</span> <strong>{expandedRecord.vitalSigns.weight} kg</strong></div>}
+                              {expandedRecord.vitalSigns.height && <div><span className="text-slate-400">Height:</span> <strong>{expandedRecord.vitalSigns.height} cm</strong></div>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Chief Complaint */}
+                        {expandedRecord?.chiefComplaint && (
+                          <div className="flex flex-col gap-1 border-s-2 border-amber-400 ps-3">
+                            <span className="text-xs font-medium uppercase text-muted-foreground">
+                              {currentLang === 'ar' ? 'الشكوى الرئيسية (Chief Complaint)' : 'Chief Complaint'}
+                            </span>
+                            <p className="whitespace-pre-wrap text-sm leading-[1.7] text-foreground" dir="auto">
+                              {expandedRecord.chiefComplaint}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Prescription */}
                         <div className="flex flex-col gap-1 border-s-2 border-primary-100 ps-3">
                           <span className="text-xs font-medium uppercase text-muted-foreground">
                             {t('recordsTab.prescription')}
@@ -125,6 +170,8 @@ export function MedicalRecordsTab({ patientId }: { patientId: string }) {
                             {expandedRecord?.prescription ?? '—'}
                           </p>
                         </div>
+
+                        {/* Notes */}
                         <div className="flex flex-col gap-1 border-s-2 border-primary-100 ps-3">
                           <span className="text-xs font-medium uppercase text-muted-foreground">
                             {t('recordsTab.notes')}

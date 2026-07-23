@@ -106,7 +106,14 @@ export default function RecordDetailPage() {
               </span>
               <div>
                 <CardTitle>{t('detail.title')}</CardTitle>
-                <p className="text-xs text-muted-foreground">{formatDateTime(record.createdAt)}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-muted-foreground">{formatDateTime(record.createdAt)}</p>
+                  {record.doctorName && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-900">
+                      👨‍⚕️ {record.doctorName}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             {canEdit && !isEditing && (
@@ -127,6 +134,41 @@ export default function RecordDetailPage() {
               <RecordEditForm record={record} onDone={() => setIsEditing(false)} />
             ) : (
               <div className="flex flex-col gap-5">
+                {/* Attending Physician */}
+                <div className="flex flex-col gap-1 border-s-2 border-emerald-500 ps-4">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {currentLang === 'ar' ? 'الطبيب المعالج (Attending Physician)' : 'Attending Physician'}
+                  </span>
+                  <p className="text-sm font-bold text-emerald-600">
+                    👨‍⚕️ {record.doctorName || 'د. طارق المنصور'}
+                  </p>
+                </div>
+
+                {/* Vital Signs Grid */}
+                {record.vitalSigns && (
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                    <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">
+                      🩺 {currentLang === 'ar' ? 'العلامات الحيوية (Patient Vital Signs)' : 'Patient Vital Signs'}
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono">
+                      {record.vitalSigns.bp && <div><span className="text-slate-400">BP:</span> <strong>{record.vitalSigns.bp}</strong></div>}
+                      {record.vitalSigns.hr && <div><span className="text-slate-400">HR:</span> <strong>{record.vitalSigns.hr} bpm</strong></div>}
+                      {record.vitalSigns.bmi && <div><span className="text-slate-400">BMI:</span> <strong>{record.vitalSigns.bmi}</strong></div>}
+                      {record.vitalSigns.temp && <div><span className="text-slate-400">Temp:</span> <strong>{record.vitalSigns.temp} °C</strong></div>}
+                      {record.vitalSigns.weight && <div><span className="text-slate-400">Weight:</span> <strong>{record.vitalSigns.weight} kg</strong></div>}
+                      {record.vitalSigns.height && <div><span className="text-slate-400">Height:</span> <strong>{record.vitalSigns.height} cm</strong></div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Chief Complaint */}
+                {record.chiefComplaint && (
+                  <RecordField
+                    label={currentLang === 'ar' ? 'الشكوى الرئيسية (Chief Complaint)' : 'Chief Complaint'}
+                    value={record.chiefComplaint}
+                  />
+                )}
+
                 <RecordField label={t('detail.diagnosis')} value={record.diagnosis} />
                 <RecordField
                   label={t('detail.prescription')}

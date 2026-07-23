@@ -30,6 +30,8 @@ import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { cn } from '@/lib/utils'
 import { OdontogramBodyChart } from '@/components/clinical/OdontogramBodyChart'
 import { EPrescriptionModal, type StructuredMedication } from '@/components/clinical/EPrescriptionModal'
+import { VoiceDictationButton } from '@/components/shared/VoiceDictationButton'
+import { checkDrugAllergyRisk } from '@/lib/allergyChecker'
 import type { InvoiceItem, InvoiceStatus } from '@/types/billing'
 import type { ClinicService } from '@/types/clinicService'
 
@@ -194,6 +196,8 @@ export default function ConsultationPage() {
       .join('\n')
     setPrescription(textSummary)
   }
+
+  const liveAllergyRisk = checkDrugAllergyRisk(visit?.allergies, newTradeName)
 
   const createRecordMutation = useMutation({
     mutationFn: () => {
@@ -453,7 +457,12 @@ export default function ConsultationPage() {
 
           <Card>
             <CardContent className="flex flex-col gap-2 pt-6">
-              <Label htmlFor="visit-notes">{t('consult.notesHeading')}</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="visit-notes">{t('consult.notesHeading')}</Label>
+                <VoiceDictationButton
+                  onTranscript={(text) => setNotes((prev) => (prev ? `${prev} ${text}` : text))}
+                />
+              </div>
               <Textarea
                 id="visit-notes"
                 value={notes}
@@ -539,11 +548,32 @@ export default function ConsultationPage() {
                 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
                   {currentLang === 'ar' ? '+ إضافة دواء جديد للوصفة' : '+ Add New Medication to Prescription'}
                 </span>
+
+                {/* Smart Drug Allergy Warning Alert */}
+                {liveAllergyRisk && (
+                  <div className="p-3 rounded-xl bg-rose-100 dark:bg-rose-950/80 border-2 border-rose-500 text-rose-900 dark:text-rose-200 text-xs flex items-start gap-2.5 shadow-md animate-bounce">
+                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-extrabold text-sm text-rose-700 dark:text-rose-300">
+                        {currentLang === 'ar' ? '⚠️ تحذير خطير: تعارض مع حساسيات المريض!' : '⚠️ SEVERE ALLERGY CONFLICT DETECTED!'}
+                      </div>
+                      <p className="mt-0.5 font-semibold">
+                        {currentLang === 'ar' ? liveAllergyRisk.messageAr : liveAllergyRisk.messageEn}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
                   <div className="sm:col-span-2">
-                    <Label htmlFor="med-name" className="text-[11px] text-slate-500">
-                      {currentLang === 'ar' ? 'اسم الدواء (Trade Name)' : 'Medication Name'}
-                    </Label>
+                    <div className="flex justify-between items-center mb-1">
+                      <Label htmlFor="med-name" className="text-[11px] text-slate-500">
+                        {currentLang === 'ar' ? 'اسم الدواء (Trade Name)' : 'Medication Name'}
+                      </Label>
+                      <VoiceDictationButton
+                        onTranscript={(text) => setNewTradeName((prev) => (prev ? `${prev} ${text}` : text))}
+                      />
+                    </div>
                     <Input
                       id="med-name"
                       placeholder="e.g. Amoxicillin 500mg"
@@ -653,7 +683,12 @@ export default function ConsultationPage() {
               <h2 className="text-base font-semibold text-foreground">{t('consult.addRecordHeading')}</h2>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="record-chief-complaint">{t('consult.recordChiefComplaintLabel')}</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="record-chief-complaint">{t('consult.recordChiefComplaintLabel')}</Label>
+                  <VoiceDictationButton
+                    onTranscript={(text) => setChiefComplaint((prev) => (prev ? `${prev} ${text}` : text))}
+                  />
+                </div>
                 <Input
                   id="record-chief-complaint"
                   value={chiefComplaint}
@@ -663,7 +698,12 @@ export default function ConsultationPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="record-diagnosis">{t('consult.recordDiagnosisLabel')}</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="record-diagnosis">{t('consult.recordDiagnosisLabel')}</Label>
+                  <VoiceDictationButton
+                    onTranscript={(text) => setDiagnosis((prev) => (prev ? `${prev} ${text}` : text))}
+                  />
+                </div>
                 <Input
                   id="record-diagnosis"
                   value={diagnosis}
@@ -703,7 +743,12 @@ export default function ConsultationPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="record-notes">{t('consult.recordNotesLabel')}</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="record-notes">{t('consult.recordNotesLabel')}</Label>
+                  <VoiceDictationButton
+                    onTranscript={(text) => setRecordNotes((prev) => (prev ? `${prev} ${text}` : text))}
+                  />
+                </div>
                 <Textarea
                   id="record-notes"
                   value={recordNotes}

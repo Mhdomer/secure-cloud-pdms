@@ -37,9 +37,12 @@ class MedicalRecord {
 
   static async findById(client, recordId) {
     const result = await client.query(
-      `SELECT record_id, patient_id, doctor_id, diagnosis, prescription, notes, created_at, updated_at,
-              chief_complaint, objective, assessment, plan, vital_signs, prescriptions_data, visit_type
-         FROM medical_records WHERE record_id = $1`,
+      `SELECT mr.record_id, mr.patient_id, mr.doctor_id, mr.diagnosis, mr.prescription, mr.notes, mr.created_at, mr.updated_at,
+              mr.chief_complaint, mr.objective, mr.assessment, mr.plan, mr.vital_signs, mr.prescriptions_data, mr.visit_type,
+              d.full_name AS doctor_name
+         FROM medical_records mr
+         LEFT JOIN doctors d ON d.doctor_id = mr.doctor_id
+        WHERE mr.record_id = $1`,
       [recordId]
     );
     return result.rows[0] || null;

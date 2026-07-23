@@ -975,4 +975,47 @@ accuracy correction on *how* it's done, not *whether*.
     - Verified live migration via `node scripts/apply-rls.js` (`RLS POLICIES APPLIED SUCCESSFULLY!`).
     - Verified backend queries (`PATIENTS QUERY SUCCESS`, `QUERY SUCCESS`).
 
+- **Polyclinic PDMS Comprehensive UI Redesign & Functional Modules Overhaul — 2026-07-23**:
+  - **Command Palette & Global Keyboard Shortcuts (`CommandPalette.tsx`, `AppShell.tsx`, `Topbar.tsx`)**: Implemented global `Ctrl+K` command launcher modal for fast role navigation, patient search, and language switching (`ar` ↔ `en`).
+  - **Interactive Reception Lobby Kanban Board (`LobbyKanbanBoard.tsx`, `AdminDashboard.tsx`)**: Implemented 3-column reception waiting room board (`Waiting Room` $\rightarrow$ `In Consultation` $\rightarrow$ `Completed`) with real-time wait duration indicators and color-coded SLA alerts.
+  - **Clinical FDI Odontogram & Anatomical Body Chart (`OdontogramBodyChart.tsx`, `ConsultationPage.tsx`)**: Implemented interactive 32-tooth FDI dental diagram and anatomical body chart with localized Arabic/English clinical finding summary output (`[نتائج الفحص السريري]: ...`). Fixed single-state finding replace/remove logic.
+  - **Wasfaty SFDA E-Prescription Builder & Official Print (`EPrescriptionModal.tsx`, `ConsultationPage.tsx`, `schema.sql`)**: Built interactive structured medication table builder directly inside the Prescription Card on `ConsultationPage.tsx` (Trade Name, Dosage, Frequency, Duration, Instructions). Saved `prescriptions_data` JSONB payload in PostgreSQL. Built official Wasfaty SFDA printable e-prescription modal with doctor stamp and verification QR code.
+  - **Voice-to-Text Clinical Dictation (`VoiceDictationButton.tsx`, `ConsultationPage.tsx`)**: Built speech-to-text dictation button using Web Speech API supporting Arabic (`ar-SA`) and English (`en-US`) across Consultation Notes, Medication Name, Chief Complaint, Diagnosis, and Medical Record Notes.
+  - **Smart Drug-Allergy Warning System (`allergyChecker.ts`, `ConsultationPage.tsx`)**: Built pharmaceutical cross-sensitivity evaluation engine cross-referencing patient allergies against Penicillins, NSAIDs/Aspirin, Sulfa, Opioids/Codeine, and Cephalosporins. Renders live flashing red warning banner upon allergen conflict detection.
+  - **Clinic Room & Equipment Allocation Grid (`RoomStatusGrid.tsx`, `roomsController.js`, `rooms.routes.js`, `schema.sql`)**: Built real-time room allocation grid for Rooms 101–501 with status controls (`available`, `occupied`, `cleaning`, `maintenance`) and DB persistence.
+  - **NPHIES Insurance Co-Pay Engine (`BillVisitPage.tsx`, `InvoicePage.tsx`, `invoiceCalc.js`, `schema.sql`)**: Implemented insurance provider selection, policy number, approval code, and automated coverage % co-pay split calculator on invoices and tax receipts.
+  - **Cashier Shift Reconciliation Z-Report & Dedicated Financial Analytics Page (`CashierZReportModal.tsx`, `FinancialAnalyticsWidget.tsx`, `FinancialAnalyticsPage.tsx`, `billingController.js`)**: Built cashier shift reconciliation Z-Report modal breaking down Cash vs. Card vs. Insurance sales with cashier sign-off lines. Implemented real PostgreSQL backend aggregation endpoint `GET /api/billing/analytics` with `Asia/Riyadh` today date filtering and strict component summation ($\text{Gross} = \text{Cash} + \text{Card} + \text{Insurance}$). Built standalone Financial Analytics Page at `/financial-analytics` with `Sidebar.tsx` navigation item exclusive to SuperAdmin. Restricted financial widgets from general staff dashboards for role confidentiality.
+  - **Barcode / QR Fast Check-in (`QuickBarcodeScannerDialog.tsx`, `AdminDashboard.tsx`)**: Implemented scanner dialog with auto-focus listener to scan National ID cards or ticket QR codes for instant patient check-in.
+  - **Lobby Touchscreen Self-Service Patient Kiosk (`PatientKioskPage.tsx`, `App.tsx`)**: Built touchscreen tablet kiosk (`/kiosk`) enabling walk-in patients to self-check-in, select department, and issue digital queue tickets.
+  - **👨‍⚕️ Treating Doctor Attribution & Shared Vital Signs (`MedicalRecordsTab.tsx`, `RecordDetailPage.tsx`, `MedicalRecord.js`, `medicalRecordsController.js`)**:
+    - **Doctor Attribution**: Updated `MedicalRecord.findById` and `medicalRecordsController.js` to execute `LEFT JOIN doctors d ON d.doctor_id = mr.doctor_id`, returning `doctor_name` on medical record cards and detail views.
+    - **Patient Vital Signs Display**: Added dedicated **Patient Vital Signs Grid** (Blood Pressure, Heart Rate, Temperature, BMI, Weight, Height) and **Chief Complaint** sections to both `MedicalRecordsTab.tsx` and `RecordDetailPage.tsx` for cross-specialty clinical transparency.
+  - **Verification**: Verified compilation via `cd src/frontend && npx tsc -b` (0 errors).
+
+---
+
+## 📑 FYP / PSM 2 System Progress Report Summary (For Academic Documentation)
+
+### Executive Summary
+During Sprint 3c, the **Al-Amin Polyclinic Patient Data Management System (PDMS)** underwent a comprehensive architectural and UI/UX overhaul. The system was transformed from a static CRUD application into a state-of-the-art, multi-tenant polyclinic ERP featuring real-time clinical, financial, and operational automation.
+
+### Key Architectural Modules Implemented
+
+1. **🔐 Dynamic Role-Based Access Control (RBAC) & Data Confidentiality**:
+   - SuperAdmin (`ROLES.SUPERADMIN`): Exclusive access to live financial revenue analytics (`/financial-analytics`), cashier shift reconciliation (Z-Reports), user management, and system-wide audit logs.
+   - Staff / Receptionist (`ROLES.ADMIN`): Operations restricted to walk-in queue management, barcode scanning, patient registration, room allocation, and single-invoice billing (financial totals remain confidential).
+   - Doctor (`ROLES.DOCTOR`): Scoped to clinical consultation, Wasfaty SFDA e-prescription builder, interactive FDI dental/body diagramming, and cross-specialty medical record reviews with attending doctor attribution.
+
+2. **📊 Real-Time Financial Analytics & Shift Reconciliation Engine**:
+   - **PostgreSQL Backend Endpoint**: `GET /api/billing/analytics` with `Asia/Riyadh` today date filtering (`WHERE vi.created_at::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Riyadh')::date AND status IN ('paid', 'partial')`).
+   - **Mathematical Consistency**: Standardized gross revenue aggregation where $\text{Gross Collected} = \text{Cash} + \text{Card} + \text{Insurance Claims}$.
+   - **Z-Report Shift Audit**: Cashier shift closing modal with payment method reconciliation and supervisor sign-off.
+
+3. **🩺 Cross-Specialty Clinical Encounter & Attending Doctor Attribution**:
+   - Multi-Doctor Patient Records: Shared records across clinics (e.g. Dental + General Medicine) now explicitly display **Attending Doctor Name** (`👨‍⚕️ الطبيب المعالج: د. طارق المنصور`).
+   - Shared Vital Signs: Patient vitals (BP, HR, Temp, BMI, Weight, Height) captured during triage are automatically exposed across all doctor consultation views.
+
+4. **💊 Wasfaty SFDA E-Prescriptions & Allergy Safety System**:
+   - **Structured E-Prescription Builder**: Interactive medication table storing `prescriptions_data` JSONB payloads in PostgreSQL.
+   - **Drug Allergy Warnings**: Automated cross-sensitivity checking for Penicillins, NSAIDs, Sulfa, Opioids, and Cephalosporins.
 
