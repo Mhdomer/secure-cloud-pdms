@@ -8,14 +8,14 @@
 class MedicalRecord {
   static async create(
     client,
-    { patientId, doctorId, diagnosis, prescription, notes, chiefComplaint, objective, assessment, plan, vitalSigns, visitType }
+    { patientId, doctorId, diagnosis, prescription, notes, chiefComplaint, objective, assessment, plan, vitalSigns, prescriptionsData, visitType }
   ) {
     const result = await client.query(
       `INSERT INTO medical_records (
          patient_id, doctor_id, diagnosis, prescription, notes, created_at,
-         chief_complaint, objective, assessment, plan, vital_signs, visit_type
+         chief_complaint, objective, assessment, plan, vital_signs, prescriptions_data, visit_type
        )
-       VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9, $10, COALESCE($11, 'consultation'))
+       VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9, $10, $11, COALESCE($12, 'consultation'))
        RETURNING record_id, created_at`,
       [
         patientId,
@@ -28,6 +28,7 @@ class MedicalRecord {
         assessment || null,
         plan || null,
         vitalSigns ? JSON.stringify(vitalSigns) : null,
+        prescriptionsData ? JSON.stringify(prescriptionsData) : null,
         visitType || null,
       ]
     );
@@ -37,7 +38,7 @@ class MedicalRecord {
   static async findById(client, recordId) {
     const result = await client.query(
       `SELECT record_id, patient_id, doctor_id, diagnosis, prescription, notes, created_at, updated_at,
-              chief_complaint, objective, assessment, plan, vital_signs, visit_type
+              chief_complaint, objective, assessment, plan, vital_signs, prescriptions_data, visit_type
          FROM medical_records WHERE record_id = $1`,
       [recordId]
     );
@@ -59,7 +60,7 @@ class MedicalRecord {
   static async listByPatient(client, patientId, { limit, offset }) {
     const result = await client.query(
       `SELECT mr.record_id, mr.patient_id, mr.doctor_id, mr.diagnosis, mr.prescription, mr.notes,
-              mr.chief_complaint, mr.objective, mr.assessment, mr.plan, mr.vital_signs, mr.visit_type,
+              mr.chief_complaint, mr.objective, mr.assessment, mr.plan, mr.vital_signs, mr.prescriptions_data, mr.visit_type,
               mr.created_at, mr.updated_at,
               d.full_name AS doctor_name
          FROM medical_records mr

@@ -69,4 +69,12 @@ router.patch('/:visitId/status',
   asyncHandler(ctrl.updateStatus)
 );
 
+router.post('/:visitId/send-ticket-sms',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.DOCTOR, ROLES.SUPERADMIN),
+  [param('visitId').isUUID()],
+  validateRequest, setupRLSContext,
+  asyncHandler(ctrl.sendTicketSms)
+);
+
 module.exports = router;

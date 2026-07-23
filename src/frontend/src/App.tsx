@@ -17,6 +17,7 @@ import PatientInfoPage from '@/pages/landing/PatientInfoPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import SetupPasswordPage from '@/pages/auth/SetupPasswordPage'
+import PublicQueueTrackerPage from '@/pages/public/PublicQueueTrackerPage'
 import AdminDashboard from '@/pages/dashboard/AdminDashboard'
 import DoctorDashboard from '@/pages/dashboard/DoctorDashboard'
 import PatientDashboard from '@/pages/dashboard/PatientDashboard'
@@ -82,6 +83,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/setup-password" element={<SetupPasswordPage />} />
+            <Route path="/queue-tracker" element={<PublicQueueTrackerPage />} />
 
             <Route
               path="/dashboard/superadmin"

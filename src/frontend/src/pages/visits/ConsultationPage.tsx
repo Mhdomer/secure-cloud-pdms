@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, X } from 'lucide-react'
+import { AlertTriangle, X, Plus, Trash2, Pill } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -28,6 +28,8 @@ import { useLanguage } from '@/hooks/useLanguage'
 import { billingApi, recordsApi, visitsApi } from '@/lib/api'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { cn } from '@/lib/utils'
+import { OdontogramBodyChart } from '@/components/clinical/OdontogramBodyChart'
+import { EPrescriptionModal, type StructuredMedication } from '@/components/clinical/EPrescriptionModal'
 import type { InvoiceItem, InvoiceStatus } from '@/types/billing'
 import type { ClinicService } from '@/types/clinicService'
 
@@ -89,6 +91,7 @@ export default function ConsultationPage() {
   const [items, setItems] = useState<InvoiceItem[]>([])
   const [invoiceStatus, setInvoiceStatus] = useState<InvoiceStatus>('draft')
   const [invoiceLoading, setInvoiceLoading] = useState(true)
+  const [eRxOpen, setERxOpen] = useState(false)
 
   useEffect(() => {
     if (!visitId) return
@@ -148,6 +151,50 @@ export default function ConsultationPage() {
   const [height, setHeight] = useState('')
   const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false)
 
+  // Interactive Structured E-Prescription Builder State
+  const [medications, setMedications] = useState<StructuredMedication[]>([
+    {
+      tradeName: 'Paracetamol 500mg',
+      dosage: '1 tablet',
+      frequency: '3 times daily (كل ٨ ساعات)',
+      duration: '5 days (٥ أيام)',
+      instructions: 'Take after meals (بعد الأكل)',
+    },
+  ])
+  const [newTradeName, setNewTradeName] = useState('')
+  const [newDosage, setNewDosage] = useState('1 tablet')
+  const [newFrequency, setNewFrequency] = useState('3 times daily')
+  const [newDuration, setNewDuration] = useState('5 days')
+  const [newInstructions, setNewInstructions] = useState('After meals')
+
+  const handleAddMedication = () => {
+    if (!newTradeName.trim()) return
+    const newItem: StructuredMedication = {
+      tradeName: newTradeName.trim(),
+      dosage: newDosage.trim() || '1 tablet',
+      frequency: newFrequency.trim() || 'As directed',
+      duration: newDuration.trim() || '5 days',
+      instructions: newInstructions.trim() || '—',
+    }
+    const updated = [...medications, newItem]
+    setMedications(updated)
+    setNewTradeName('')
+
+    const textSummary = updated
+      .map((m, idx) => `${idx + 1}. ${m.tradeName} - ${m.dosage}, ${m.frequency} for ${m.duration} (${m.instructions})`)
+      .join('\n')
+    setPrescription(textSummary)
+  }
+
+  const handleRemoveMedication = (index: number) => {
+    const updated = medications.filter((_, i) => i !== index)
+    setMedications(updated)
+    const textSummary = updated
+      .map((m, idx) => `${idx + 1}. ${m.tradeName} - ${m.dosage}, ${m.frequency} for ${m.duration} (${m.instructions})`)
+      .join('\n')
+    setPrescription(textSummary)
+  }
+
   const createRecordMutation = useMutation({
     mutationFn: () => {
       const hasVitals = bp.trim() || hr.trim() || bmi.trim() || temp.trim() || weight.trim() || height.trim()
@@ -155,6 +202,8 @@ export default function ConsultationPage() {
         patient_id: visit!.patientId,
         chief_complaint: chiefComplaint.trim(),
         diagnosis: diagnosis.trim(),
+        prescription: prescription.trim() || undefined,
+        prescriptions_data: medications.length > 0 ? medications : undefined,
         notes: recordNotes.trim() || undefined,
         vital_signs: hasVitals
           ? {
@@ -414,17 +463,190 @@ export default function ConsultationPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="flex flex-col gap-2 pt-6">
-              <Label htmlFor="visit-prescription">{t('consult.prescriptionHeading')}</Label>
-              <Textarea
-                id="visit-prescription"
-                value={prescription}
-                onChange={(event) => setPrescription(event.target.value)}
-                placeholder={t('consult.prescriptionPlaceholder')}
-              />
+          {/* Interactive Wasfaty/SFDA E-Prescription Builder */}
+          <Card className="overflow-hidden border-emerald-200/80 dark:border-emerald-900/50 shadow-sm">
+            <CardContent className="flex flex-col gap-4 pt-6">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Pill className="w-5 h-5 text-emerald-600" />
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm md:text-base">
+                    {currentLang === 'ar' ? 'وصفة وصفتي الإلكترونية (Wasfaty SFDA E-Prescription)' : 'Wasfaty / SFDA E-Prescription'}
+                  </h3>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
+                  onClick={() => setERxOpen(true)}
+                >
+                  📄 {currentLang === 'ar' ? 'طباعة / معاينة الرسمية' : 'Print / Preview Official E-Rx'}
+                </Button>
+              </div>
+
+              {/* Added Medications List Table */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {currentLang === 'ar' ? 'قائمة الأدوية المضافة بالوصفة' : 'Prescribed Medication List'}
+                </span>
+                {medications.length === 0 ? (
+                  <p className="text-xs italic text-slate-400 p-3 bg-slate-50 rounded-lg text-center">
+                    {currentLang === 'ar' ? 'لا توجد أدوية مضافة بالوصفة بعد' : 'No medications added yet'}
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <table className="w-full text-xs text-start">
+                      <thead className="bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-200">
+                        <tr>
+                          <th className="p-2 text-start">#</th>
+                          <th className="p-2 text-start">{currentLang === 'ar' ? 'الدواء' : 'Medication'}</th>
+                          <th className="p-2 text-start">{currentLang === 'ar' ? 'الجرعة' : 'Dosage'}</th>
+                          <th className="p-2 text-start">{currentLang === 'ar' ? 'التكرار' : 'Frequency'}</th>
+                          <th className="p-2 text-start">{currentLang === 'ar' ? 'المدة' : 'Duration'}</th>
+                          <th className="p-2 text-start">{currentLang === 'ar' ? 'تعليمات الاستخدام' : 'Instructions'}</th>
+                          <th className="p-2 text-center" aria-hidden="true" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-medium">
+                        {medications.map((m, index) => (
+                          <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                            <td className="p-2 font-bold text-emerald-600">{index + 1}</td>
+                            <td className="p-2 font-bold text-slate-900 dark:text-white">{m.tradeName}</td>
+                            <td className="p-2">{m.dosage}</td>
+                            <td className="p-2">{m.frequency}</td>
+                            <td className="p-2">{m.duration}</td>
+                            <td className="p-2 text-slate-600 dark:text-slate-400">{m.instructions || '—'}</td>
+                            <td className="p-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMedication(index)}
+                                className="p-1 text-rose-600 hover:text-rose-800 rounded-md hover:bg-rose-50"
+                                title={currentLang === 'ar' ? 'حذف الدواء' : 'Remove Medication'}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Add New Medication Form */}
+              <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/50 rounded-xl space-y-3">
+                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  {currentLang === 'ar' ? '+ إضافة دواء جديد للوصفة' : '+ Add New Medication to Prescription'}
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="med-name" className="text-[11px] text-slate-500">
+                      {currentLang === 'ar' ? 'اسم الدواء (Trade Name)' : 'Medication Name'}
+                    </Label>
+                    <Input
+                      id="med-name"
+                      placeholder="e.g. Amoxicillin 500mg"
+                      value={newTradeName}
+                      onChange={(e) => setNewTradeName(e.target.value)}
+                      className="h-8 text-xs bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="med-dosage" className="text-[11px] text-slate-500">
+                      {currentLang === 'ar' ? 'الجرعة (Dosage)' : 'Dosage'}
+                    </Label>
+                    <Input
+                      id="med-dosage"
+                      placeholder="e.g. 1 tablet"
+                      value={newDosage}
+                      onChange={(e) => setNewDosage(e.target.value)}
+                      className="h-8 text-xs bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="med-freq" className="text-[11px] text-slate-500">
+                      {currentLang === 'ar' ? 'التكرار (Frequency)' : 'Frequency'}
+                    </Label>
+                    <Input
+                      id="med-freq"
+                      placeholder="e.g. 3 times daily"
+                      value={newFrequency}
+                      onChange={(e) => setNewFrequency(e.target.value)}
+                      className="h-8 text-xs bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="med-dur" className="text-[11px] text-slate-500">
+                      {currentLang === 'ar' ? 'المدة (Duration)' : 'Duration'}
+                    </Label>
+                    <Input
+                      id="med-dur"
+                      placeholder="e.g. 5 days"
+                      value={newDuration}
+                      onChange={(e) => setNewDuration(e.target.value)}
+                      className="h-8 text-xs bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Label htmlFor="med-inst" className="text-[11px] text-slate-500">
+                      {currentLang === 'ar' ? 'تعليمات الاستخدام (Instructions)' : 'Usage Instructions'}
+                    </Label>
+                    <Input
+                      id="med-inst"
+                      placeholder="e.g. Take after meals / بعد الأكل"
+                      value={newInstructions}
+                      onChange={(e) => setNewInstructions(e.target.value)}
+                      className="h-8 text-xs bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1"
+                    onClick={handleAddMedication}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {currentLang === 'ar' ? 'إضافة الدواء' : 'Add Medication'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Text Summary View */}
+              <div className="flex flex-col gap-1 pt-1">
+                <Label htmlFor="visit-prescription" className="text-xs font-semibold text-slate-500">
+                  {currentLang === 'ar' ? 'الملخص النصي للوصفة' : 'Prescription Text Summary'}
+                </Label>
+                <Textarea
+                  id="visit-prescription"
+                  value={prescription}
+                  onChange={(event) => setPrescription(event.target.value)}
+                  placeholder={t('consult.prescriptionPlaceholder')}
+                  rows={2}
+                  className="text-xs"
+                />
+              </div>
             </CardContent>
           </Card>
+
+          {/* Interactive Odontogram & Body Charting */}
+          <OdontogramBodyChart
+            onUpdateFindings={(summary) => {
+              setRecordNotes((prev) => {
+                const baseNotes = (prev || '')
+                  .split('\n')
+                  .filter((line) => !line.includes('[Clinical Chart]') && !line.includes('[نتائج الفحص السريري]'))
+                  .join('\n')
+                  .trim()
+
+                if (!summary) return baseNotes
+                return baseNotes ? `${baseNotes}\n${summary}` : summary
+              })
+            }}
+          />
 
           <Card>
             <CardContent className="flex flex-col gap-3 pt-6">
@@ -538,6 +760,18 @@ export default function ConsultationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {visit && (
+        <EPrescriptionModal
+          open={eRxOpen}
+          onOpenChange={setERxOpen}
+          patientName={visit.patientName}
+          fileNo={visit.fileNo}
+          doctorName={visit.doctorName}
+          diagnosis={diagnosis}
+          medications={medications}
+        />
+      )}
     </div>
   )
 }

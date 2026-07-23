@@ -16,13 +16,35 @@ function calcItem({ unit_price, qty = 1, discount_pct = 0, vat_pct = 15 }) {
            discount_amount, net_price, vat_pct: vat, vat_amount, total_with_vat };
 }
 
-function calcTotals(items) {
+function calcTotals(items, insuranceOptions = {}) {
   const subtotal       = round(items.reduce((s,i) => s + parseFloat(i.unit_price) * i.qty, 0));
   const total_discount = round(items.reduce((s,i) => s + parseFloat(i.discount_amount), 0));
   const net_total      = round(items.reduce((s,i) => s + parseFloat(i.net_price), 0));
   const total_vat      = round(items.reduce((s,i) => s + parseFloat(i.vat_amount), 0));
   const grand_total    = round(net_total + total_vat);
-  return { subtotal, total_discount, net_total, total_vat, grand_total };
+
+  let patient_amount = grand_total;
+  let insurance_amount = 0;
+  let co_pay_amount = 0;
+  let coverage_percent = parseFloat(insuranceOptions.coverage_percent || 0);
+
+  if (insuranceOptions.payment_method === 'insurance' && coverage_percent > 0) {
+    insurance_amount = round(grand_total * (coverage_percent / 100));
+    co_pay_amount = round(grand_total - insurance_amount);
+    patient_amount = co_pay_amount;
+  }
+
+  return {
+    subtotal,
+    total_discount,
+    net_total,
+    total_vat,
+    grand_total,
+    coverage_percent,
+    co_pay_amount,
+    patient_amount,
+    insurance_amount,
+  };
 }
 
 module.exports = { calcItem, calcTotals };

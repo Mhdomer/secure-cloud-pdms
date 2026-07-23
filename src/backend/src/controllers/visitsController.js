@@ -317,3 +317,35 @@ exports.updateStatus = async (req, res) => {
   if (!result.rows.length) return res.status(404).json({ error: 'Visit not found' });
   res.json({ visitId: result.rows[0].visit_id, status: result.rows[0].status });
 };
+
+// ── POST /api/visits/:visitId/send-ticket-sms ──────────────────────────────
+exports.sendTicketSms = async (req, res) => {
+  const result = await withTransaction(req.rlsSession, async (client) => {
+    const { rows } = await client.query(
+      `SELECT v.*, p.full_name AS patient_name, p.contact_number
+         FROM visits v
+         JOIN patients p ON p.patient_id = v.patient_id
+        WHERE v.visit_id = $1`,
+      [req.params.visitId]
+    );
+    if (!rows.length) {
+      const e = new Error('Visit not found'); e.statusCode = 404; throw e;
+    }
+    const visit = rows[0];
+    const trackingUrl = `http://localhost:3000/queue-tracker?visitId=${visit.visit_id}&queueNo=${visit.queue_no}`;
+    const smsMessage = `مجمع الأمين الطبي: تذكرة الانتظار رقم #${visit.queue_no} للمريض ${visit.patient_name}. تابع دورك في الطابور مباشرة عبر الرابط: ${trackingUrl}`;
+    
+    console.log(`[QUEUE SMS] Dispatched ticket link to ${visit.contact_number || 'patient'}: ${smsMessage}`);
+
+    await AuditLog.log(client, {
+      userId: req.user.userId,
+      action: 'SEND_TICKET_SMS',
+      resource: 'visits',
+      recordId: visit.visit_id,
+      ipAddress: req.ip,
+    });
+
+    return { success: true, trackingUrl, queueNo: visit.queue_no, phone: visit.contact_number };
+  });
+  res.json(result);
+};

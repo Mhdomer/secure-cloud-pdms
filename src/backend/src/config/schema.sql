@@ -124,9 +124,11 @@ CREATE TABLE IF NOT EXISTS medical_records (
   assessment      TEXT,   -- assessment / diagnosis narrative
   plan            TEXT,   -- treatment plan
   vital_signs     JSONB,  -- { bp: "120/80", temp: "37.1", weight: "75kg", height: "175cm" }
+  prescriptions_data JSONB, -- SFDA structured e-prescription array [{ drug_code, name, strength, dosage, frequency, duration, instructions }]
   visit_type      VARCHAR(20) DEFAULT 'consultation'
                     CHECK (visit_type IN ('consultation','follow_up','emergency','checkup'))
 );
+ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS prescriptions_data JSONB;
 
 -- ── appointments ───────────────────────────────────────────────────────────
 -- No RLS on this table (Chapter 4 Section 4.4.3 scopes RLS to medical_records
@@ -854,14 +856,43 @@ CREATE TABLE IF NOT EXISTS visit_invoices (
   created_at     TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
--- ── paid_at and paid_by on visit_invoices ──────────────────────────────────
--- Set the moment payInvoice transitions status to 'paid'/'partial' — the
--- staff billing report's daily revenue figures key off this, not
--- created_at (set when the doctor completes the visit, before any money
--- changes hands). Nullable: pre-existing rows and never-paid invoices have
--- no payment moment to record.
 ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
 ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS paid_by UUID REFERENCES users(user_id) ON DELETE SET NULL;
+ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS approval_code VARCHAR(50);
+ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS policy_number VARCHAR(50);
+ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS coverage_percent DECIMAL(5,2) DEFAULT 0;
+ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS co_pay_amount DECIMAL(10,2) DEFAULT 0;
+ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS patient_amount DECIMAL(10,2) DEFAULT 0;
+ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS insurance_amount DECIMAL(10,2) DEFAULT 0;
+
+-- ── clinic_rooms ────────────────────────────────────────────────────────────
+-- Room and Equipment Allocation Module
+CREATE TABLE IF NOT EXISTS clinic_rooms (
+  room_id        UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_number    VARCHAR(20) UNIQUE NOT NULL,
+  name_en        VARCHAR(100) NOT NULL,
+  name_ar        VARCHAR(100) NOT NULL,
+  department_key VARCHAR(50) REFERENCES departments(key),
+  status         VARCHAR(20) NOT NULL DEFAULT 'available'
+                   CHECK (status IN ('available','occupied','cleaning','maintenance')),
+  assigned_visit_id UUID REFERENCES visits(visit_id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE visits ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES clinic_rooms(room_id) ON DELETE SET NULL;
+
+INSERT INTO clinic_rooms (room_number, name_en, name_ar, department_key) VALUES
+  ('101', 'General Clinic 1',     'عيادة الطب العام ١',     'general'),
+  ('102', 'General Clinic 2',     'عيادة الطب العام ٢',     'general'),
+  ('201', 'Dental Surgery 1',     'عيادة الأسنان ١',        'dental'),
+  ('202', 'Dental Surgery 2',     'عيادة الأسنان ٢',        'dental'),
+  ('301', 'Dermatology & Laser',  'عيادة الجلدية والتجميل', 'dermatology'),
+  ('401', 'Pediatrics Room',      'عيادة طب الأطفال',      'pediatrics'),
+  ('501', 'Phlebotomy & Sample',  'سحب العينات والمختبر',   'laboratory')
+ON CONFLICT (room_number) DO NOTHING;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON clinic_rooms TO pdms_app;
 
 CREATE TABLE IF NOT EXISTS invoice_items (
   item_id         UUID          PRIMARY KEY DEFAULT gen_random_uuid(),

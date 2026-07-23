@@ -2,26 +2,16 @@ import { useState, type ReactNode } from 'react'
 
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
+import { CommandPalette } from '@/components/shared/CommandPalette'
 import { cn } from '@/lib/utils'
 
 interface AppShellProps {
   children: ReactNode
 }
 
-/**
- * Sidebar + topbar + main content composition for authenticated pages.
- * Collapse state lives here (not inside Sidebar) so the main content's
- * inline-start margin can stay in sync with the sidebar's actual width —
- * `ms-*` is a logical property, so this offset is correct in both LTR and
- * RTL without any dir-specific overrides.
- *
- * Usage in a route element:
- *   <ProtectedRoute allowedRoles={['doctor']}>
- *     <AppShell><DashboardPage /></AppShell>
- *   </ProtectedRoute>
- */
 export function AppShell({ children }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -40,9 +30,10 @@ export function AppShell({ children }: AppShellProps) {
           collapsed ? 'ms-16' : 'ms-60',
         )}
       >
-        <Topbar />
+        <Topbar onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
         <main className="page-enter flex-1 px-6 py-6">{children}</main>
       </div>
+      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
     </div>
   )
 }

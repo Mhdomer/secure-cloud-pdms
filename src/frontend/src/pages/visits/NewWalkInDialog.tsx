@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/components/ui/toaster'
 import { useLanguage } from '@/hooks/useLanguage'
 import { departmentsApi, doctorsApi, visitsApi } from '@/lib/api'
+import { QueueTicketModal } from '@/components/visits/QueueTicketModal'
 import type { AppointmentType } from '@/types/appointment'
 import { departmentLabel } from '@/types/department'
 import type { Visit } from '@/types/visit'
@@ -51,6 +52,7 @@ export function NewWalkInDialog({ trigger }: NewWalkInDialogProps = {}) {
   const { t: tAppointments } = useTranslation('appointments')
   const { currentLang } = useLanguage()
   const [open, setOpen] = useState(false)
+  const [ticketModalOpen, setTicketModalOpen] = useState(false)
   const [result, setResult] = useState<Visit | null>(null)
   const queryClient = useQueryClient()
 
@@ -170,9 +172,30 @@ export function NewWalkInDialog({ trigger }: NewWalkInDialogProps = {}) {
                 {t('newWalkIn.doctorPrefix', { name: result.doctorName })}
               </p>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+              onClick={() => setTicketModalOpen(true)}
+            >
+              📱 Send Digital Queue Ticket (SMS / WhatsApp)
+            </Button>
+
             <Button className="w-full" onClick={handleClose}>
               {t('newWalkIn.done')}
             </Button>
+
+            {result && (
+              <QueueTicketModal
+                open={ticketModalOpen}
+                onOpenChange={setTicketModalOpen}
+                visitId={result.visitId}
+                queueNo={result.queueNo}
+                patientName={result.patientName}
+                doctorName={result.doctorName}
+                clinicName={result.clinic || 'General Clinic'}
+              />
+            )}
           </div>
         ) : (
           <Form {...form}>

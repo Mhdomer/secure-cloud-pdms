@@ -24,6 +24,7 @@ async function createRecord(req, res) {
     assessment,
     plan,
     vital_signs: vitalSigns,
+    prescriptions_data: prescriptionsData,
     visit_type: visitType,
   } = req.body;
   const doctorId = req.rlsSession.doctorId;
@@ -49,6 +50,7 @@ async function createRecord(req, res) {
       assessment,
       plan,
       vitalSigns,
+      prescriptionsData,
       visitType,
     });
 

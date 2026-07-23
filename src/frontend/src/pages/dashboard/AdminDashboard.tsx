@@ -34,6 +34,8 @@ import { cn } from '@/lib/utils'
 import { CreateAppointmentDialog } from '@/pages/appointments/CreateAppointmentDialog'
 import { RegisterPatientDialog } from '@/pages/patients/RegisterPatientDialog'
 import { NewWalkInDialog } from '@/pages/visits/NewWalkInDialog'
+import { LobbyKanbanBoard } from '@/components/visits/LobbyKanbanBoard'
+import { RoomStatusGrid } from '@/components/rooms/RoomStatusGrid'
 import { useRecentRegistrationsStore, type RecentRegistration } from '@/store/recentRegistrationsStore'
 import type { Appointment, AppointmentType } from '@/types/appointment'
 
@@ -306,6 +308,18 @@ export default function AdminDashboard() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'waiting' | 'inConsultation' | 'completed'>('all')
+  const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'rooms'>('table')
+
+  const queryClient = useQueryClient()
+  const updateVisitStatusMutation = useMutation({
+    mutationFn: ({ visitId, status }: { visitId: string; status: any }) =>
+      visitsApi.updateStatus(visitId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['visits'] })
+      queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      toast.success('Status updated')
+    },
+  })
 
   const now = useMemo(() => new Date(), [])
   const { from, to } = useMemo(() => todayWindowIso(now), [now])
@@ -547,19 +561,67 @@ export default function AdminDashboard() {
         <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md lg:col-span-2">
           <SectionHeading
             action={
-              <Link
-                to="/appointments"
-                className="inline-flex shrink-0 items-center gap-0.5 rounded text-sm font-medium text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                {t('admin.timeline.viewAll')}
-                <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden="true" />
-              </Link>
+              <div className="flex items-center gap-2">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('table')}
+                    className={cn(
+                      'px-2.5 py-1 text-xs font-semibold rounded-lg transition-all',
+                      viewMode === 'table' ? 'bg-white text-primary-700 shadow-sm' : 'text-slate-500'
+                    )}
+                  >
+                    {currentLang === 'ar' ? 'جدول المواعيد' : 'Table View'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('kanban')}
+                    className={cn(
+                      'px-2.5 py-1 text-xs font-semibold rounded-lg transition-all',
+                      viewMode === 'kanban' ? 'bg-white text-primary-700 shadow-sm' : 'text-slate-500'
+                    )}
+                  >
+                    {currentLang === 'ar' ? 'لوحة الانتظار' : 'Lobby Kanban'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('rooms')}
+                    className={cn(
+                      'px-2.5 py-1 text-xs font-semibold rounded-lg transition-all',
+                      viewMode === 'rooms' ? 'bg-white text-primary-700 shadow-sm' : 'text-slate-500'
+                    )}
+                  >
+                    {currentLang === 'ar' ? 'غرف العيادات' : 'Rooms Grid'}
+                  </button>
+                </div>
+                <Link
+                  to="/appointments"
+                  className="inline-flex shrink-0 items-center gap-0.5 rounded text-sm font-medium text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  {t('admin.timeline.viewAll')}
+                  <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden="true" />
+                </Link>
+              </div>
             }
           >
             {t('admin.todaysSchedule')}
           </SectionHeading>
 
-          {/* Instant Search Bar & Filter Tabs */}
+          {viewMode === 'kanban' ? (
+            <div className="mt-4">
+              <LobbyKanbanBoard
+                visits={visits}
+                onUpdateStatus={(visitId, status) => updateVisitStatusMutation.mutate({ visitId, status })}
+                onSendSms={(visitId) => visitsApi.sendTicketSms(visitId)}
+              />
+            </div>
+          ) : viewMode === 'rooms' ? (
+            <div className="mt-4">
+              <RoomStatusGrid />
+            </div>
+          ) : (
+            <>
+              {/* Instant Search Bar & Filter Tabs */}
           <div className="mt-4 flex flex-col gap-3">
             <div className="relative">
               <Search className="absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
@@ -632,6 +694,8 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+          </>
+          )}
         </Card>
 
         <Card className="rounded-xl border border-slate-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-md">

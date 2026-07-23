@@ -29,6 +29,12 @@ export interface VisitInvoice {
   doctorId: string
   paymentMethod: PaymentMethod | null
   insuranceCo: string | null
+  approvalCode?: string | null
+  policyNumber?: string | null
+  coveragePercent?: number
+  coPayAmount?: number
+  patientAmount?: number
+  insuranceAmount?: number
   subtotal: number
   totalDiscount: number
   netTotal: number
@@ -75,6 +81,9 @@ export interface PayInvoicePayload {
   payment_method: PaymentMethod
   amount_paid: number
   insurance_co?: string
+  approval_code?: string
+  policy_number?: string
+  coverage_percent?: number
 }
 
 /**

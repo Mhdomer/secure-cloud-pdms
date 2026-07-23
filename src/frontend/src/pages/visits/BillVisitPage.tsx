@@ -56,7 +56,10 @@ export default function BillVisitPage() {
   })
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null)
-  const [insuranceCo, setInsuranceCo] = useState('')
+  const [insuranceCo, setInsuranceCo] = useState('Tawuniya Insurance')
+  const [approvalCode, setApprovalCode] = useState('')
+  const [policyNumber, setPolicyNumber] = useState('')
+  const [coveragePercent, setCoveragePercent] = useState('80')
   const [amountPaid, setAmountPaid] = useState('')
   const [confirmPayOpen, setConfirmPayOpen] = useState(false)
 
@@ -65,7 +68,14 @@ export default function BillVisitPage() {
       billingApi.pay(visitId!, {
         payment_method: paymentMethod!,
         amount_paid: Number(amountPaid) || 0,
-        ...(paymentMethod === 'insurance' && insuranceCo.trim() ? { insurance_co: insuranceCo.trim() } : {}),
+        ...(paymentMethod === 'insurance'
+          ? {
+              insurance_co: insuranceCo.trim(),
+              approval_code: approvalCode.trim(),
+              policy_number: policyNumber.trim(),
+              coverage_percent: Number(coveragePercent) || 0,
+            }
+          : {}),
       }),
     onSuccess: () => {
       toast.success(t('bill.paySuccess'))
@@ -193,14 +203,73 @@ export default function BillVisitPage() {
             </div>
 
             {paymentMethod === 'insurance' && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-foreground">{t('bill.insuranceCoLabel')}</label>
-                <Input
-                  value={insuranceCo}
-                  onChange={(event) => setInsuranceCo(event.target.value)}
-                  placeholder={t('bill.insuranceCoPlaceholder')}
-                  dir="auto"
-                />
+              <div className="space-y-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-foreground">Insurance Provider / شركة التأمين</label>
+                  <select
+                    value={insuranceCo}
+                    onChange={(e) => setInsuranceCo(e.target.value)}
+                    className="py-1.5 px-3 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                  >
+                    <option value="Tawuniya Insurance">Tawuniya Insurance (التعاونية)</option>
+                    <option value="Bupa Arabia">Bupa Arabia (بوبا العربية)</option>
+                    <option value="Medgulf">Medgulf (ميدغلف)</option>
+                    <option value="Malath Insurance">Malath Insurance (ملاذ للتأمين)</option>
+                    <option value="Wafa Insurance">Wafa Insurance (وفاء للتأمين)</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] text-muted-foreground">Policy Number / رقم البوليصة</label>
+                    <Input
+                      value={policyNumber}
+                      onChange={(e) => setPolicyNumber(e.target.value)}
+                      placeholder="e.g. POL-99201"
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] text-muted-foreground">Approval Code / رقم الموافقة</label>
+                    <Input
+                      value={approvalCode}
+                      onChange={(e) => setApprovalCode(e.target.value)}
+                      placeholder="e.g. NPH-88301"
+                      className="h-8 text-xs bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-muted-foreground">Insurance Coverage % / نسبة تغطية التأمين</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={coveragePercent}
+                      onChange={(e) => setCoveragePercent(e.target.value)}
+                      className="h-8 w-20 text-xs bg-white"
+                    />
+                    <span className="text-xs text-slate-500">%</span>
+                  </div>
+                </div>
+
+                {/* Co-Pay Calculation Box */}
+                {invoice && (
+                  <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 text-xs space-y-1">
+                    <div className="flex justify-between text-emerald-800 dark:text-emerald-300">
+                      <span>Insurance Share ({coveragePercent}%):</span>
+                      <span className="font-mono font-bold">
+                        {((invoice.grandTotal * (Number(coveragePercent) || 0)) / 100).toFixed(2)} SAR
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-bold text-emerald-900 dark:text-emerald-200 pt-1 border-t border-emerald-200/60">
+                      <span>Patient Co-Pay Share:</span>
+                      <span className="font-mono">
+                        {(invoice.grandTotal - (invoice.grandTotal * (Number(coveragePercent) || 0)) / 100).toFixed(2)} SAR
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

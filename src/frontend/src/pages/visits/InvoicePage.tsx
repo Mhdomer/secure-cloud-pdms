@@ -197,6 +197,25 @@ export default function InvoicePage() {
           <span>
             Status / الحالة: <strong>{INVOICE_STATUS_LABEL[invoice.status] ?? invoice.status}</strong>
           </span>
+
+          {invoice.paymentMethod === 'insurance' && (
+            <>
+              <span className="col-span-2 border-t border-slate-200 pt-2 font-medium">
+                Insurance Provider / شركة التأمين: <strong>{invoice.insuranceCo || 'Tawuniya'}</strong>
+                {invoice.policyNumber && <span> • Policy: {invoice.policyNumber}</span>}
+                {invoice.approvalCode && <span> • NPHIES Approval: {invoice.approvalCode}</span>}
+              </span>
+              <span>
+                Insurance Share / حصة التأمين ({invoice.coveragePercent || 0}%):{' '}
+                <strong dir="ltr">{(invoice.insuranceAmount || 0).toFixed(2)} SAR</strong>
+              </span>
+              <span>
+                Patient Co-Pay Share / حصة المريض:{' '}
+                <strong dir="ltr">{(invoice.coPayAmount || invoice.patientAmount || invoice.grandTotal).toFixed(2)} SAR</strong>
+              </span>
+            </>
+          )}
+
           <span className="col-span-2 border-t border-dashed border-neutral-200 pt-1.5">
             Billed By (Staff / Cashier) / صُدرت بواسطة موظف الاستقبال:{' '}
             <strong className="font-semibold text-neutral-800">
@@ -205,9 +224,16 @@ export default function InvoicePage() {
           </span>
         </div>
 
-        <div className="border-t border-neutral-300 pt-3 text-center text-xs text-neutral-500">
-          <p>مراجعة مجانية خلال ١٤ يوم من تاريخ فاتورة الكشف المدفوع</p>
-          <p>Free follow-up within 14 days from the date of the paid invoice</p>
+        <div className="border-t border-neutral-300 pt-3 text-center text-[11px] text-neutral-600 space-y-1">
+          <p className="font-semibold text-neutral-800">
+            المملكة العربية السعودية - الرياض - حي الشفاء - ٤٥٥٨ فرع طريق ديراب - محافظة نمار - الرياض ١٤٩٦١ - ٧٧٥٠ - ترخيص رقم ٠٠٦٩٩ الرياض - هاتف: ٤٢١٥٦٥٦ - ٤٢٢٢٠٠٠ ٠١١
+          </p>
+          <p className="text-[10px] text-neutral-500 font-mono">
+            Kingdom of Saudi Arabia - Riyadh - Shifa Area - 4558 Dirab Branch Road - Namar Dist. - Riyadh 14961 - 7750 - License No. 00699 Riyadh - Tel.: 011 4222000 - 4215656 • alamin_clinic@hotmail.com
+          </p>
+          <p className="text-[10px] text-neutral-500 pt-1 border-t border-neutral-200">
+            مراجعة مجانية خلال ١٤ يوم من تاريخ فاتورة الكشف المدفوع • Free follow-up within 14 days from the date of the paid invoice
+          </p>
         </div>
       </div>
     </div>

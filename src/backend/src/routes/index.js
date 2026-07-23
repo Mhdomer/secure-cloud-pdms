@@ -17,6 +17,7 @@ const clinicServicesRoutes = require('./clinicServices.routes');
 const visitsRoutes = require('./visits.routes');
 const billingRoutes = require('./billing.routes');
 const billingHistoryRoutes = require('./billingHistory.routes');
+const roomsRoutes = require('./rooms.routes');
 
 const router = Router();
 
@@ -51,5 +52,6 @@ router.use('/visits/:visitId/invoice', billingRoutes);
 // billingHistoryRoutes defines its own full sub-paths (/patients/:patientId/billing,
 // /billing/mine) — mounted at root, same pattern as invoicesRoutes above.
 router.use('/', billingHistoryRoutes);
+router.use('/rooms', roomsRoutes);
 
 module.exports = router;

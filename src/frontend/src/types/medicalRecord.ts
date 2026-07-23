@@ -43,6 +43,7 @@ export interface MedicalRecord {
   patientId: string
   diagnosis: string
   prescription: string | null
+  prescriptionsData?: any[] | null
   notes: string | null
   vitalSigns?: VitalSigns | null
   createdAt: string
@@ -55,6 +56,7 @@ export interface CreateMedicalRecordPayload {
   diagnosis: string
   chief_complaint: string
   prescription?: string
+  prescriptions_data?: any[]
   notes?: string
   vital_signs?: VitalSigns
 }

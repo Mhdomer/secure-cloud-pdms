@@ -432,6 +432,17 @@ export const visitsApi = {
     api.patch<UpdateVisitStatusResponse>(`/visits/${visitId}/status`, { status }).then((r) => r.data),
   pendingBillingCount: () =>
     api.get<{ count: number }>('/visits/pending-count').then((r) => r.data.count),
+  sendTicketSms: (visitId: string) =>
+    api.post<{ success: boolean; trackingUrl: string; queueNo: number; phone?: string }>(`/visits/${visitId}/send-ticket-sms`).then((r) => r.data),
+}
+
+// ── Rooms (Room & Equipment Allocation Module) ──
+import type { ClinicRoom, RoomStatus } from '@/types/room'
+
+export const roomsApi = {
+  list: () => api.get<ClinicRoom[]>('/rooms').then((r) => r.data),
+  update: (roomId: string, payload: { status?: RoomStatus; assigned_visit_id?: string | null }) =>
+    api.patch<ClinicRoom>(`/rooms/${roomId}`, payload).then((r) => r.data),
 }
 
 // ── Billing (doctor adds items during consultation, staff discounts + collects payment) ──

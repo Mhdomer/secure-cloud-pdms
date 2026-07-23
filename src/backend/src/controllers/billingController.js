@@ -450,15 +450,52 @@ exports.payInvoice = async (req, res) => {
       const e = new Error('Invoice is not ready for payment'); e.statusCode = 409; throw e;
     }
     const inv     = rows[0];
+    const {
+      payment_method,
+      insurance_co,
+      approval_code,
+      policy_number,
+      coverage_percent = 0,
+      amount_paid
+    } = req.body;
+
+    const grandTotal = parseFloat(inv.grand_total);
+    const covPct = parseFloat(coverage_percent || 0);
+    let insAmount = 0;
+    let coPay = 0;
+    let expectedPatientAmount = grandTotal;
+
+    if (payment_method === 'insurance' && covPct > 0) {
+      insAmount = Math.round(grandTotal * (covPct / 100) * 100) / 100;
+      coPay = Math.round((grandTotal - insAmount) * 100) / 100;
+      expectedPatientAmount = coPay;
+    }
+
     const paid    = parseFloat(amount_paid);
-    const balance = Math.round((parseFloat(inv.grand_total) - paid) * 100) / 100;
+    const balance = Math.round((expectedPatientAmount - paid) * 100) / 100;
     const status  = balance <= 0 ? 'paid' : 'partial';
+
     const { rows: updated } = await client.query(
       `UPDATE visit_invoices
-          SET payment_method=$1, insurance_co=$2, amount_paid=$3,
-              amount_balance=$4, status=$5, paid_at=NOW(), paid_by=$7
-        WHERE invoice_id=$6 RETURNING *`,
-      [payment_method, insurance_co ?? null, paid, balance, status, inv.invoice_id, req.user.userId]
+          SET payment_method=$1, insurance_co=$2, approval_code=$3, policy_number=$4,
+              coverage_percent=$5, co_pay_amount=$6, patient_amount=$7, insurance_amount=$8,
+              amount_paid=$9, amount_balance=$10, status=$11, paid_at=NOW(), paid_by=$12
+        WHERE invoice_id=$13 RETURNING *`,
+      [
+        payment_method,
+        insurance_co ?? null,
+        approval_code ?? null,
+        policy_number ?? null,
+        covPct,
+        coPay,
+        expectedPatientAmount,
+        insAmount,
+        paid,
+        balance,
+        status,
+        req.user.userId,
+        inv.invoice_id
+      ]
     );
     await client.query(
       `UPDATE visits SET status='billed' WHERE visit_id=$1`, [req.params.visitId]
