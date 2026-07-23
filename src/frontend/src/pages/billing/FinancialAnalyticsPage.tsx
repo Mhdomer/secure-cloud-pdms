@@ -1,4 +1,4 @@
-import { TrendingUp, RefreshCw, Printer, FileText } from 'lucide-react'
+import { TrendingUp, RefreshCw, Printer, FileText, DollarSign, CreditCard, ShieldCheck } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useLanguage } from '@/hooks/useLanguage'
 import { billingApi } from '@/lib/api'
@@ -89,21 +89,30 @@ export default function FinancialAnalyticsPage() {
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-medium">
               <tr>
-                <td className="p-3 font-semibold text-slate-900 dark:text-white">💵 {isRtl ? 'المقبوضات نقداً (Cash)' : 'Cash Collections'}</td>
+                <td className="p-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <DollarSign className="w-4 h-4 text-emerald-600 inline" />
+                  {isRtl ? 'المقبوضات نقداً (Cash)' : 'Cash Collections'}
+                </td>
                 <td className="p-3 text-end font-mono text-emerald-600 font-bold">{(analytics?.cash ?? 0).toFixed(2)} SAR</td>
                 <td className="p-3 text-end font-mono">
                   {analytics?.gross ? Math.round(((analytics.cash ?? 0) / analytics.gross) * 100) : 0}%
                 </td>
               </tr>
               <tr>
-                <td className="p-3 font-semibold text-slate-900 dark:text-white">💳 {isRtl ? 'المقبوضات بطاقة / مدى (Card)' : 'Card / Mada Payments'}</td>
+                <td className="p-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-blue-600 inline" />
+                  {isRtl ? 'المقبوضات بطاقة / مدى (Card)' : 'Card / Mada Payments'}
+                </td>
                 <td className="p-3 text-end font-mono text-blue-600 font-bold">{(analytics?.card ?? 0).toFixed(2)} SAR</td>
                 <td className="p-3 text-end font-mono">
                   {analytics?.gross ? Math.round(((analytics.card ?? 0) / analytics.gross) * 100) : 0}%
                 </td>
               </tr>
               <tr>
-                <td className="p-3 font-semibold text-slate-900 dark:text-white">🏥 {isRtl ? 'تحمل المطالبات التأمينية' : 'Insurance Claims Shared'}</td>
+                <td className="p-3 font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-purple-600 inline" />
+                  {isRtl ? 'تحمل المطالبات التأمينية' : 'Insurance Claims Shared'}
+                </td>
                 <td className="p-3 text-end font-mono text-purple-600 font-bold">{(analytics?.insurance ?? 0).toFixed(2)} SAR</td>
                 <td className="p-3 text-end font-mono">
                   {analytics?.gross ? Math.round(((analytics.insurance ?? 0) / analytics.gross) * 100) : 0}%

@@ -36,7 +36,6 @@ import { CreateAppointmentDialog } from '@/pages/appointments/CreateAppointmentD
 import { RegisterPatientDialog } from '@/pages/patients/RegisterPatientDialog'
 import { NewWalkInDialog } from '@/pages/visits/NewWalkInDialog'
 import { LobbyKanbanBoard } from '@/components/visits/LobbyKanbanBoard'
-import { RoomStatusGrid } from '@/components/rooms/RoomStatusGrid'
 import { QuickBarcodeScannerDialog } from '@/components/visits/QuickBarcodeScannerDialog'
 import { useRecentRegistrationsStore, type RecentRegistration } from '@/store/recentRegistrationsStore'
 import type { Appointment, AppointmentType } from '@/types/appointment'
@@ -310,7 +309,7 @@ export default function AdminDashboard() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'waiting' | 'inConsultation' | 'completed'>('all')
-  const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'rooms'>('table')
+  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table')
   const [scannerOpen, setScannerOpen] = useState(false)
 
   const queryClient = useQueryClient()
@@ -593,16 +592,6 @@ export default function AdminDashboard() {
                   >
                     {currentLang === 'ar' ? 'لوحة الانتظار' : 'Lobby Kanban'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('rooms')}
-                    className={cn(
-                      'px-2.5 py-1 text-xs font-semibold rounded-lg transition-all',
-                      viewMode === 'rooms' ? 'bg-white text-primary-700 shadow-sm' : 'text-slate-500'
-                    )}
-                  >
-                    {currentLang === 'ar' ? 'غرف العيادات' : 'Rooms Grid'}
-                  </button>
                 </div>
                 <Link
                   to="/appointments"
@@ -624,10 +613,6 @@ export default function AdminDashboard() {
                 onUpdateStatus={(visitId, status) => updateVisitStatusMutation.mutate({ visitId, status })}
                 onSendSms={(visitId) => visitsApi.sendTicketSms(visitId)}
               />
-            </div>
-          ) : viewMode === 'rooms' ? (
-            <div className="mt-4">
-              <RoomStatusGrid />
             </div>
           ) : (
             <>

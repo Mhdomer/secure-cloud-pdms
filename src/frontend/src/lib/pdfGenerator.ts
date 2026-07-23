@@ -15,10 +15,14 @@ export interface MedicalRecordPdfData {
   date?: string
 }
 
-export function exportMedicalRecordPdf(data: MedicalRecordPdfData) {
-  const printWindow = window.open('', '_blank')
-  if (!printWindow) return
+export function printElementById(_elementId?: string, documentTitle = 'Al-Amin Polyclinic Document') {
+  if (documentTitle) {
+    document.title = documentTitle
+  }
+  window.print()
+}
 
+export function exportMedicalRecordPdf(data: MedicalRecordPdfData) {
   const dateStr = data.date ? new Date(data.date).toLocaleDateString() : new Date().toLocaleDateString()
 
   const html = `
@@ -163,15 +167,28 @@ export function exportMedicalRecordPdf(data: MedicalRecordPdfData) {
         <div class="footer">
           Confidential Medical Record — Al-Amin PolyClinic, Riyadh, KSA. Generated automatically.
         </div>
-        <script>
-          window.onload = function() {
-            window.print();
-          };
-        </script>
       </body>
     </html>
   `
 
-  printWindow.document.write(html)
-  printWindow.document.close()
+  const iframe = document.createElement('iframe')
+  iframe.style.position = 'fixed'
+  iframe.style.right = '0'
+  iframe.style.bottom = '0'
+  iframe.style.width = '0'
+  iframe.style.height = '0'
+  iframe.style.border = '0'
+  iframe.style.visibility = 'hidden'
+
+  document.body.appendChild(iframe)
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+  if (iframeDoc) {
+    iframeDoc.open()
+    iframeDoc.write(html)
+    iframeDoc.close()
+    setTimeout(() => {
+      iframe.contentWindow?.focus()
+      iframe.contentWindow?.print()
+    }, 250)
+  }
 }

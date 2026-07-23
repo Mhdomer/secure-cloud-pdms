@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, X, Plus, Trash2, Pill } from 'lucide-react'
+import { AlertTriangle, X, Plus, Trash2, Pill, FileText, FlaskConical } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -30,6 +30,8 @@ import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { cn } from '@/lib/utils'
 import { OdontogramBodyChart } from '@/components/clinical/OdontogramBodyChart'
 import { EPrescriptionModal, type StructuredMedication } from '@/components/clinical/EPrescriptionModal'
+import { SickLeaveModal } from '@/components/clinical/SickLeaveModal'
+import { LabResultsViewerModal } from '@/components/clinical/LabResultsViewerModal'
 import { VoiceDictationButton } from '@/components/shared/VoiceDictationButton'
 import { checkDrugAllergyRisk } from '@/lib/allergyChecker'
 import type { InvoiceItem, InvoiceStatus } from '@/types/billing'
@@ -94,6 +96,8 @@ export default function ConsultationPage() {
   const [invoiceStatus, setInvoiceStatus] = useState<InvoiceStatus>('draft')
   const [invoiceLoading, setInvoiceLoading] = useState(true)
   const [eRxOpen, setERxOpen] = useState(false)
+  const [sickLeaveOpen, setSickLeaveOpen] = useState(false)
+  const [labResultsOpen, setLabResultsOpen] = useState(false)
 
   useEffect(() => {
     if (!visitId) return
@@ -659,8 +663,49 @@ export default function ConsultationPage() {
                   className="text-xs"
                 />
               </div>
+
+              {/* Action Tools Toolbar */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSickLeaveOpen(true)}
+                  className="h-8 text-xs font-bold gap-1.5 border-emerald-300 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  {currentLang === 'ar' ? 'إصدار إجازة مرضية معتمدة (منصة صحة MOH)' : 'Issue Seha Sick Leave'}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLabResultsOpen(true)}
+                  className="h-8 text-xs font-bold gap-1.5 border-blue-300 text-blue-700 dark:text-blue-400 hover:bg-blue-50"
+                >
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  {currentLang === 'ar' ? 'عرض نتائج الفحوصات والأشعة' : 'View Diagnostic Lab & X-Ray'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
+
+          <SickLeaveModal
+            open={sickLeaveOpen}
+            onOpenChange={setSickLeaveOpen}
+            patientId={visit?.patientId}
+            patientName={visit?.patientName || undefined}
+            doctorName={visit?.doctorName ?? undefined}
+            clinicName={visit?.clinic || undefined}
+          />
+
+          <LabResultsViewerModal
+            open={labResultsOpen}
+            onOpenChange={setLabResultsOpen}
+            patientName={visit?.patientName}
+            fileNo={visit?.fileNo}
+          />
 
           {/* Interactive Odontogram & Body Charting */}
           <OdontogramBodyChart

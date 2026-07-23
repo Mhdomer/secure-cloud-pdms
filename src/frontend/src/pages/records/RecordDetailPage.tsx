@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
-import { ArrowLeft, ClipboardList, ShieldAlert, UserX } from 'lucide-react'
+import { ArrowLeft, ClipboardList, ShieldAlert, UserX, Stethoscope, Activity } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
@@ -110,7 +110,7 @@ export default function RecordDetailPage() {
                   <p className="text-xs text-muted-foreground">{formatDateTime(record.createdAt)}</p>
                   {record.doctorName && (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-900">
-                      👨‍⚕️ {record.doctorName}
+                      <Stethoscope className="w-3 h-3 inline text-emerald-600" /> {record.doctorName}
                     </span>
                   )}
                 </div>
@@ -139,16 +139,17 @@ export default function RecordDetailPage() {
                   <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {currentLang === 'ar' ? 'الطبيب المعالج (Attending Physician)' : 'Attending Physician'}
                   </span>
-                  <p className="text-sm font-bold text-emerald-600">
-                    👨‍⚕️ {record.doctorName || 'د. طارق المنصور'}
+                  <p className="text-sm font-bold text-emerald-600 flex items-center gap-1.5">
+                    <Stethoscope className="w-4 h-4 text-emerald-600" /> {record.doctorName || 'د. طارق المنصور'}
                   </p>
                 </div>
 
                 {/* Vital Signs Grid */}
                 {record.vitalSigns && (
                   <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
-                    <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">
-                      🩺 {currentLang === 'ar' ? 'العلامات الحيوية (Patient Vital Signs)' : 'Patient Vital Signs'}
+                    <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                      {currentLang === 'ar' ? 'العلامات الحيوية (Patient Vital Signs)' : 'Patient Vital Signs'}
                     </span>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono">
                       {record.vitalSigns.bp && <div><span className="text-slate-400">BP:</span> <strong>{record.vitalSigns.bp}</strong></div>}

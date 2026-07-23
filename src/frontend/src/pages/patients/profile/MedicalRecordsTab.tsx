@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, ClipboardList, FilePlus } from 'lucide-react'
+import { ChevronDown, ClipboardList, FilePlus, Stethoscope, Activity } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
@@ -97,7 +97,7 @@ export function MedicalRecordsTab({ patientId }: { patientId: string }) {
                       </span>
                       {record.doctorName && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-900">
-                          👨‍⚕️ {record.doctorName}
+                          <Stethoscope className="w-3 h-3 inline" /> {record.doctorName}
                         </span>
                       )}
                     </div>
@@ -126,17 +126,19 @@ export function MedicalRecordsTab({ patientId }: { patientId: string }) {
                       <div className="mt-3 flex flex-col gap-3 rounded-lg bg-neutral-50 dark:bg-slate-800/50 p-3">
                         {/* Treating Doctor Info */}
                         <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 pb-1 border-b border-slate-200 dark:border-slate-700">
-                          <span>👨‍⚕️ {currentLang === 'ar' ? 'الطبيب المعالج:' : 'Attending Physician:'}</span>
+                          <Stethoscope className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{currentLang === 'ar' ? 'الطبيب المعالج:' : 'Attending Physician:'}</span>
                           <span className="text-emerald-600 font-extrabold">
-                            {expandedRecord?.doctorName || record.doctorName || 'د. طارق المنصور (طبيب ممارس)'}
+                            {expandedRecord?.doctorName || record.doctorName || 'د. طارق المنصور'}
                           </span>
                         </div>
 
                         {/* Vital Signs Grid */}
                         {expandedRecord?.vitalSigns && (
                           <div className="p-2.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-1">
-                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                              🩺 {currentLang === 'ar' ? 'العلامات الحيوية للزيارة (Vital Signs)' : 'Patient Vital Signs'}
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                              <Activity className="w-3 h-3 text-emerald-500" />
+                              {currentLang === 'ar' ? 'العلامات الحيوية للزيارة (Vital Signs)' : 'Patient Vital Signs'}
                             </span>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-mono">
                               {expandedRecord.vitalSigns.bp && <div><span className="text-slate-400">BP:</span> <strong>{expandedRecord.vitalSigns.bp}</strong></div>}

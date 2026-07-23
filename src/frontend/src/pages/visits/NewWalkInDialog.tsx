@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
-import { UserPlus } from 'lucide-react'
+import { UserPlus, Send } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
@@ -175,10 +175,11 @@ export function NewWalkInDialog({ trigger }: NewWalkInDialogProps = {}) {
             <Button
               type="button"
               variant="outline"
-              className="w-full border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+              className="w-full border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-bold gap-1.5"
               onClick={() => setTicketModalOpen(true)}
             >
-              📱 Send Digital Queue Ticket (SMS / WhatsApp)
+              <Send className="w-3.5 h-3.5" />
+              {currentLang === 'ar' ? 'إرسال تذكرة الانتظار الرقمية (SMS / واتساب)' : 'Send Digital Queue Ticket (SMS / WhatsApp)'}
             </Button>
 
             <Button className="w-full" onClick={handleClose}>

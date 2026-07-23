@@ -531,3 +531,51 @@ export const billingApi = {
       }>('/billing/analytics')
       .then((r) => r.data),
 }
+
+export const sickLeavesApi = {
+  create: (data: {
+    patient_id: string
+    visit_id?: string
+    start_date: string
+    days_count: number
+    diagnosis: string
+    work_restrictions?: string
+  }) => api.post('/sick-leaves', data).then((r) => r.data),
+
+  listByPatient: (patientId: string) =>
+    api
+      .get<{
+        sickLeaves: Array<{
+          leaveId: string
+          referenceNo: string
+          startDate: string
+          daysCount: number
+          diagnosis: string
+          workRestrictions?: string
+          createdAt: string
+          doctorName: string
+          clinicName: string
+        }>
+      }>(`/sick-leaves/patient/${patientId}`)
+      .then((r) => r.data),
+}
+
+export const notificationsApi = {
+  list: () =>
+    api
+      .get<{
+        notifications: Array<{
+          id: string
+          titleEn: string
+          titleAr: string
+          messageEn: string
+          messageAr: string
+          type: string
+          read: boolean
+          createdAt: string
+        }>
+      }>('/notifications')
+      .then((r) => r.data),
+
+  markAllRead: () => api.post('/notifications/read-all').then((r) => r.data),
+}

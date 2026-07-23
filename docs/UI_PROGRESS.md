@@ -86,10 +86,18 @@
   - Joined `doctors` table in `MedicalRecord.findById` to fetch `d.full_name AS doctor_name`.
   - Added `doctorName` badge (e.g. `👨‍⚕️ الطبيب المعالج: د. طارق المنصور`) on patient medical record history cards and detail views.
   - Added shared Patient Vital Signs grid (BP, HR, Temp, BMI, Weight, Height) and Chief Complaint sections to medical record cards and detail views.
-- **📱 Lobby Self-Service Patient Kiosk (`PatientKioskPage.tsx`)**:
-  - Full-screen touchscreen tablet kiosk (`/kiosk`) for self-service ticket issuance.
-- **🏛️ Official Riyadh Shifa Area Letterhead**:
-  - Updated all invoice footers and e-prescriptions with official Riyadh Shifa Area address, Dirab Branch Road, License 00699, phone numbers (011 4222000 / 011 4215656), and email.
+- **📄 Official MOH Seha Medical Certificate & Sick Leave Generator (`SickLeaveModal.tsx`, `sickLeavesController.js`, `sick_leaves` table)**:
+  - Ministry of Health (Seha Platform) compliant sick leave report generator backed by PostgreSQL `sick_leaves` table and `POST /api/sick-leaves` REST route. Automatically binds the real logged-in doctor's session context (`req.rlsSession.doctorId`).
+- **🩻 Visual Diagnostic Lab & Radiology Results Portal (`LabResultsViewerModal.tsx`, `ConsultationPage.tsx`)**:
+  - Interactive lab panel viewer (CBC, Lipid Profile, Renal Function, Chest X-Ray) with automated reference range status badges (`Normal`, `High`, `Critical`).
+- **🗓️ Interactive Doctor Schedule & Time-Slot Booking Grid (`DoctorSchedulePicker.tsx`, `doctor_schedules` table)**:
+  - Interactive 30-minute time-slot booking grid backed by PostgreSQL `doctor_schedules` table with doctor selection and availability badges (`Available`, `Booked`, `Doctor Break`).
+- **🔔 Topbar Notification Center & Live Bell Drawer (`NotificationDrawer.tsx`, `notificationsController.js`, `notifications` table)**:
+  - Live topbar notification drawer backed by PostgreSQL queries joining `visits`, `patients`, and `doctors` for real-time lobby arrivals, queue SLA alerts (>20m), and unbilled visit notifications. Features animated pulsing red badge ring (`animate-ping`) and instant optimistic read state clearing.
+- **🖨️ Universal Client-Side Print & PDF Generation Engine (`index.css`)**:
+  - Fixed empty PDF bug by upgrading `@media print` CSS rules in `index.css` to expose all designated printable document containers (`.printable-area`, `#printable-area`, `#invoice-print-area`) while stripping Radix modal backdrop overlays for 100% full-page PDF printing.
+- **🔬 LIS Automated Sync & Lab Tech Upload Workflow Architecture**:
+  - Documented 3-step LIS operational standard (Order Creation ➔ Lab Tech Result Input/Attachment ➔ Live System Sync with Reference Range Evaluation).
 
 ---
 

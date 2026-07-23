@@ -1019,3 +1019,27 @@ During Sprint 3c, the **Al-Amin Polyclinic Patient Data Management System (PDMS)
    - **Structured E-Prescription Builder**: Interactive medication table storing `prescriptions_data` JSONB payloads in PostgreSQL.
    - **Drug Allergy Warnings**: Automated cross-sensitivity checking for Penicillins, NSAIDs, Sulfa, Opioids, and Cephalosporins.
 
+5. **📄 MOH Seha Certified Sick Leave Report Engine**:
+   - **PostgreSQL Table & Endpoints**: `sick_leaves` table with `POST /api/sick-leaves` and `GET /api/sick-leaves/patient/:patientId`.
+   - **Real Doctor Session Binding**: Binds `req.rlsSession.doctorId` to fetch the real logged-in physician's name and specialty instead of static placeholder strings. Generates official `SEHA-SL-XXXXXX` verification reference numbers.
+
+6. **🩻 Visual Diagnostic Lab & Radiology Results Portal**:
+   - Multi-panel diagnostic viewer for Complete Blood Count (CBC), Lipid Profile, Renal Function, and Chest X-Ray imaging notes with automated reference range badges (`Normal`, `High`, `Critical`) and lab stamp.
+
+7. **🗓️ Interactive Doctor Schedule & 30-Min Time-Slot Grid**:
+   - **PostgreSQL Table**: `doctor_schedules` (`schedule_id`, `doctor_id`, `slot_date`, `slot_time`, `status`).
+   - 30-minute booking grid (`09:00 AM` – `09:00 PM`) with real-time status badges (`Available`, `Booked`, `Doctor Break`).
+
+8. **🔔 Live Notification Center & Pulsing Red Badge Engine**:
+   - **PostgreSQL Table & Dynamic Joins**: `notifications` table + live SQL queries joining `visits`, `patients`, and `doctors` for real-time check-in alerts, wait-time warnings (>20m), and unbilled completed visit notifications.
+   - **Optimistic State & Animated Badge**: Animated pulsing red badge (`animate-ping`) displaying unread counts, with instant `0` badge clearing upon clicking "Mark all as read".
+
+9. **🖨️ Universal Client-Side Print & PDF Generation Engine**:
+   - **Zero Blank PDF Fix**: Upgraded `index.css` `@media print` rules to strip Radix modal backdrop overlays (`bg-black/80 fixed inset-0`) and expose document targets (`.printable-area`, `#printable-area`, `#invoice-print-area`) for 100% full-page PDF printing.
+
+10. **🔬 Laboratory Information System (LIS) Upload & Sync Architecture Consideration**:
+    - **LIS 3-Step Integration Standard**: Documented end-to-end operational workflow for future LIS hardware integrations:
+      1. Attending Doctor issues lab order during consultation (`lab_orders` pending state).
+      2. Laboratory Technician receives sample, inputs quantitative values / attaches DICOM images, and signs off.
+      3. System executes instant status transition to `completed`, triggering automated reference range evaluation (`Normal`, `High`, `Critical`) and live notification to doctor's clinical viewer portal.
+

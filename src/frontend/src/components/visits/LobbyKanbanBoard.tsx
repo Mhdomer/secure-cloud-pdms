@@ -99,7 +99,7 @@ export function LobbyKanbanBoard({
                     {getWaitBadge(v.checkedInAt)}
                     {assignedRoom ? (
                       <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded">
-                        🚪 {assignedRoom.name_ar || assignedRoom.name_en}
+                        {assignedRoom.name_ar || assignedRoom.name_en}
                       </span>
                     ) : null}
                   </div>

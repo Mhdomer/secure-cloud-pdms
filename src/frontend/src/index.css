@@ -123,25 +123,74 @@
   }
 }
 
-/* ── Print isolation (InvoicePage) ─────────────────────────────────────── */
-/* `visibility`, not `display`: hiding an ancestor with `display: none` also
-   removes its descendants from the render tree, so a child can't override
-   it back to visible no matter how it's styled. `visibility: hidden` has no
-   such effect on children — a `visible` descendant still renders even
-   inside a `hidden` ancestor, which is what lets #invoice-print-area show
-   through while everything else on the page disappears. */
+/* ── Universal Print Isolation Engine ───────────────────────────────────── */
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    margin: 10mm;
+    size: auto;
   }
+
+  /* Reset body colors & force exact color printing */
+  html, body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide root layout (sidebar, topbar, background pages) when printing modals */
+  #root,
+  header,
+  aside,
+  nav,
+  footer {
+    display: none !important;
+  }
+
+  /* Force Radix portal & printable documents to render visibly on white paper */
+  [data-radix-portal],
+  [data-radix-portal] *,
   #invoice-print-area,
-  #invoice-print-area * {
-    visibility: visible;
+  #invoice-print-area *,
+  #printable-area,
+  #printable-area *,
+  .printable-area,
+  .printable-area *,
+  [data-printable="true"],
+  [data-printable="true"] * {
+    visibility: visible !important;
   }
-  #invoice-print-area {
-    position: absolute;
-    inset-inline-start: 0;
-    top: 0;
-    width: 100%;
+
+  /* Reset Radix dark backdrop overlays & fixed positioning during print */
+  [data-radix-portal] {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    background: transparent !important;
+  }
+
+  [data-radix-portal] > div {
+    position: static !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide interactive controls during printing */
+  .print\:hidden,
+  .no-print,
+  button,
+  [aria-label="Close"] {
+    display: none !important;
   }
 }

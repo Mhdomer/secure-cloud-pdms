@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Search } from 'lucide-react'
 import { LanguageToggle } from '@/components/shared/LanguageToggle'
+import { NotificationDrawer } from '@/components/layout/NotificationDrawer'
 import { useLanguage } from '@/hooks/useLanguage'
 
 interface TopbarProps {
@@ -29,7 +30,10 @@ export function Topbar({ onOpenCommandPalette }: TopbarProps) {
         </button>
       </div>
 
-      <LanguageToggle />
+      <div className="flex items-center gap-3">
+        <NotificationDrawer />
+        <LanguageToggle />
+      </div>
     </header>
   )
 }

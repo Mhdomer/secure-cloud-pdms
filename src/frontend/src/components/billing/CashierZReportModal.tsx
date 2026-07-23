@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Receipt, Printer, CheckCircle2, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useLanguage } from '@/hooks/useLanguage'
+import { printElementById } from '@/lib/pdfGenerator'
 
 interface ShiftSummaryData {
   date: string
@@ -48,7 +49,7 @@ export function CashierZReportModal({
   const [closingConfirmed, setClosingConfirmed] = useState(false)
 
   const handlePrint = () => {
-    window.print()
+    printElementById('printable-area', isRtl ? 'تقرير تقفيل الخزينة اليومي' : 'Cashier Shift Z-Report')
   }
 
   return (
@@ -81,7 +82,7 @@ export function CashierZReportModal({
         </div>
 
         {/* Printable Z-Report Content */}
-        <div className="p-6 space-y-5 text-slate-900 dark:text-white" id="z-report-print">
+        <div id="printable-area" className="printable-area p-6 space-y-5 text-slate-900 dark:text-white">
           {/* Header */}
           <div className="text-center border-b border-slate-200 dark:border-slate-800 pb-3 space-y-1">
             <h2 className="font-extrabold text-base text-amber-600">مجمع الأمين الطبي</h2>

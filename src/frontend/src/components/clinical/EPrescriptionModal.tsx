@@ -1,6 +1,7 @@
 import { Pill, Printer, CheckCircle2, ShieldCheck, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useLanguage } from '@/hooks/useLanguage'
+import { printElementById } from '@/lib/pdfGenerator'
 
 export interface StructuredMedication {
   codeNo?: string
@@ -41,7 +42,7 @@ export function EPrescriptionModal({
   const { isRtl } = useLanguage()
 
   const handlePrint = () => {
-    window.print()
+    printElementById('printable-area', isRtl ? 'الوصفة الطبية الإلكترونية' : 'Wasfaty E-Prescription')
   }
 
   // QR Code payload data (SFDA digital signature format)
@@ -82,7 +83,7 @@ export function EPrescriptionModal({
         </div>
 
         {/* Prescription Paper Content */}
-        <div className="p-8 space-y-6 text-slate-900 dark:text-white" id="e-rx-print">
+        <div id="printable-area" className="printable-area p-8 space-y-6 text-slate-900 dark:text-white">
           {/* Clinic & Branding Header */}
           <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-4">
             <div>
