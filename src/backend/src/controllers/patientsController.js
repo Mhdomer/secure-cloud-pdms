@@ -228,6 +228,29 @@ async function viewPatient(req, res) {
   });
 }
 
+/**
+ * GET /patients/me — Patient only, patientId derived from the session
+ * (never a route param, so there's nothing to spoof — same pattern
+ * billingController.listMine already uses for a patient's own invoices).
+ * Added to fix dashboards greeting a patient by their raw login username/
+ * national ID instead of their actual name (QA-2026-07-24 finding M-6) —
+ * the client-side auth store deliberately only ever holds
+ * userId/username/role (see authStore.ts), so there was previously no way
+ * for the frontend to know the signed-in patient's real name at all.
+ */
+async function getMyProfile(req, res) {
+  const { patientId } = req.rlsSession;
+  const patient = await withTransaction(req.rlsSession, (client) => Patient.findById(client, patientId));
+  if (!patient) {
+    return res.status(404).json({ error: 'Patient profile not found' });
+  }
+  return res.status(200).json({
+    patientId: patient.patient_id,
+    fullName: patient.full_name,
+    fileNo: patient.file_no,
+  });
+}
+
 /** UC-08 — Update Patient Information (Admin only). */
 async function updatePatient(req, res) {
   const { patientId } = req.params;
@@ -481,6 +504,7 @@ module.exports = {
   registerPatient,
   searchPatients,
   viewPatient,
+  getMyProfile,
   updatePatient,
   assignDoctor,
   regenerateQR,

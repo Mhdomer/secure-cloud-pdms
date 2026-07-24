@@ -28,7 +28,7 @@ import { Card } from '@/components/ui/card'
 import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage, type SupportedLanguage } from '@/hooks/useLanguage'
-import { appointmentsApi, recordsApi } from '@/lib/api'
+import { appointmentsApi, patientsApi, recordsApi } from '@/lib/api'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { cn } from '@/lib/utils'
 import { BookAppointmentDialog } from '@/pages/appointments/BookAppointmentDialog'
@@ -82,6 +82,17 @@ export default function PatientDashboard() {
   const { t: tAppt } = useTranslation('appointments')
   const { user } = useAuth()
   const { currentLang } = useLanguage()
+
+  // authStore only ever holds userId/username/role — for a patient the
+  // username is their national ID, so the greeting used to read "Welcome,
+  // 272003" instead of the patient's actual name. Falls back to the
+  // username while this is still loading or if it fails, same pattern as
+  // the doctor dashboard's equivalent fix.
+  const { data: myProfile } = useQuery({
+    queryKey: ['patients', 'me'],
+    queryFn: () => patientsApi.me(),
+  })
+  const greetingName = myProfile?.fullName ?? user?.username
 
   const now = useMemo(() => new Date(), [])
 
@@ -154,7 +165,7 @@ export default function PatientDashboard() {
 
   const handleExportPdf = (title: string, prescriptionText?: string) => {
     exportMedicalRecordPdf({
-      patientName: user?.username,
+      patientName: greetingName,
       diagnosis: title,
       prescription: prescriptionText,
     })
@@ -173,7 +184,7 @@ export default function PatientDashboard() {
       className="mx-auto flex max-w-[1280px] flex-col gap-6"
     >
       <motion.h1 variants={sectionFade} className="text-2xl font-semibold text-foreground">
-        {t('greeting', { name: user?.username })}
+        {t('greeting', { name: greetingName })}
       </motion.h1>
 
       <motion.div variants={sectionFade}>
@@ -190,7 +201,7 @@ export default function PatientDashboard() {
             </span>
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="truncate text-sm font-semibold text-foreground">
-                {t('patient.hero.welcome', { name: user?.username })}
+                {t('patient.hero.welcome', { name: greetingName })}
               </span>
               <span className="text-xs text-muted-foreground">{t('patient.hero.subtitle')}</span>
             </div>
@@ -253,7 +264,7 @@ export default function PatientDashboard() {
                     </div>
                   </div>
                   <img
-                    src="/clinic/real-general-clinic-2.png"
+                    src="/clinic/real-general-clinic-2-thumb.jpg"
                     alt=""
                     aria-hidden="true"
                     className="hidden h-24 w-24 shrink-0 rounded-lg object-cover shadow-card sm:block"

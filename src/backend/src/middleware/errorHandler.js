@@ -20,6 +20,16 @@ function errorHandler(err, req, res, next) {
     return res.status(403).json({ error: 'Origin not allowed' });
   }
 
+  // A PL/pgSQL `RAISE EXCEPTION` with no explicit ERRCODE (used by DB-level
+  // business-rule triggers, e.g. enforce_visit_status_transition in
+  // schema.sql) surfaces here as SQLSTATE P0001 — map it to a clean 409
+  // with the trigger's own message instead of falling through to a
+  // generic, unhelpful 500, consistent with how every other
+  // expected-business-rule violation in this app is reported.
+  if (err.code === 'P0001') {
+    return res.status(409).json({ error: err.message, statusCode: 409, timestamp: new Date().toISOString() });
+  }
+
   // multer's own errors (file too large, too many files, etc.) are
   // MulterError instances with no statusCode set — they'd otherwise fall
   // through to a generic 500 even though they're caller input errors.

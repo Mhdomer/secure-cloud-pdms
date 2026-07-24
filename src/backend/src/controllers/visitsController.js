@@ -129,8 +129,10 @@ exports.create = async (req, res) => {
 
         // A walk-in visit is itself a treating relationship, but `patients`
         // is RLS-protected (schema.sql doctor_select_assigned) on
-        // assigned_doctor_id OR patient_care_team membership, while `visits`
-        // itself has no RLS. Without this, staff could freely create a
+        // assigned_doctor_id OR patient_care_team membership. `visits` also
+        // gained RLS later (schema.sql's HIGH-03 fix, doctor_own_visits) —
+        // this app-layer step still matters independently, though: without
+        // it, staff could freely create a
         // walk-in for a doctor who isn't this patient's assigned/primary
         // doctor (the normal case — triage routes to whichever doctor is
         // free) and the visit row would insert fine but then be permanently
@@ -202,16 +204,21 @@ exports.getPendingBillingCount = async (req, res) => {
       `SELECT COUNT(*)::int AS count
          FROM visits
         WHERE status = 'completed'
-          AND DATE(checked_in_at) = CURRENT_DATE`
+          AND ${todayRangeCondition('checked_in_at')}`
     );
   });
   res.json({ count: result.rows[0].count });
 };
 
 /**
- * `visits` has no RLS (see schema.sql — only patients/medical_records/
- * lab_results are RLS-protected), so this controller is the only place a
- * doctor session's queue is scoped to their own patients. A doctor-role
+ * `visits` now carries RLS too (schema.sql's HIGH-03 fix —
+ * `doctor_own_visits` scopes a doctor session to their own doctor_id at
+ * the database layer), so the explicit filter below is intentionally
+ * redundant defense-in-depth rather than the sole enforcement it was when
+ * this comment was first written — kept because a rogue query outside the
+ * app layer, or a future RLS policy edit, shouldn't be the only thing
+ * standing between a doctor and another doctor's full daily patient queue
+ * (names, file numbers, notes). A doctor-role
  * session always gets `v.doctor_id = req.rlsSession.doctorId` regardless of
  * any `doctor_id` query param they send — without this, one doctor could
  * view another doctor's full daily patient queue (names, file numbers,
@@ -274,10 +281,17 @@ exports.getOne = async (req, res) => {
  * in_progress->completed (consultation ended) — staff at the front desk
  * have no way to know either of those moments happened. Staff mark
  * completed->billed (patient back at the counter to pay) — the one
- * transition staff actually see. `visits` has no RLS (see schema.sql), so
- * this 403 plus the doctor_id ownership check below are the only
- * enforcement — nothing at the database layer stops a role from setting an
- * out-of-scope status otherwise.
+ * transition staff actually see. `visits` carries RLS (schema.sql's
+ * HIGH-03 fix) scoping a doctor session's row access to their own
+ * doctor_id, but RLS has no concept of "which status values are legal for
+ * which role" — that's a business rule, not a row-visibility rule, so this
+ * 403 plus the doctor_id ownership check below remain the only enforcement
+ * of the actual transition matrix; nothing at the database layer stops a
+ * role from setting an out-of-scope status otherwise. A DB-level CHECK/
+ * trigger enforcing the transition matrix itself would close that gap but
+ * hasn't been added (would need to encode "waiting->in_progress->completed
+ * ->billed, doctor sets the first two, staff the last" as a constraint,
+ * not attempted here).
  */
 exports.updateStatus = async (req, res) => {
   const { status } = req.body;
@@ -318,6 +332,55 @@ exports.updateStatus = async (req, res) => {
   res.json({ visitId: result.rows[0].visit_id, status: result.rows[0].status });
 };
 
+/**
+ * PATCH /api/visits/:visitId/cancel — admin/superadmin only (QA-2026-07-24
+ * finding H-2). Voids a walk-in check-in created by mistake (wrong patient,
+ * duplicate). Only 'waiting' visits can be cancelled — once a doctor has
+ * started a consultation (in_progress/completed/billed) there's real
+ * clinical work on the record, which this endpoint deliberately can't
+ * touch. The atomic `UPDATE ... WHERE status='waiting'` doubles as the
+ * concurrency check: if the doctor calls the patient in at the same
+ * moment staff tries to cancel, whichever commits first wins and the
+ * other gets a clean 409 rather than a race.
+ */
+exports.cancelVisit = async (req, res) => {
+  const result = await withTransaction(req.rlsSession, async (client) => {
+    const updated = await client.query(
+      `UPDATE visits SET status = 'cancelled'
+        WHERE visit_id = $1 AND status = 'waiting'
+        RETURNING visit_id`,
+      [req.params.visitId]
+    );
+    if (!updated.rows.length) {
+      const exists = await client.query(`SELECT status FROM visits WHERE visit_id = $1`, [req.params.visitId]);
+      const e = new Error(
+        exists.rows.length ? 'Only a waiting visit can be cancelled' : 'Visit not found'
+      );
+      e.statusCode = exists.rows.length ? 409 : 404;
+      throw e;
+    }
+    // A 'waiting' visit is never editable by the doctor yet (addItem/
+    // markDone both require assertOwnVisit + an actual consultation), so a
+    // draft invoice would only exist here in an unusual manual-DB-edit
+    // scenario — cancelled defensively anyway so it can't be left orphaned
+    // in the billing worklist.
+    await client.query(
+      `UPDATE visit_invoices SET status = 'cancelled'
+        WHERE visit_id = $1 AND status IN ('draft', 'pending_billing')`,
+      [req.params.visitId]
+    );
+    await AuditLog.log(client, {
+      userId: req.user.userId,
+      action: AUDIT_ACTIONS.CANCEL_VISIT,
+      resource: 'visits',
+      recordId: req.params.visitId,
+      ipAddress: req.ip,
+    });
+    return updated.rows[0];
+  });
+  res.json({ visitId: result.visit_id, status: 'cancelled' });
+};
+
 // ── POST /api/visits/:visitId/send-ticket-sms ──────────────────────────────
 exports.sendTicketSms = async (req, res) => {
   const result = await withTransaction(req.rlsSession, async (client) => {
@@ -332,7 +395,7 @@ exports.sendTicketSms = async (req, res) => {
       const e = new Error('Visit not found'); e.statusCode = 404; throw e;
     }
     const visit = rows[0];
-    const trackingUrl = `http://localhost:3000/queue-tracker?visitId=${visit.visit_id}&queueNo=${visit.queue_no}`;
+    const trackingUrl = `${process.env.FRONTEND_URL}/queue-tracker?visitId=${visit.visit_id}&queueNo=${visit.queue_no}`;
     const smsMessage = `مجمع الأمين الطبي: تذكرة الانتظار رقم #${visit.queue_no} للمريض ${visit.patient_name}. تابع دورك في الطابور مباشرة عبر الرابط: ${trackingUrl}`;
     
     console.log(`[QUEUE SMS] Dispatched ticket link to ${visit.contact_number || 'patient'}: ${smsMessage}`);
@@ -351,39 +414,51 @@ exports.sendTicketSms = async (req, res) => {
 };
 
 // ── GET /api/visits/:visitId/tracker (Public Queue Tracker) ────────────────
+// Unauthenticated by design (visits.routes.js) — reached via a raw visit_id
+// in an SMS link, so the response is deliberately scoped to non-PHI fields
+// only (queue number, status, clinic). No patient name or doctor name is
+// selected or returned; QueueTrackerPage.tsx already falls back to generic
+// "Patient"/"Doctor" labels when those fields are absent, so this needed no
+// frontend change. `visits` is RLS-protected (schema.sql, HIGH-03 fix), so
+// this runs under the dedicated 'public_tracker' session role rather than a
+// bare pool.query — a bare pool.query sets no `app.current_role`, which
+// every existing policy on `visits` requires, so it would silently return
+// zero rows for every request (see public_tracker_visits policy).
 exports.getPublicQueueTracker = async (req, res) => {
   const visitId = req.params.visitId;
-  const { pool } = require('../config/database');
+  const trackerSession = { userId: null, role: 'public_tracker', doctorId: null, patientId: null };
 
-  const { rows } = await pool.query(
-    `SELECT v.visit_id, v.queue_no, v.status, v.checked_in_at, v.clinic, v.doctor_id,
-            p.full_name AS patient_name, d.full_name AS doctor_name
-       FROM visits v
-       JOIN patients p ON p.patient_id = v.patient_id
-       JOIN doctors d ON d.doctor_id = v.doctor_id
-      WHERE v.visit_id = $1`,
-    [visitId]
-  );
+  const { currentVisit, todayVisits } = await withTransaction(trackerSession, async (client) => {
+    const { rows } = await client.query(
+      `SELECT visit_id, queue_no, status, checked_in_at, clinic, doctor_id
+         FROM visits
+        WHERE visit_id = $1`,
+      [visitId]
+    );
+    if (!rows.length) {
+      return { currentVisit: null, todayVisits: [] };
+    }
+    const visit = rows[0];
 
-  if (!rows.length) {
+    // Calculate live position statistics from today's visits for this doctor/clinic
+    const today = await client.query(
+      `SELECT visit_id, queue_no, status, checked_in_at
+         FROM visits
+        WHERE doctor_id = $1
+          AND ${todayRangeCondition('checked_in_at')}
+        ORDER BY queue_no ASC`,
+      [visit.doctor_id]
+    );
+    return { currentVisit: visit, todayVisits: today.rows };
+  });
+
+  if (!currentVisit) {
     return res.status(404).json({ message: 'Visit ticket not found' });
   }
 
-  const currentVisit = rows[0];
+  const currentlyServing = todayVisits.find((v) => v.status === 'in_progress');
+  const waitingList = todayVisits.filter((v) => v.status === 'waiting');
 
-  // Calculate live position statistics from today's visits for this doctor/clinic
-  const todayVisits = await pool.query(
-    `SELECT visit_id, queue_no, status, checked_in_at
-       FROM visits
-      WHERE doctor_id = $1
-        AND checked_in_at >= (date_trunc('day', NOW() AT TIME ZONE 'Asia/Riyadh') AT TIME ZONE 'Asia/Riyadh')
-      ORDER BY queue_no ASC`,
-    [currentVisit.doctor_id]
-  );
-
-  const currentlyServing = todayVisits.rows.find((v) => v.status === 'in_progress');
-  const waitingList = todayVisits.rows.filter((v) => v.status === 'waiting');
-  
   // Calculate how many patients are waiting ahead of this specific ticket
   const patientsAhead = waitingList.filter((v) => v.queue_no < currentVisit.queue_no).length;
 
@@ -392,8 +467,6 @@ exports.getPublicQueueTracker = async (req, res) => {
       visitId: currentVisit.visit_id,
       queueNo: currentVisit.queue_no,
       status: currentVisit.status,
-      patientName: currentVisit.patient_name,
-      doctorName: currentVisit.doctor_name,
       clinic: currentVisit.clinic || 'الطب العام General Medicine',
       checkedInAt: currentVisit.checked_in_at,
     },

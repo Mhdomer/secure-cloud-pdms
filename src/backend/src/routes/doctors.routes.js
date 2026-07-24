@@ -22,6 +22,16 @@ router.get(
   asyncHandler(doctorsController.listActiveDoctors)
 );
 
+// GET /doctors/me — the signed-in doctor's own name/specialisation.
+// Registered before /:doctorId-shaped routes for the same "don't shadow
+// a literal path with a param route" reason as patients.routes.js's /me.
+router.get(
+  '/me',
+  authenticateJWT,
+  authorizeRole(ROLES.DOCTOR),
+  asyncHandler(doctorsController.getMyProfile)
+);
+
 // PATCH /doctors/:doctorId — superadmin only, reassigns a doctor's
 // department. Deliberately narrow (specialisation only) rather than a
 // general doctor-update endpoint, matching the actual gap this closes —

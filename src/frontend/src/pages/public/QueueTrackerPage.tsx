@@ -70,10 +70,10 @@ export default function QueueTrackerPage() {
 
           <div className="pt-2">
             <h2 className="font-extrabold text-xl text-white" dir="auto">
-              {ticket?.patientName || (isRtl ? 'المريض' : 'Patient')}
+              {isRtl ? 'المريض' : 'Patient'}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {ticket?.clinic || (isRtl ? 'عيادة الطب العام' : 'General Medicine')} • Dr. {ticket?.doctorName || 'Doctor'}
+              {ticket?.clinic || (isRtl ? 'عيادة الطب العام' : 'General Medicine')}
             </p>
           </div>
 

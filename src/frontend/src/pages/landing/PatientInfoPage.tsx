@@ -18,6 +18,11 @@ export default function PatientInfoPage() {
 
   const rights = t('patientInfo.rights', { returnObjects: true }) as string[]
   const insurance = t('patientInfo.insurance', { returnObjects: true }) as string[]
+  const steps = t('howItWorks.steps', { returnObjects: true }) as Array<{
+    step: string
+    title: string
+    desc: string
+  }>
   const faqs = t('faq.list', { returnObjects: true }) as Array<{ q: string; a: string }>
   const [openIndex, setOpenIndex] = useState(0)
 
@@ -79,6 +84,40 @@ export default function PatientInfoPage() {
               </ul>
             </motion.div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section id="how-it-works" className="bg-slate-900 text-white px-4 py-20 sm:px-6">
+        <div className="mx-auto max-w-6xl">
+          <motion.h2
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.5 }}
+            className="text-center text-3xl font-bold text-white sm:text-4xl"
+          >
+            {t('howItWorks.heading')}
+          </motion.h2>
+
+          <div className="mt-14 grid grid-cols-1 gap-8 md:grid-cols-3">
+            {steps.map((item, index) => (
+              <motion.div
+                key={item.step}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.4, delay: index * 0.1 }}
+                className="group relative flex flex-col items-center rounded-2xl border border-slate-800 bg-slate-950/60 p-8 text-center backdrop-blur-sm transition-all duration-300 hover:border-brand-gold-400/50 hover:-translate-y-1.5"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-gold-500 to-amber-600 text-lg font-bold text-slate-950 shadow-md shadow-brand-gold-500/20">
+                  {item.step}
+                </div>
+                <h3 className="mt-5 text-lg font-bold text-white">{item.title}</h3>
+                <p className="mt-2 text-sm text-slate-300 font-medium leading-relaxed">{item.desc}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 

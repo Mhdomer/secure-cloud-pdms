@@ -668,6 +668,115 @@ async function cancelAppointment(req, res) {
   }
 }
 
+/**
+ * UC-21b — Reschedule Appointment (Admin, or the patient's own — same
+ * admin+patient split as cancelAppointment/UC-21). Keeps the same doctor;
+ * an admin who wants to also change the doctor already has `updateAppointment`
+ * (PUT, admin only) for that broader edit. Previously a patient could only
+ * cancel and rebook from scratch, losing the doctor-picker/continuity for
+ * no reason when all they actually needed was a different time.
+ * SERIALIZABLE + re-validated conflict/availability, same pattern as
+ * scheduleAppointment/updateAppointment, so a race against another booking
+ * for the same doctor+slot can't double-book.
+ */
+async function rescheduleAppointment(req, res) {
+  const { appointmentId } = req.params;
+  const { scheduled_at: scheduledAt } = req.body;
+  const { role, patientId } = req.rlsSession;
+
+  try {
+    const result = await withTransaction(
+      req.rlsSession,
+      async (client) => {
+        const existing = await Appointment.findById(client, appointmentId);
+        if (!existing) {
+          const err = new Error('Appointment not found');
+          err.statusCode = 404;
+          throw err;
+        }
+
+        // Application-layer ownership check for patient self-reschedule —
+        // appointments has no RLS, same principle as cancelAppointment's
+        // UC-21 check above.
+        if (role === ROLES.PATIENT && existing.patient_id !== patientId) {
+          const err = new Error('You are not permitted to reschedule this appointment');
+          err.statusCode = 403;
+          throw err;
+        }
+
+        if (existing.status !== 'scheduled' && existing.status !== 'confirmed') {
+          const err = new Error(`Cannot reschedule an appointment that is ${existing.status}`);
+          err.statusCode = 409;
+          throw err;
+        }
+
+        const conflict = await Appointment.findConflict(client, existing.doctor_id, scheduledAt, appointmentId);
+        if (conflict) {
+          const err = new Error('Doctor already has an appointment at this time');
+          err.statusCode = 409;
+          err.conflictingAppointmentId = conflict.appointment_id;
+          throw err;
+        }
+
+        const available = await isSlotAvailable(
+          client,
+          existing.doctor_id,
+          scheduledAt,
+          existing.duration_minutes,
+          appointmentId
+        );
+        if (!available) {
+          const err = new Error(
+            "Requested time is outside the doctor's working hours or overlaps another appointment"
+          );
+          err.statusCode = 409;
+          throw err;
+        }
+
+        const rescheduled = await Appointment.reschedule(client, appointmentId, { scheduledAt });
+        if (!rescheduled) {
+          // Status flipped between the read above and this UPDATE (lost the
+          // race to a concurrent request) — same "don't log a false audit
+          // entry for a write that didn't happen" reasoning as cancelAppointment.
+          const err = new Error('Appointment status changed before it could be rescheduled');
+          err.statusCode = 409;
+          throw err;
+        }
+
+        await AuditLog.log(client, {
+          userId: req.user.userId,
+          action: AUDIT_ACTIONS.RESCHEDULE_APPOINTMENT,
+          resource: 'appointments',
+          recordId: appointmentId,
+          ipAddress: req.ip,
+        });
+
+        return rescheduled;
+      },
+      { isolationLevel: 'SERIALIZABLE' }
+    );
+
+    return res.status(200).json({
+      appointmentId: result.appointment_id,
+      scheduledAt: result.scheduled_at,
+      status: result.status,
+      durationMinutes: result.duration_minutes,
+      message: 'Appointment rescheduled successfully',
+    });
+  } catch (err) {
+    if (isSerializationFailure(err)) {
+      return res.status(409).json({ error: 'This appointment was just modified, please retry' });
+    }
+    if (err.statusCode === 409) {
+      return res.status(409).json({ error: err.message, conflictingAppointmentId: err.conflictingAppointmentId });
+    }
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    throw err;
+  }
+}
+
 async function sendSmsReminder(req, res) {
   const { appointmentId } = req.params;
 
@@ -729,5 +838,6 @@ module.exports = {
   completeAppointment,
   checkinAppointment,
   cancelAppointment,
+  rescheduleAppointment,
   sendSmsReminder,
 };

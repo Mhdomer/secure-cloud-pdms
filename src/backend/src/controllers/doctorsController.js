@@ -26,6 +26,32 @@ async function listActiveDoctors(req, res) {
 }
 
 /**
+ * GET /doctors/me — Doctor only, resolved from the caller's own user_id
+ * (never a route param). Added to fix the doctor dashboard's greeting
+ * showing the raw login username ("Good afternoon, Dr. drmohamed")
+ * instead of the doctor's actual name (QA-2026-07-24 finding M-6) — the
+ * client-side auth store deliberately only ever holds
+ * userId/username/role (see authStore.ts), so the frontend had no way to
+ * know the signed-in doctor's real name without a dedicated endpoint.
+ * `doctors` carries no RLS (staff directory, not patient data), so this is
+ * a plain pool query, same as listActiveDoctors above.
+ */
+async function getMyProfile(req, res) {
+  const { rows } = await pool.query(
+    'SELECT doctor_id, full_name, specialisation FROM doctors WHERE user_id = $1',
+    [req.user.userId]
+  );
+  if (!rows.length) {
+    return res.status(404).json({ error: 'Doctor profile not found' });
+  }
+  return res.status(200).json({
+    doctorId: rows[0].doctor_id,
+    fullName: rows[0].full_name,
+    specialisation: rows[0].specialisation,
+  });
+}
+
+/**
  * Reassigns an existing doctor to a different department. Superadmin only
  * (see doctors.routes.js) — a doctor's own department was previously only
  * ever set once, at account-creation time, with no way to change it
@@ -60,4 +86,4 @@ async function updateDoctor(req, res) {
   });
 }
 
-module.exports = { listActiveDoctors, updateDoctor };
+module.exports = { listActiveDoctors, getMyProfile, updateDoctor };

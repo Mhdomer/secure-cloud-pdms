@@ -77,6 +77,9 @@
     "notReadyTitle": "هذه الزيارة غير جاهزة للفوترة بعد.",
     "loadError": "تعذّر تحميل هذه الفاتورة.",
     "notFoundTitle": "الفاتورة غير موجودة.",
+    "partialNotice": "تم دفع جزء من هذه الفاتورة. الرجاء تحصيل الرصيد المتبقي أدناه.",
+    "alreadyCollectedLabel": "المبلغ المحصّل سابقاً (ريال)",
+    "remainingBalanceLabel": "الرصيد المتبقي",
     "visitHeader": {
       "patient": "المريض",
       "fileNo": "رقم الملف",
@@ -120,6 +123,7 @@
     "amountPaidLabel": "المبلغ المدفوع (ريال)",
     "balanceLabel": "الرصيد المتبقي",
     "generateInvoice": "إصدار الفاتورة",
+    "collectPayment": "تحصيل الدفعة",
     "generating": "جارٍ المعالجة…",
     "paySuccess": "تم تسجيل الدفع وإصدار الفاتورة.",
     "payError": "تعذّرت معالجة الدفع. الرجاء المحاولة مجدداً.",

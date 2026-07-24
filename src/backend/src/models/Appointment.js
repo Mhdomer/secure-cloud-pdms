@@ -212,6 +212,26 @@ class Appointment {
     );
   }
 
+  /**
+   * Patient or admin moves an appointment to a new time (same doctor —
+   * changing doctor is a bigger edit, already covered by `update` above).
+   * Resets a 'confirmed' appointment back to 'scheduled': the doctor/admin
+   * confirmed availability for the *old* slot, so the moved slot needs
+   * fresh confirmation, same reasoning `confirm`'s own status guard exists.
+   */
+  static async reschedule(executor, appointmentId, { scheduledAt, durationMinutes }) {
+    const result = await executor.query(
+      `UPDATE appointments
+          SET scheduled_at = $2,
+              duration_minutes = COALESCE($3, duration_minutes),
+              status = 'scheduled'
+        WHERE appointment_id = $1 AND status IN ('scheduled', 'confirmed')
+        RETURNING appointment_id, scheduled_at, status, duration_minutes`,
+      [appointmentId, scheduledAt, durationMinutes || null]
+    );
+    return result.rows[0] || null;
+  }
+
   static async cancel(executor, appointmentId, { cancelledBy, cancellationNote }) {
     const result = await executor.query(
       `UPDATE appointments

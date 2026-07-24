@@ -101,3 +101,13 @@ export interface BookOwnAppointmentResponse {
 export interface CancelAppointmentPayload {
   cancellation_note?: string
 }
+
+/**
+ * UC-21b — Body for PATCH /api/appointments/:id/reschedule. Same endpoint
+ * for Admin (any) and Patient (own only, checked server-side) as cancel
+ * above. Only the time moves — doctor/patient/type stay fixed; changing
+ * those is the bigger `UpdateAppointmentPayload` edit (admin only).
+ */
+export interface RescheduleAppointmentPayload {
+  scheduled_at: string
+}

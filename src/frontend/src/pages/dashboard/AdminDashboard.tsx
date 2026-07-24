@@ -512,7 +512,7 @@ export default function AdminDashboard() {
           label={t('admin.hero.queue')}
           sublabel={t('admin.hero.queueSub')}
           count={queueCount}
-          image="/clinic/real-waiting-area.png"
+          image="/clinic/real-waiting-area-thumb.jpg"
         />
         <ChevronRight className="h-5 w-5 shrink-0 text-neutral-300 rtl:rotate-180" aria-hidden="true" />
         <FlowPill
@@ -520,7 +520,7 @@ export default function AdminDashboard() {
           label={t('admin.hero.inConsultation')}
           sublabel={t('admin.hero.inConsultationSub')}
           count={inConsultationCount}
-          image="/clinic/real-general-clinic.png"
+          image="/clinic/real-general-clinic-thumb.jpg"
         />
       </motion.div>
 

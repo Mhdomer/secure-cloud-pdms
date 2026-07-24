@@ -613,13 +613,25 @@ CREATE POLICY patient_select_released_lab_results ON lab_results
 -- instead of postgres, so RLS is actually exercised during local testing.
 --
 -- Production: the RDS master user is never used by the running app either
--- — Terraform/SSM provisions this same role with a generated secret. Change
--- the placeholder password below before using it anywhere but a local
--- throwaway database.
+-- — Terraform/SSM provisions this same role with a generated secret, so
+-- this block never runs against a production database.
+--
+-- No literal password is written here (a fixed string in this file would be
+-- permanent in git history the moment it's committed, and a known password
+-- for a role that bypasses every RLS policy is a standing risk regardless).
+-- On a fresh database, this generates a random password and prints it once
+-- via RAISE NOTICE — copy it into DB_PASSWORD in your local .env. Re-running
+-- this file against a database that already has the role is a no-op, same
+-- as before; it does not rotate an existing role's password.
 DO $$
+DECLARE
+  generated_password TEXT;
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pdms_app') THEN
-    CREATE ROLE pdms_app LOGIN PASSWORD 'change_me_local_dev_only';
+    generated_password := encode(gen_random_bytes(24), 'base64');
+    EXECUTE format('CREATE ROLE pdms_app LOGIN PASSWORD %L', generated_password);
+    RAISE NOTICE 'Created pdms_app with a generated password: %', generated_password;
+    RAISE NOTICE 'Copy it into DB_USER=pdms_app / DB_PASSWORD=<above> in src/backend/.env — it is not stored anywhere else.';
   END IF;
 END
 $$;
@@ -885,34 +897,18 @@ ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS co_pay_amount DECIMAL(10,2) 
 ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS patient_amount DECIMAL(10,2) DEFAULT 0;
 ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS insurance_amount DECIMAL(10,2) DEFAULT 0;
 
--- ── clinic_rooms ────────────────────────────────────────────────────────────
--- Room and Equipment Allocation Module
-CREATE TABLE IF NOT EXISTS clinic_rooms (
-  room_id        UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  room_number    VARCHAR(20) UNIQUE NOT NULL,
-  name_en        VARCHAR(100) NOT NULL,
-  name_ar        VARCHAR(100) NOT NULL,
-  department_key VARCHAR(50) REFERENCES departments(key),
-  status         VARCHAR(20) NOT NULL DEFAULT 'available'
-                   CHECK (status IN ('available','occupied','cleaning','maintenance')),
-  assigned_visit_id UUID REFERENCES visits(visit_id) ON DELETE SET NULL,
-  created_at     TIMESTAMPTZ DEFAULT NOW(),
-  updated_at     TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE visits ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES clinic_rooms(room_id) ON DELETE SET NULL;
-
-INSERT INTO clinic_rooms (room_number, name_en, name_ar, department_key) VALUES
-  ('101', 'General Clinic 1',     'عيادة الطب العام ١',     'general'),
-  ('102', 'General Clinic 2',     'عيادة الطب العام ٢',     'general'),
-  ('201', 'Dental Surgery 1',     'عيادة الأسنان ١',        'dental'),
-  ('202', 'Dental Surgery 2',     'عيادة الأسنان ٢',        'dental'),
-  ('301', 'Dermatology & Laser',  'عيادة الجلدية والتجميل', 'dermatology'),
-  ('401', 'Pediatrics Room',      'عيادة طب الأطفال',      'pediatrics'),
-  ('501', 'Phlebotomy & Sample',  'سحب العينات والمختبر',   'laboratory')
-ON CONFLICT (room_number) DO NOTHING;
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON clinic_rooms TO pdms_app;
+-- ── clinic_rooms — removed 2026-07-24 ─────────────────────────────────────
+-- The Room & Equipment Allocation Module was built (this table,
+-- roomsController.js/rooms.routes.js, RoomStatusGrid.tsx) but never wired
+-- into any screen — `rooms.routes.js` was never `require`'d/mounted in
+-- routes/index.js, and RoomStatusGrid.tsx was never imported anywhere.
+-- Removed rather than left as dead weight once confirmed genuinely unused
+-- end-to-end (backend route unreachable, frontend component orphaned,
+-- visits.room_id never read anywhere outside the dead controller).
+-- DROP statements (not just omitting the CREATE) so re-running this file
+-- against a DB that already has the table actually removes it there too.
+ALTER TABLE visits DROP COLUMN IF EXISTS room_id;
+DROP TABLE IF EXISTS clinic_rooms;
 
 CREATE TABLE IF NOT EXISTS invoice_items (
   item_id         UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -954,13 +950,34 @@ ALTER TABLE visit_invoices    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_items     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patient_care_team ENABLE ROW LEVEL SECURITY;
 
+-- Same owner-bypass hardening as medical_records/patients/lab_results above
+-- (line ~345) — pdms_app is never the owner of these tables today, so this
+-- is defense-in-depth, not a fix for an active bypass.
+ALTER TABLE visits            FORCE ROW LEVEL SECURITY;
+ALTER TABLE visit_invoices    FORCE ROW LEVEL SECURITY;
+ALTER TABLE invoice_items     FORCE ROW LEVEL SECURITY;
+ALTER TABLE patient_care_team FORCE ROW LEVEL SECURITY;
+
 -- visits -------------------------------------------------------------------
 -- Admin/superadmin see all visits; doctor sees only their own patients'
 -- visits (by direct assignment or via care team); patient sees their own.
 
+DROP POLICY IF EXISTS admin_all_visits ON visits;
 CREATE POLICY admin_all_visits ON visits
   FOR ALL
   USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
+
+-- Public, unauthenticated queue-tracker endpoint (visits.routes.js
+-- GET /:visitId/tracker, visitsController.getPublicQueueTracker) — reached
+-- via a raw visit_id in an SMS link, no JWT. 'public_tracker' is a fixed
+-- string only ever set by that one controller (never derived from client
+-- input), so this cannot be reached by any real authenticated role.
+-- SELECT-only, and the controller itself never selects patient/doctor name
+-- columns for this role — see the comment in getPublicQueueTracker.
+DROP POLICY IF EXISTS public_tracker_visits ON visits;
+CREATE POLICY public_tracker_visits ON visits
+  FOR SELECT
+  USING (current_setting('app.current_role', true) = 'public_tracker');
 
 DROP POLICY IF EXISTS doctor_own_visits ON visits;
 CREATE POLICY doctor_own_visits ON visits
@@ -982,6 +999,7 @@ CREATE POLICY patient_own_visits ON visits
   );
 
 -- visit_invoices -----------------------------------------------------------
+DROP POLICY IF EXISTS admin_all_invoices ON visit_invoices;
 CREATE POLICY admin_all_invoices ON visit_invoices
   FOR ALL
   USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
@@ -1009,6 +1027,7 @@ CREATE POLICY patient_own_invoices ON visit_invoices
 -- Access through the parent invoice: if you can read the invoice you can
 -- read its items. The JOIN to visit_invoices enforces the same scope.
 
+DROP POLICY IF EXISTS admin_all_items ON invoice_items;
 CREATE POLICY admin_all_items ON invoice_items
   FOR ALL
   USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
@@ -1039,6 +1058,7 @@ CREATE POLICY patient_own_items ON invoice_items
   );
 
 -- patient_care_team --------------------------------------------------------
+DROP POLICY IF EXISTS admin_all_care_team ON patient_care_team;
 CREATE POLICY admin_all_care_team ON patient_care_team
   FOR ALL
   USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
@@ -1053,6 +1073,125 @@ CREATE POLICY doctor_own_care_team ON patient_care_team
       WHERE user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid
     )
   );
+
+-- ── invoice_payments (QA-2026-07-24 fix: partial-payment ledger) ──────────
+-- Fixes a real stuck-state bug: `visit_invoices.amount_paid` used to be
+-- SET (not accumulated) by every payInvoice call, and BillVisitPage only
+-- rendered the payment form for status='pending_billing' — once an invoice
+-- took a partial payment (status='partial'), there was no screen anywhere
+-- that could ever collect the rest, and a second collection attempt would
+-- have silently overwritten (erased) the first payment's amount. This
+-- ledger is the source of truth for what's actually been collected;
+-- `visit_invoices.amount_paid` is now always derived as SUM(this table),
+-- never written directly. Append-only, same as `audit_log` — a payment
+-- once recorded is never edited or deleted, only ever added to.
+CREATE TABLE IF NOT EXISTS invoice_payments (
+  payment_id     UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  invoice_id     UUID          NOT NULL REFERENCES visit_invoices(invoice_id) ON DELETE CASCADE,
+  amount         DECIMAL(10,2) NOT NULL CHECK (amount > 0),
+  payment_method VARCHAR(20)   NOT NULL CHECK (payment_method IN ('cash','card','insurance')),
+  collected_by   UUID          REFERENCES users(user_id) ON DELETE SET NULL,
+  collected_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoice_payments_invoice ON invoice_payments(invoice_id);
+
+GRANT SELECT, INSERT ON invoice_payments TO pdms_app; -- append-only ledger: no UPDATE/DELETE, same reasoning as audit_log
+
+ALTER TABLE invoice_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE invoice_payments FORCE ROW LEVEL SECURITY;
+
+-- Same three-way split as invoice_items: admin/superadmin see everything,
+-- doctor/patient see only payments on invoices they're scoped to (via the
+-- parent visit_invoices row), read-only for both since only admin ever
+-- calls payInvoice.
+DROP POLICY IF EXISTS admin_all_payments ON invoice_payments;
+CREATE POLICY admin_all_payments ON invoice_payments
+  FOR ALL
+  USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
+
+DROP POLICY IF EXISTS doctor_own_payments ON invoice_payments;
+CREATE POLICY doctor_own_payments ON invoice_payments
+  FOR SELECT
+  USING (
+    current_setting('app.current_role', true) = 'doctor'
+    AND invoice_id IN (
+      SELECT invoice_id FROM visit_invoices
+      WHERE doctor_id = (
+        SELECT doctor_id FROM doctors
+        WHERE user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS patient_own_payments ON invoice_payments;
+CREATE POLICY patient_own_payments ON invoice_payments
+  FOR SELECT
+  USING (
+    current_setting('app.current_role', true) = 'patient'
+    AND invoice_id IN (
+      SELECT invoice_id FROM visit_invoices
+      WHERE patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::uuid
+    )
+  );
+
+-- ── visits.status gains 'cancelled' (QA-2026-07-24 fix: void workflow) ────
+-- A wrong-patient/duplicate walk-in check-in had no way to ever be removed
+-- once created — visits had no 'cancelled' status at all. Admin/superadmin
+-- can now cancel a visit that's still 'waiting' (nothing charted yet) via
+-- PATCH /visits/:visitId/cancel (visitsController.cancelVisit).
+ALTER TABLE visits DROP CONSTRAINT IF EXISTS visits_status_check;
+ALTER TABLE visits ADD CONSTRAINT visits_status_check
+  CHECK (status IN ('waiting','in_progress','completed','billed','cancelled'));
+
+-- ── visits status transition trigger (2026-07-24 feature-request follow-up) ─
+-- Enforces the exact same transition matrix visitsController.updateStatus's
+-- comment already documents as the intended workflow (waiting -> in_progress
+-- -> completed -> billed, or waiting -> cancelled) at the database layer
+-- too — previously only the application layer's role checks stood between
+-- a request and an out-of-scope status jump, and even those didn't check
+-- the *current* status (billingController.markDone in particular set
+-- status='completed' unconditionally, with no precondition, so a direct
+-- API call — or a doctor navigating straight to a visit's /consult URL
+-- without ever clicking "start" — could jump 'waiting' straight to
+-- 'completed', or resurrect an already-'billed'/'cancelled' visit).
+-- Same-value updates (status unchanged) are always allowed — this only
+-- fires on an actual transition. A rejected transition raises a plain
+-- exception (SQLSTATE P0001), which middleware/errorHandler.js maps to a
+-- clean 409 rather than a generic 500.
+CREATE OR REPLACE FUNCTION enforce_visit_status_transition()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = OLD.status THEN
+    RETURN NEW;
+  END IF;
+  IF (OLD.status, NEW.status) IN (
+    ('waiting', 'in_progress'),
+    ('waiting', 'cancelled'),
+    ('in_progress', 'completed'),
+    ('completed', 'billed')
+  ) THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'Invalid visit status transition: % -> %', OLD.status, NEW.status;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_enforce_visit_status_transition ON visits;
+CREATE TRIGGER trg_enforce_visit_status_transition
+  BEFORE UPDATE OF status ON visits
+  FOR EACH ROW
+  EXECUTE FUNCTION enforce_visit_status_transition();
+
+-- ── medical_records.updated_at (QA-2026-07-24 fix H-5) ────────────────────
+-- Column existed but nothing ever wrote to it (no DEFAULT, no UPDATE
+-- statement touched it) — every row's updated_at was NULL, which the
+-- frontend rendered as "Jan 1, 1970" (new Date(null) → Unix epoch) on every
+-- single medical record, for every role. DEFAULT here covers INSERT;
+-- medicalRecordsController.updateRecord now also sets it explicitly on
+-- UPDATE (see that file).
+ALTER TABLE medical_records ALTER COLUMN updated_at SET DEFAULT NOW();
+UPDATE medical_records SET updated_at = created_at WHERE updated_at IS NULL;
 
 -- Apply the new RLS policies to the running database ----------------------
 -- Run this block manually once on the live DB after deploying schema changes:

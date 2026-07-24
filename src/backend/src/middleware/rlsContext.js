@@ -1,6 +1,6 @@
 'use strict';
 
-const { pool, withTransaction } = require('../config/database');
+const { withTransaction } = require('../config/database');
 const { ROLES } = require('../config/constants');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -20,9 +20,16 @@ const setupRLSContext = asyncHandler(async (req, res, next) => {
   let patientId = null;
 
   if (role === ROLES.DOCTOR) {
-    // `doctors` has no RLS — this is a plain, unrestricted lookup by the
-    // caller's own user_id.
-    const result = await pool.query('SELECT doctor_id FROM doctors WHERE user_id = $1', [userId]);
+    // `doctors` has no RLS today — this is a plain, unrestricted lookup by
+    // the caller's own user_id. Routed through withTransaction(null, ...)
+    // rather than a bare pool.query anyway, so this stays safe by
+    // construction if RLS is ever added to `doctors` later (a bare
+    // pool.query on an RLS-protected table returns zero rows for every
+    // caller, since no session variables would be set — see the public
+    // tracker fix in visitsController.js for exactly that failure mode).
+    const result = await withTransaction(null, (client) =>
+      client.query('SELECT doctor_id FROM doctors WHERE user_id = $1', [userId])
+    );
     doctorId = result.rows[0]?.doctor_id || null;
   } else if (role === ROLES.PATIENT) {
     // `patients` IS RLS-protected. This lookup is the one query the

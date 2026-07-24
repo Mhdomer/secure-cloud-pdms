@@ -48,7 +48,6 @@ export default function LandingPage() {
       <SpecialtyCentresSection />
       <DoctorsSection />
       <TestimonialsSection />
-      <HowItWorksSection />
       <ContactSection />
       <LandingFooter />
     </div>
@@ -649,6 +648,53 @@ function DoctorsSection() {
   const isArabic = i18n.language === 'ar'
   const carouselRef = useRef<HTMLDivElement>(null)
 
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState<string>('')
+
+  const categories = [
+    { key: 'all', labelAr: 'جميع الأطباء', labelEn: 'All Doctors' },
+    { key: 'dental', labelAr: 'طب الأسنان', labelEn: 'Dentistry' },
+    { key: 'dermatology', labelAr: 'الجلدية والتجميل', labelEn: 'Dermatology & Laser' },
+    { key: 'pediatrics', labelAr: 'طب الأطفال', labelEn: 'Pediatrics' },
+    { key: 'general', labelAr: 'طب عام', labelEn: 'General Medicine' },
+    { key: 'obgyn', labelAr: 'نساء وتوليد', labelEn: 'Obstetrics & Gynecology' },
+  ]
+
+  const filteredDoctors = REAL_DOCTORS.filter((doc) => {
+    const matchesCategory =
+      selectedSpecialty === 'all' ||
+      (selectedSpecialty === 'dental' && (doc.specialty.includes('أسنان') || doc.specialtyEn.toLowerCase().includes('den'))) ||
+      (selectedSpecialty === 'dermatology' && (doc.specialty.includes('جلدية') || doc.specialtyEn.toLowerCase().includes('derm'))) ||
+      (selectedSpecialty === 'pediatrics' && (doc.specialty.includes('أطفال') || doc.specialtyEn.toLowerCase().includes('ped'))) ||
+      (selectedSpecialty === 'general' && (doc.specialty.includes('عام') || doc.specialtyEn.toLowerCase().includes('gen'))) ||
+      (selectedSpecialty === 'obgyn' && (doc.specialty.includes('نساء') || doc.specialtyEn.toLowerCase().includes('obs')))
+
+    const query = searchQuery.trim().toLowerCase()
+    const matchesSearch =
+      !query ||
+      doc.name.toLowerCase().includes(query) ||
+      doc.nameEn.toLowerCase().includes(query) ||
+      doc.specialty.toLowerCase().includes(query) ||
+      doc.specialtyEn.toLowerCase().includes(query)
+
+    return matchesCategory && matchesSearch
+  })
+
+  const handleBookDoctor = (doc: (typeof REAL_DOCTORS)[0]) => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+    if (token) {
+      navigate('/dashboard', { state: { preferredDoctor: doc.name, specialty: doc.specialty } })
+    } else {
+      navigate('/login', {
+        state: {
+          doctorName: isArabic ? doc.name : doc.nameEn,
+          specialty: isArabic ? doc.specialty : doc.specialtyEn,
+          redirect: '/dashboard',
+        },
+      })
+    }
+  }
+
   const scrollCarousel = (direction: 'left' | 'right') => {
     const el = carouselRef.current
     if (!el) return
@@ -657,8 +703,9 @@ function DoctorsSection() {
     el.scrollBy({ left: scrollDir, behavior: 'smooth' })
   }
 
-  // Auto-advance loop
   useEffect(() => {
+    if (selectedSpecialty !== 'all' || searchQuery.trim() !== '') return
+
     const interval = setInterval(() => {
       const el = carouselRef.current
       if (!el) return
@@ -671,85 +718,152 @@ function DoctorsSection() {
         const dir = isRtl ? -1 : 1
         el.scrollBy({ left: dir * 320, behavior: 'smooth' })
       }
-    }, 3200)
+    }, 3500)
 
     return () => clearInterval(interval)
-  }, [isRtl])
+  }, [isRtl, selectedSpecialty, searchQuery])
 
   return (
     <section id="doctors" className="relative overflow-hidden bg-[#f8fafc] text-slate-900 py-24 sm:py-32">
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex flex-col items-center justify-between gap-6 md:flex-row md:items-end">
+        <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
           <div>
             <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">{t('doctors.heading')}</h2>
             <p className="mt-3 text-lg text-slate-600 font-medium">{t('doctors.sub')}</p>
           </div>
 
-          {/* Carousel Controls */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => scrollCarousel('left')}
-              aria-label={t('carousel.prev')}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-800 transition-all hover:bg-brand-gold-500 hover:text-slate-950 hover:border-brand-gold-500 shadow-sm"
-            >
-              <ChevronLeft className="h-6 w-6 rtl:rotate-180" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollCarousel('right')}
-              aria-label={t('carousel.next')}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-800 transition-all hover:bg-brand-gold-500 hover:text-slate-950 hover:border-brand-gold-500 shadow-sm"
-            >
-              <ChevronRight className="h-6 w-6 rtl:rotate-180" />
-            </button>
+          {/* Controls & Search */}
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+            <div className="relative flex-1 md:w-64">
+              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                type="text"
+                placeholder={isArabic ? 'ابحث عن طبيب...' : 'Search doctor...'}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="ps-9 h-10 rounded-full border-slate-200 bg-white text-sm focus-visible:ring-brand-gold-500 shadow-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => scrollCarousel('left')}
+                aria-label={t('carousel.prev')}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-800 transition-all hover:bg-brand-gold-500 hover:text-slate-950 hover:border-brand-gold-500 shadow-sm"
+              >
+                <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollCarousel('right')}
+                aria-label={t('carousel.next')}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-800 transition-all hover:bg-brand-gold-500 hover:text-slate-950 hover:border-brand-gold-500 shadow-sm"
+              >
+                <ChevronRight className="h-5 w-5 rtl:rotate-180" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Doctor Cards Carousel */}
-        <div
-          ref={carouselRef}
-          className="mt-12 flex snap-x snap-mandatory overflow-x-auto scrollbar-hide py-4 gap-6 scroll-smooth"
-        >
-          {REAL_DOCTORS.map((doc) => (
-            <div
-              key={doc.nameEn}
-              className="group relative flex w-80 shrink-0 snap-center flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/5 transition-all duration-500 hover:-translate-y-2 hover:border-brand-gold-400 hover:shadow-2xl hover:shadow-brand-gold-500/15"
-            >
-              {/* Doctor Headshot Portrait Frame */}
-              <div className="relative h-80 w-full overflow-hidden bg-slate-900">
-                <img
-                  src={doc.image}
-                  alt={doc.name}
-                  className={cn(
-                    'h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-108 filter brightness-100 group-hover:brightness-105',
-                    doc.position,
-                  )}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
-                <span className="absolute top-4 start-4 rounded-full border border-white/30 bg-black/60 px-3 py-1 backdrop-blur-md text-xs font-semibold text-brand-gold-300">
-                  {doc.experience}
-                </span>
-              </div>
-
-              <div className="flex flex-col p-6 text-start bg-white">
-                <h3 className="text-xl font-bold text-slate-900 group-hover:text-brand-gold-700 transition-colors">
-                  {isArabic ? doc.name : doc.nameEn}
-                </h3>
-                <p className="mt-1 text-sm font-bold text-brand-gold-600">
-                  {isArabic ? doc.specialty : doc.specialtyEn}
-                </p>
-                <Button
-                  size="sm"
-                  className="mt-5 rounded-xl bg-slate-900 text-white hover:bg-brand-gold-500 hover:text-slate-950 font-bold transition-all"
-                  onClick={() => navigate('/login')}
-                >
-                  {t('doctors.cta')}
-                </Button>
-              </div>
-            </div>
-          ))}
+        {/* Filter Tabs */}
+        <div className="mt-8 flex flex-wrap items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {categories.map((cat) => {
+            const isActive = selectedSpecialty === cat.key
+            return (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => setSelectedSpecialty(cat.key)}
+                className={cn(
+                  'rounded-full px-4 py-2 text-sm font-semibold transition-all shrink-0',
+                  isActive
+                    ? 'bg-slate-900 text-white shadow-md shadow-slate-900/10'
+                    : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 hover:text-slate-900',
+                )}
+              >
+                {isArabic ? cat.labelAr : cat.labelEn}
+              </button>
+            )
+          })}
         </div>
+
+        {/* Doctor Cards Carousel */}
+        {filteredDoctors.length === 0 ? (
+          <div className="mt-12 flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white py-16 text-center">
+            <Stethoscope className="h-12 w-12 text-slate-300" />
+            <h3 className="mt-4 text-lg font-bold text-slate-700">
+              {isArabic ? 'لم نجد أطباء يطابقون بحثك' : 'No doctors match your criteria'}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {isArabic ? 'جرب اختيار تخصص آخر أو تغيير كلمة البحث' : 'Try selecting another specialty or clear your search'}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4 rounded-full"
+              onClick={() => {
+                setSelectedSpecialty('all')
+                setSearchQuery('')
+              }}
+            >
+              {isArabic ? 'عرض كل الأطباء' : 'Show All Doctors'}
+            </Button>
+          </div>
+        ) : (
+          <div
+            ref={carouselRef}
+            className="mt-8 flex snap-x snap-mandatory overflow-x-auto scrollbar-hide py-4 gap-6 scroll-smooth"
+          >
+            <AnimatePresence mode="popLayout">
+              {filteredDoctors.map((doc) => (
+                <motion.div
+                  key={doc.nameEn}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.25 }}
+                  className="group relative flex w-80 shrink-0 snap-center flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/5 transition-all duration-500 hover:-translate-y-2 hover:border-brand-gold-400 hover:shadow-2xl hover:shadow-brand-gold-500/15"
+                >
+                  {/* Doctor Headshot Portrait Frame */}
+                  <div className="relative h-80 w-full overflow-hidden bg-slate-900">
+                    <img
+                      src={doc.image}
+                      alt={doc.name}
+                      className={cn(
+                        'h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-108 filter brightness-100 group-hover:brightness-105',
+                        doc.position,
+                      )}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                    
+                    {/* Experience Badge */}
+                    <span className="absolute top-4 start-4 rounded-full border border-white/30 bg-black/60 px-3 py-1 backdrop-blur-md text-xs font-semibold text-brand-gold-300">
+                      {doc.experience}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col p-6 text-start bg-white">
+                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-brand-gold-700 transition-colors">
+                      {isArabic ? doc.name : doc.nameEn}
+                    </h3>
+                    <p className="mt-1 text-sm font-bold text-brand-gold-600">
+                      {isArabic ? doc.specialty : doc.specialtyEn}
+                    </p>
+                    <Button
+                      size="sm"
+                      className="mt-5 rounded-xl bg-slate-900 text-white hover:bg-brand-gold-500 hover:text-slate-950 font-bold transition-all flex items-center justify-center gap-2"
+                      onClick={() => handleBookDoctor(doc)}
+                    >
+                      <Calendar className="h-4 w-4" />
+                      {t('doctors.cta')}
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -792,50 +906,6 @@ function TestimonialsSection() {
               <p className="mt-4 italic text-slate-700 leading-relaxed font-medium">&ldquo;{item.quote}&rdquo;</p>
               <p className="mt-4 text-sm font-bold text-brand-gold-700">{item.name}</p>
             </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function HowItWorksSection() {
-  const { t } = useTranslation('landing')
-  const steps = t('howItWorks.steps', { returnObjects: true }) as Array<{
-    step: string
-    title: string
-    desc: string
-  }>
-
-  return (
-    <section id="how-it-works" className="bg-[#f8fafc] text-slate-900 px-4 py-24 sm:px-6 border-t border-slate-100">
-      <div className="mx-auto max-w-6xl">
-        <motion.h2
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 0.5 }}
-          className="text-center text-4xl font-extrabold text-slate-900"
-        >
-          {t('howItWorks.heading')}
-        </motion.h2>
-
-        <div className="relative mt-16 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-6">
-          {steps.map((item, index) => (
-            <motion.div
-              key={item.step}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.4 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group relative flex flex-col items-center rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-lg shadow-slate-900/5 transition-all duration-300 hover:border-brand-gold-400 hover:-translate-y-2"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-gold-500 to-amber-600 text-xl font-bold text-slate-950 shadow-lg shadow-brand-gold-500/25">
-                {item.step}
-              </div>
-              <h3 className="mt-6 text-xl font-bold text-slate-900">{item.title}</h3>
-              <p className="mt-3 text-slate-600 leading-relaxed font-medium">{item.desc}</p>
-            </motion.div>
           ))}
         </div>
       </div>

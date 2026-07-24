@@ -13,7 +13,7 @@ export const queryClient = new QueryClient({
       retry: 1,
       refetchOnWindowFocus: true,
       refetchOnMount: 'always',
-      staleTime: 0,
+      staleTime: 2000,
     },
   },
 })
