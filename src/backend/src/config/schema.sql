@@ -212,6 +212,19 @@ CREATE TABLE IF NOT EXISTS otp_verifications (
 
 CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_verifications(phone_number);
 
+-- Password reset (forgot-password flow, phone OTP) — reuses the UC-19 OTP
+-- infrastructure. purpose widened to cover this second use; user_id links a
+-- password_reset row to the existing account it's resetting (NULL for
+-- registration rows, since no account exists yet at that point). ON DELETE
+-- SET NULL (not the column's default NO ACTION) since this is ephemeral,
+-- short-lived tracking data — a deleted user should never be blocked by a
+-- dangling reference from an old OTP row.
+ALTER TABLE otp_verifications DROP CONSTRAINT IF EXISTS otp_verifications_purpose_check;
+ALTER TABLE otp_verifications ADD CONSTRAINT otp_verifications_purpose_check
+  CHECK (purpose IN ('registration', 'password_reset'));
+ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS
+  user_id UUID REFERENCES users(user_id) ON DELETE SET NULL;
+
 -- ── patient_invoices ─────────────────────────────────────────────────────────
 -- Billing documents uploaded by staff. No RLS — access is role-gated only
 -- (admin/superadmin upload; admin/superadmin/doctor view any patient's;
@@ -294,6 +307,13 @@ CREATE TABLE IF NOT EXISTS password_setup_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_pst_token ON password_setup_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_pst_user  ON password_setup_tokens(user_id);
+
+-- Distinguishes the QR-based first-password flow from a forgot-password
+-- reset issued through the same table — setPassword (passwordSetupController.js)
+-- uses this to decide whether to log PASSWORD_RESET_COMPLETED.
+ALTER TABLE password_setup_tokens ADD COLUMN IF NOT EXISTS
+  purpose VARCHAR(20) NOT NULL DEFAULT 'initial_setup'
+  CHECK (purpose IN ('initial_setup', 'password_reset'));
 
 -- ── audit_log ──────────────────────────────────────────────────────────────
 -- Append-only. No UPDATE/DELETE grants are given to the application role

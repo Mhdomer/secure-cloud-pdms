@@ -94,6 +94,20 @@ async function run() {
       created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     GRANT SELECT, INSERT, UPDATE, DELETE ON notifications TO pdms_app;
+
+    -- 7. Forgot Password (phone OTP reset) — widens otp_verifications for
+    -- reuse by the new password-reset flow, and tags password_setup_tokens
+    -- rows so the shared setPassword controller can tell a reset apart from
+    -- a first-time QR setup. See docs/superpowers/specs/2026-07-24-forgot-password-design.md.
+    ALTER TABLE otp_verifications DROP CONSTRAINT IF EXISTS otp_verifications_purpose_check;
+    ALTER TABLE otp_verifications ADD CONSTRAINT otp_verifications_purpose_check
+      CHECK (purpose IN ('registration', 'password_reset'));
+    ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS
+      user_id UUID REFERENCES users(user_id) ON DELETE SET NULL;
+
+    ALTER TABLE password_setup_tokens ADD COLUMN IF NOT EXISTS
+      purpose VARCHAR(20) NOT NULL DEFAULT 'initial_setup'
+      CHECK (purpose IN ('initial_setup', 'password_reset'));
   `);
 
   console.log('FEATURE SCHEMA ADDITIONS APPLIED SUCCESSFULLY!');
