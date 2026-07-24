@@ -1180,6 +1180,926 @@ correct behavior, just easy to misdiagnose as a bug in a hurry.
 
 ---
 
+## Sprint 3c — Security Hardening Round 2
+
+---
+
+### [DELTA-029] RLS empty-string UUID cast guard — billing/visit tables 500'd for admin sessions
+
+| Field | Value |
+|---|---|
+| **Category** | Security / DB Schema |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — schema.sql patched, local DB updated, pattern documented in `docs/psm2/rls-policy-guidelines.md` |
+
+**What changed:**
+The RLS policies added in DELTA-026/027 for `visits`, `visit_invoices`,
+`invoice_items`, and `patient_care_team` cast session variables directly to
+`::uuid` (e.g. `current_setting('app.current_user_id', true)::uuid`).
+Admin and superadmin sessions leave those session GUCs as empty strings —
+not NULL — because their sessions have no user/doctor/patient UUID to
+set. PostgreSQL evaluates `''::uuid` immediately and throws an
+`invalid_text_representation` error regardless of the surrounding role
+check, so every admin or superadmin request that touched these four
+tables (creating a walk-in, billing, viewing invoices) returned HTTP 500.
+
+Fix: wrap every such cast in `NULLIF(..., '')` before casting, matching
+the pattern already used by the older `medical_records`/`patients`/
+`lab_results` policies that had learned this lesson earlier (see
+`docs/psm2/rls-policy-guidelines.md`). The gotcha and the required
+pattern are now documented in `rls-policy-guidelines.md` so future
+policy authors copy the guarded version instead of a bare `::uuid` cast.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 4 | §4.x Security Design / RLS | Document the empty-string GUC gotcha as a systematic rule: all RLS policy casts of session variables must use `NULLIF(..., '')` before `::uuid`. Reference `rls-policy-guidelines.md` as the authoritative source for this pattern. |
+| Chapter 4 | §4.x Security Design | Worth a short "lessons learned" note: the same fix was needed twice (once for medical_records/patients in an earlier session, now for the billing/visit tables), demonstrating why a dedicated RLS policy guidelines document was created — the pattern is subtle enough that two separate implementation sessions missed it independently |
+
+---
+
+## Sprint 3c — Dashboard Upgrade + Specialty Pages
+
+---
+
+### [DELTA-030] Glassmorphism dashboard redesign + standalone specialty detail pages + billing date cast fix
+
+| Field | Value |
+|---|---|
+| **Category** | UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — verified live across all four dashboards and Appointments page, both languages |
+
+**What changed:**
+All four role dashboards (`DoctorDashboard`, `AdminDashboard`,
+`PatientDashboard`, `SuperAdminDashboard`) received a glassmorphism card
+styling pass — frosted-glass backgrounds, subtle border highlights, and
+depth layering on stat cards and panels — matching the Canva reference
+mockups more closely than the flat card treatment they had before.
+
+Per-role additions in this pass:
+- **Doctor** — 1-click Lab Order and Rx Order action buttons embedded
+  directly in the expanded appointment timeline cards; Vitals Highlight
+  Bar inside the Patient Summary card (displays the most-recent visit's
+  vital signs at a glance — BP, temperature, weight — read from
+  `medical_records.vital_signs` JSONB).
+- **Admin/Staff** — instant patient search bar (MRN / Name / Phone,
+  live results, no page reload); Queue Status Filter Tabs (All /
+  Waiting Room / In Consultation / Completed); pulsing animated badges
+  on waiting-room patient cards.
+- **Patient** — SMS appointment reminder action; Google Maps directions
+  link to the clinic; PDF Export and Print icons on prescriptions and
+  past visits.
+- **Superadmin** — System Health KPI Bar (Total Users, Active Doctors,
+  Today's Appointments, Operational Status) wired to the new
+  `GET /users/system-health` endpoint (DELTA-032); Audit Feed snippet
+  showing recent user-management actions.
+
+Landing page: rebuilt Specialty Centres section with KPJ-style staggered
+cards; new standalone `/specialties/:slug` detail pages (one per
+specialty — Dentistry, General Medicine, Laboratory, Pediatrics,
+Dermatology/Cosmetology) with rich descriptions, services listed, and
+a real clinic photo background. Trust section gained a watermark and
+floating animated stat counters.
+
+**Bug fixed in this commit:** `billingController.getDailyReport` and
+`getDailyInvoices` cast the date query parameter as `::date` before
+applying `AT TIME ZONE`, which PostgreSQL rejects — `AT TIME ZONE`
+requires a timestamp, not a date. Fixed by casting to `::timestamp`
+instead. The Z-Report and billing report pages were silently returning
+zero rows for any date filter until this was corrected.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 4 | §4.x UI Design / Screen Designs | Update all four dashboard descriptions: glassmorphism card treatment (visual); per-role additions (Doctor: 1-click Lab/Rx + Vitals Bar; Staff: instant search + filter tabs + lobby badges; Patient: SMS + Maps + PDF export; Superadmin: System Health KPI bar + Audit Feed) |
+| Chapter 4 | §4.x UI Design | Add `/specialties/:slug` as a 5th public route (alongside the 4 from DELTA-016); describe the staggered-card Specialty Centres section on the home page |
+| Chapter 4 | §4.x Security Design | Note the billing date cast bug as a testing coverage gap — the Z-Report endpoint's date filtering was untested for any specific date (only the default "today" path), so the cast error only surfaced once a non-default date was passed |
+
+---
+
+## Sprint 3c — Database Performance + Fraud Prevention
+
+---
+
+### [DELTA-031] Composite DB indexes for scale + paid_by schema migration
+
+| Field | Value |
+|---|---|
+| **Category** | DB Schema / Security |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — schema.sql updated, apply-rls.js migration script added |
+
+**What changed:**
+Added composite indexes targeting the most common multi-column query
+patterns across the high-traffic tables:
+- `visits(doctor_id, checked_in_at, status)` — the today-queue query
+  filters on all three simultaneously
+- `visit_invoices(patient_id, status)` — billing history per patient
+- `medical_records(patient_id, created_at)` — timeline queries
+- `appointments(doctor_id, scheduled_at, status)` — dashboard range queries
+
+Added `paid_by UUID REFERENCES users(user_id)` column to
+`visit_invoices`. When staff collects payment via `payInvoice`, their
+`user_id` (from the authenticated session) is stored alongside the
+payment amount and method. This creates an immutable audit trail of
+which staff member processed each transaction — a fraud prevention
+control that prevents any individual from denying they collected a
+payment later found to be inconsistent.
+
+Added `apply-rls.js` migration script for programmatically applying RLS
+policy changes to an existing live database without re-running the full
+`schema.sql` (which would fail on already-existing tables).
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.2 Non-Functional Requirements | Add NFR: "The system shall maintain sub-second query response on patient timeline and appointment schedule queries under concurrent clinic load" — the composite indexes are the mechanism |
+| Chapter 4 | §4.x DB Schema / ER Diagram | Add the composite indexes to the schema description; add `paid_by` FK column to `visit_invoices` entity |
+| Chapter 4 | §4.x Security Design | Document `paid_by` as a fraud-prevention control: immutable staff attribution on every payment transaction, independent of application-level role checks — even a compromised admin account cannot retroactively erase who collected a payment |
+
+---
+
+### [DELTA-032] Superadmin system-health endpoint with 60s TTL cache
+
+| Field | Value |
+|---|---|
+| **Category** | API / Functionality / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — wired live to SuperAdminDashboard KPI bar |
+
+**What changed:**
+New `GET /users/system-health` endpoint (superadmin only) returns a live
+snapshot of the system's operational state: total registered users by
+role, active doctor count, today's visit count, today's appointment
+count, and a simple `status: 'operational' | 'degraded'` signal. A
+60-second in-memory TTL cache is applied server-side so that the
+SuperAdminDashboard's polling (which fires on every load plus its
+`refetchInterval`) cannot hammer the database with aggregation queries
+under a busy clinic session.
+
+Wired to the SuperAdminDashboard's new System Health KPI Bar
+(DELTA-030), replacing the previously static placeholder values that
+showed hardcoded zeros.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "Superadmin shall have access to a real-time operational dashboard showing user counts, active doctors, and daily activity metrics" |
+| Chapter 4 | §4.x API Design | Add `GET /users/system-health` to the endpoint table (superadmin only, 60s TTL cached) |
+| Chapter 4 | §4.x Design Decisions | Document the TTL cache approach: aggregation queries are expensive enough to warrant a 60-second cache on a low-write endpoint (system health changes rarely within one minute), but short enough that the dashboard reflects real operational state |
+
+---
+
+### [DELTA-033] Staff payment attribution (paid_by) + full BillingHistoryPage
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI / Security |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — backend verified, BillingHistoryPage verified live as admin |
+
+**What changed:**
+Two related billing additions built on the `paid_by` column introduced
+in DELTA-031:
+
+**Payment attribution:** `billingController.payInvoice` now writes the
+authenticated user's `user_id` into `visit_invoices.paid_by` when
+payment is collected. The `InvoicePage` print view displays "Collected
+by: [staff name]" on the invoice, making the attending staff member
+permanently visible on the printed record. This closes a fraud vector
+where a payment could be collected off-system and the digital record
+never updated — now every paid invoice has an accountable staff member
+attached.
+
+**BillingHistoryPage** (`/billing-history`, admin + superadmin): a
+complete billing report UI showing all invoices across any date range
+with summary totals (collected, outstanding, grand total), filterable
+by status, sortable by date/amount, and linking through to individual
+invoice print pages. Replaces the ad-hoc "find by navigating to
+/visits/:id/invoice" workflow staff previously had to use. Backend
+extended with `GET /billing/history` supporting `from`/`to`/`status`
+query filters.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "The system shall record which staff member collected each payment, displayed on the invoice and in the billing history" and "Staff shall be able to view a date-filtered billing history with aggregate totals" |
+| Chapter 4 | §4.x Security Design | Add `paid_by` attribution to the audit trail description — alongside CloudTrail (infrastructure) and AuditLog (application actions), payment-level attribution is a third layer of accountability specific to financial transactions |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the BillingHistoryPage description (/billing-history route, date range filter, status filter, summary tiles, table with View Invoice links) |
+
+---
+
+## Sprint 3c — Appointment Reminders + Clinical Records
+
+---
+
+### [DELTA-034] Non-blocking SMS appointment reminders
+
+| Field | Value |
+|---|---|
+| **Category** | API / Functionality / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — SMS delivery uses existing `smsProvider.js` stub (logs instead of sending until a live Twilio key is configured); fire-and-forget, returns HTTP 202 immediately |
+
+**What changed:**
+New `POST /appointments/:id/send-reminder` endpoint (admin +
+superadmin). The controller looks up the appointment's patient phone
+number and scheduled time, formats a bilingual reminder message, and
+passes it to `smsProvider.js` — the same stub already used by the OTP
+flow (UC-19). The HTTP response returns 202 immediately without waiting
+for SMS delivery; the send is fire-and-forget to keep the UI
+non-blocking even if the provider is slow.
+
+Staff-facing triggers added in two places: a "Send Reminder" button
+per appointment row in `AppointmentsPage` (shown for scheduled and
+confirmed appointments only), and a quick-action button on confirmed
+appointments in `AdminDashboard`'s schedule table.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "Staff shall be able to trigger an SMS appointment reminder to a patient directly from the appointment list" |
+| Chapter 4 | §4.x API Design | Add `POST /appointments/:id/send-reminder` (admin + superadmin, 202 fire-and-forget) |
+| Chapter 4 | §4.x System Design | Note the non-blocking (202) pattern for external communication calls — the same approach used by the OTP flow — and why: SMS provider latency must not block the UI |
+
+---
+
+### [DELTA-035] Treatment-relationship RLS + cross-clinic medical history + consultation vitals grid
+
+| Field | Value |
+|---|---|
+| **Category** | DB Schema / Security / Functionality / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented |
+
+**What changed:**
+Three related additions to the clinical records layer:
+
+**Treatment-relationship RLS:** `medicalRecordsController.listForPatient`
+previously returned only records written by the querying doctor.
+Updated to use a treatment-relationship scope: a doctor can read any
+medical record for a patient if that doctor has ever written at least
+one record for that patient (i.e., has a treatment relationship), even
+if the record being read was written by a different doctor at a
+different visit. This enables continuity-of-care: the current treating
+doctor can see what a colleague wrote at a previous visit.
+
+**Cross-clinic history:** the same query scoping change means that a
+doctor at Branch 2 who has treated a patient can read records written
+at Branch 1, since both branches share the same database. No additional
+column or filter is needed — the treatment relationship is the gate.
+
+**Consultation vitals input grid:** `ConsultationPage` gained an
+inline vitals capture form: Blood Pressure (systolic/diastolic),
+Temperature (°C), Weight (kg), Height (cm), SpO₂ (%). Values are saved
+into the `medical_records.vital_signs` JSONB column when the doctor
+saves a record during the consultation. On re-opening the consultation,
+the last-recorded vitals are displayed in the Patient Summary card's
+Vitals Highlight Bar (DELTA-030).
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "A doctor shall be able to view all medical records for any patient with whom they have a treatment relationship, regardless of which doctor wrote each individual record" |
+| Chapter 4 | §4.x Security Design / RLS | Document the treatment-relationship scoping rule: the RLS predicate for doctor-read on `medical_records` is "has ever written a record for this patient", not "is currently the assigned doctor" — chosen for continuity-of-care, not blanket access |
+| Chapter 4 | §4.x ER Diagram | Add `vital_signs` JSONB to the `medical_records` entity (if not already in DELTA-007 update) |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the vitals input grid to the Consultation Page description |
+
+---
+
+### [DELTA-036] Client-side PDF export + safe vitals display + live system-health wiring
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented |
+
+**What changed:**
+Three independent frontend additions shipped together:
+
+**PDF export** (`lib/pdfGenerator.ts`): a client-side PDF generation
+utility (browser `window.print()` with a targeted print stylesheet, or
+a third-party library) that produces downloadable PDFs for medical
+records and prescription summaries. Surfaced as PDF Export / Print icon
+buttons on the Patient Dashboard's past-visits and prescription cards.
+
+**Safe vitals display:** the Doctor Dashboard's Patient Summary card
+and the Consultation Page previously crashed silently if
+`vital_signs` was null (newly added patients have no vitals recorded
+yet). Added null-guards so the vitals section gracefully renders
+"Not recorded" rather than throwing a TypeError.
+
+**Live system-health wiring:** SuperAdminDashboard's KPI bar
+(introduced in DELTA-030 as static placeholders) wired to
+`GET /users/system-health` (DELTA-032) via a `useQuery` with
+`refetchInterval: 60_000`. Each KPI tile now shows real numbers.
+
+**TodaysVisitsPage** extended with additional columns (elapsed wait
+time, visit type badge) and a "View Invoice" link on completed/billed
+rows that bypasses the "Bill Now" step when payment is already
+collected.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "Patients shall be able to export or print their medical records and prescriptions as PDFs directly from their portal" |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add PDF export buttons to the Patient Dashboard description; add elapsed-wait-time column and View Invoice link to the TodaysVisitsPage description |
+| Chapter 4 | §4.x UI Design | Note the null-guard pattern as a patient-safety consideration: a vitals section that crashes or shows stale data is worse than one that clearly says "not recorded" |
+
+---
+
+## Sprint 3c — Major Feature Additions (Clinical Tools + Operations)
+
+---
+
+### [DELTA-037] Command Palette, Lobby Kanban, Odontogram/Body Chart, Wasfaty E-Rx, Room Allocation, Insurance Co-Pay
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI / DB Schema / API |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — six distinct features in one commit |
+
+**What changed:**
+Six operational and clinical features added in a single implementation
+pass:
+
+**Command Palette** (`components/shared/CommandPalette.tsx`) — triggered
+by Ctrl+K (or Cmd+K on Mac). Fuzzy-searches across patients (by name /
+file# / national ID), appointments (by patient name / date), and app
+routes (Dashboard, Patients, Records…). Results navigate directly on
+selection. Accessible without a mouse — a keyboard-first power-user
+feature for high-volume front-desk sessions.
+
+**Lobby Kanban Board** (`components/visits/LobbyKanbanBoard.tsx`) —
+a card-based visual board on the Admin Dashboard showing today's
+walk-in visits as columns: Waiting → In Consultation → Done. Cards show
+patient name, file#, queue number, elapsed time, and assigned doctor.
+Built on the existing `visitsApi.listToday()` — no new endpoint. Admin
+can drag (or click action buttons) to advance a visit's status, same
+as the table view in `TodaysVisitsPage`.
+
+**Queue Ticket Modal** (`components/visits/QueueTicketModal.tsx`) —
+a printable/shareable queue ticket overlay showing the patient's name,
+queue number (large), doctor, and estimated wait. Triggered by the
+"Print Ticket" action on a walk-in visit card.
+
+**Odontogram / Body Chart** (`components/clinical/OdontogramBodyChart.tsx`)
+— an SVG-based clinical annotation tool. Doctors can toggle between
+a dental odontogram (32 teeth, upper/lower arches) and a body chart
+(front/back silhouette), tapping regions to mark conditions
+(caries, crown, missing, extraction, etc. for dental; pain, swelling,
+bruising for body). Annotations save as a JSONB field on the medical
+record. Available inside the Consultation Page's Clinical Notes tab.
+
+**Wasfaty SFDA E-Rx Modal** (`components/clinical/EPrescriptionModal.tsx`)
+— a structured electronic prescription form matching the Saudi Food
+and Drug Authority's Wasfaty e-prescription fields (medication name,
+dosage form, strength, quantity, days supply, refills, prescriber ID,
+patient national ID). The modal generates a prescription summary the
+doctor can review before saving; integration with the live Wasfaty
+API is stubbed (the form POSTs to the clinic's own backend, which
+logs the prescription — live Wasfaty API connection requires a
+registered facility ID, deferred to production deployment).
+
+**Room Allocation** (`rooms` table + `controllers/roomsController.js`
++ `routes/rooms.routes.js` + `components/rooms/RoomStatusGrid.tsx`) —
+a new `rooms` table tracks clinic consultation rooms (room number,
+name, floor, status: available / occupied / maintenance). The
+`RoomStatusGrid` on the Admin Dashboard shows each room's current
+status with a colored badge. Staff can assign a walk-in visit to a
+room from the Lobby Kanban view; the room's status updates
+automatically. New routes: `GET /rooms`, `PATCH /rooms/:roomId/status`
+(admin + superadmin).
+
+**Insurance Co-Pay Engine** — `BillVisitPage` extended with a co-pay
+calculation panel. When payment method is set to "insurance", staff
+enters the insurance coverage percentage; the engine calculates the
+patient's co-pay amount (grand total × (1 − coverage%)) and pre-fills
+the "Amount Paid" field with it, with the remainder shown as
+insurance claim. Server-side: `payInvoice` stores
+`insurance_co` and `amount_balance` (the claim portion) alongside
+`amount_paid` (the co-pay collected from the patient).
+
+**Skeleton loaders** (`components/ui/skeleton-loaders.tsx`) — a set of
+Tailwind pulse-animation placeholder skeletons for the most common
+loading states (patient card, appointment row, invoice table) to
+replace the previous "spinning circle" or blank-white loading states.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FRs for: Command Palette (keyboard-first navigation), Lobby Kanban (visual queue management), Odontogram/Body Chart (clinical annotation), E-Rx (electronic prescription), Room Allocation (room status tracking), Insurance Co-Pay (co-pay calculation) |
+| Chapter 4 | §4.x ER Diagram | Add `rooms` entity (room_id, number, name, floor, status); add odontogram/body chart annotation field to `medical_records` |
+| Chapter 4 | §4.x API Design | Add `GET /rooms`, `PATCH /rooms/:roomId/status` endpoints |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add Command Palette, Lobby Kanban Board, Odontogram/Body Chart, Wasfaty E-Rx Modal, Room Status Grid, and Co-Pay panel to their respective screen descriptions |
+| Chapter 4 | §4.x Design Decisions | Note the Wasfaty E-Rx as "integration-ready": the form, data model, and submission flow are fully built; live Wasfaty API connectivity requires a registered SFDA facility ID, deferred to production deployment — this is a deliberate "production-ready stub" pattern, not an incomplete feature |
+
+---
+
+## Sprint 3c — Financial Analytics + Supporting Clinical Tools
+
+---
+
+### [DELTA-038] Financial analytics backend + Z-Report + allergy checker + voice dictation + barcode scanner + patient kiosk
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI / API |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented |
+
+**What changed:**
+A large pass adding financial reporting infrastructure and four
+supporting clinical/UX tools:
+
+**Financial Analytics Backend** — new backend queries in
+`billingController.js` aggregate revenue by date range, by doctor,
+and by payment method. Returns daily totals, weekly totals, and a
+per-doctor attribution breakdown (which doctor's consultations
+generated how much revenue). Backed by the existing `visit_invoices`
+and `invoice_items` tables; no new schema needed.
+
+**FinancialAnalyticsPage** (`/finance`, superadmin only) and
+**FinancialAnalyticsWidget** (embedded on AdminDashboard for a summary
+view): revenue totals, a breakdown chart by payment method
+(cash/card/insurance), and a per-doctor revenue table. The superadmin
+page has a full date-range picker; the admin widget shows today's
+summary.
+
+**Cashier Z-Report Modal** (`CashierZReportModal.tsx`): an
+end-of-day reconciliation report triggered from the AdminDashboard.
+Shows total transactions, total collected by payment method, and a
+per-staff-member breakdown (using the `paid_by` attribution from
+DELTA-031/033). Designed to match the workflow a real cashier follows
+at shift close — count the drawer, compare to the Z-report, reconcile
+any discrepancy.
+
+**Allergy Checker** (`lib/allergyChecker.ts`): a client-side utility
+that cross-checks a patient's recorded allergy string against a
+medication name being added to the e-prescription or consultation
+notes. Shows a warning banner if a potential match is found. Operates
+entirely client-side (no API call — allergy text is already loaded in
+the patient session) to keep the alert instant rather than network-
+dependent.
+
+**Voice Dictation Button** (`components/shared/VoiceDictationButton.tsx`):
+a microphone button that attaches to the SOAP note textareas in the
+Consultation Page. Uses the browser's Web Speech API
+(`SpeechRecognition`) to transcribe doctor dictation directly into the
+note field. Gracefully hidden on browsers that don't support the API.
+
+**Quick Barcode Scanner Dialog** (`visits/QuickBarcodeScannerDialog.tsx`):
+a dialog that reads a barcode via the device camera (using a barcode
+scanning library) to look up a patient by a printed barcode on their
+physical file card. Triggered from the New Walk-In dialog as a faster
+alternative to typing the file number. Barcode format: the clinic's
+sequential `file_no` encoded as Code 128.
+
+**Patient Kiosk Page** (`pages/public/PatientKioskPage.tsx`): a
+touch-optimized, large-text self-service page for a tablet mounted in
+the clinic lobby. Patients enter their national ID to check their
+queue status, see their doctor's name, and receive a confirmation of
+their check-in. No login required — reads from the public queue status
+endpoint.
+
+**MedicalRecordsTab** enhanced on PatientProfilePage: doctors can now
+see a "clinical summary" header per record (visit type badge, attending
+doctor name, vital signs snapshot) before expanding the full SOAP note.
+
+**RecordDetailPage** enhanced: shows a structured SOAP layout (labelled
+sections for each field) instead of the previous raw textarea dump.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FRs: financial analytics for superadmin/management, cashier Z-Report, allergy-medication interaction warning, voice dictation, barcode patient lookup, self-service lobby kiosk |
+| Chapter 4 | §4.x API Design | Add the financial analytics endpoints (`GET /billing/analytics`, `GET /billing/z-report`) |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add FinancialAnalyticsPage, Z-Report Modal, enhanced MedicalRecordsTab, structured RecordDetailPage, Kiosk Page |
+| Chapter 4 | §4.x Design Decisions | Document the client-side allergy checker design decision: instant local check (no round-trip) is safer than a network-dependent check for a safety-critical warning — a slow network should not delay an allergy alert |
+| Chapter 4 | §4.x Design Decisions | Document the voice dictation graceful-degradation approach: `SpeechRecognition` API availability is detected at render time; the button is hidden rather than disabled on unsupported browsers so the UI does not present a broken control |
+
+---
+
+## Sprint 3c — SOAP Clinical Templates + Public Queue Tracker
+
+---
+
+### [DELTA-039] Quick SOAP clinical templates + mobile public queue tracker
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI / API |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — backend endpoint verified, frontend wired and verified in-browser |
+
+**What changed:**
+**SOAP Clinical Templates** — a backend-managed library of pre-written
+SOAP note templates for the most common conditions a general clinic
+sees (e.g. Upper Respiratory Infection, Hypertension Follow-Up,
+Pediatric Well-Child Visit). New `clinical_templates` table stores
+each template's `name`, `category` (condition group), and the four
+SOAP field values. New routes: `GET /templates` (doctor + admin,
+returns active templates), `POST /templates` (superadmin only — creates
+new templates). Inside the Consultation Page's Clinical Notes tab, a
+"Quick Templates" button opens a searchable modal; selecting a template
+pre-fills all four SOAP textareas, which the doctor can then edit.
+Saves significant typing time for routine presentations.
+
+**Bug fixed in this commit:** `clinicalTemplates.routes.js` imported
+`authenticateJWT` from the wrong path (`../middleware/auth` instead of
+`../middleware/authMiddleware`), causing a startup crash. Corrected in
+the following commit (`1e9bf54`).
+
+**Public Queue Tracker** (`pages/public/QueueTrackerPage.tsx`, route
+`/queue-tracker`) — a public, no-auth mobile page for patients waiting
+in the clinic lobby. The patient enters their queue number and selects
+their doctor; the page shows their current position in the queue (how
+many patients are ahead of them), the current active patient's number,
+and an estimated wait time (based on average elapsed consultation
+duration for that doctor today). Refreshes every 30 seconds. Requires
+no login — patients can open it on their own phone without registering
+for the system. New backend endpoint: `GET /visits/queue-status?doctorId=`
+(public, no auth middleware) returns aggregated, non-PII queue
+information (position counts and current number — no patient names).
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FRs: "Doctors shall be able to pre-fill SOAP notes from a template library for common conditions" and "Patients shall be able to check their real-time queue position from a public URL without logging in" |
+| Chapter 4 | §4.x ER Diagram | Add `clinical_templates` entity (template_id, name, category, chief_complaint, objective, assessment, plan, is_active) |
+| Chapter 4 | §4.x API Design | Add `GET /templates`, `POST /templates`, `GET /visits/queue-status` endpoints; note `GET /visits/queue-status` as the only truly public (unauthenticated) API endpoint in the system, and what PII it does NOT return (no patient names, only position counts) |
+| Chapter 4 | §4.x Security Design | Document the `/queue-status` endpoint's privacy-by-design: it returns queue position numbers and counts only — never patient names, national IDs, or any identifying information. A patient's privacy is preserved even if they share the queue tracker URL |
+
+---
+
+## Sprint 3c — Doctor Consultation Page Final Redesign
+
+---
+
+### [DELTA-040] Doctor consultation page rebuilt as 4-tab layout with real-time sync
+
+| Field | Value |
+|---|---|
+| **Category** | UI / Functionality |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — verified live in-browser, real-time sync confirmed across two browser tabs |
+
+**What changed:**
+`ConsultationPage.tsx` was completely rebuilt from a single-scroll page
+into a 4-tab layout, and a real-time cross-tab sync mechanism was added
+so the Staff page updates automatically when the doctor takes action.
+
+**4-tab structure:**
+
+| Tab | Content |
+|---|---|
+| Overview | Patient summary card (name, file#, age, allergies, blood type, care team) + current visit info (queue#, clinic, checked-in time, doctor) |
+| Clinical Notes | SOAP note form (Chief Complaint, Objective, Assessment, Plan) + vital signs grid + Quick Templates button + Voice Dictation button + Odontogram/Body Chart toggle |
+| Billing | Services/items table (add from catalog, remove, qty) + prescription notes textarea + "Complete Visit" button |
+| History | Past medical records (most recent 10, expandable) + past visits list (date, doctor, status) |
+
+The tab separation addresses the original single-scroll page's
+usability problem: on a typical consultation, the doctor needs Clinical
+Notes and sometimes History, but the Billing tab (which had previously
+dominated the page with a large service table) was distracting when
+the doctor's focus should be on the patient. Billing is now one click
+away but out of sight when not needed.
+
+**Real-time sync** (`lib/syncChannel.ts`) uses the browser's
+`BroadcastChannel` API to push a lightweight notification to other
+open tabs of the same app when the doctor completes a consultation
+(`markDone`). The Staff's `TodaysVisitsPage` listens on the same
+channel and invalidates its React Query cache when a completion event
+arrives — the visit card updates from "In Consultation" to "Ready to
+Bill" without waiting for the 30-second polling interval. This works
+between tabs of the same browser only (not cross-device), which covers
+the common case of a single front-desk computer with multiple tabs open.
+Cross-device real-time would require WebSockets (deferred to Phase 2).
+
+**Past history cards fixed:** the History tab's past-records list was
+displaying incorrect visit dates (using `created_at` instead of
+`scheduled_at`/`checked_in_at`) and not rendering the attending
+doctor's name. Both corrected.
+
+**NewWalkInDialog** gained a clinic picker (dropdown for Branch 1 /
+Branch 2) — the `visits.clinic` column had existed since DELTA-026 but
+was never populated from the UI, so all visits were created with a
+null clinic value and showed "—" in the visits table.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Update the consultation FR: doctor works within a tabbed consultation workspace (Overview / Clinical Notes / Billing / History), not a single scrolling page |
+| Chapter 4 | §4.x UI Design / Screen Designs | Replace the Consultation Page description entirely: 4-tab layout with content per tab, real-time sync mechanism, and the NewWalkInDialog clinic picker |
+| Chapter 4 | §4.x Design Decisions | Document the BroadcastChannel approach as a deliberate scoping decision: same-browser real-time (sufficient for a single front-desk machine) chosen over WebSockets (which would require a new infrastructure component — socket.io server or AWS API Gateway WebSocket — for marginal gain in the clinic's actual operating context). Cross-device real-time listed as a Phase 2 item |
+| Chapter 4 | §4.x Design Decisions | Document the tab separation rationale: billing controls visible during clinical documentation is a cognitive interference risk — the doctor's attention should be on the patient, not on service codes. Separating Clinical Notes from Billing into distinct tabs is a UI safety decision, not just a layout preference |
+
+---
+
+## Sprint 3c — Corrections to Earlier Entries
+
+---
+
+### [DELTA-040 CORRECTION] ConsultationPage tab names were documented incorrectly
+
+The 4 tabs in `ConsultationPage.tsx` are:
+
+| Tab # | Correct Name | Content |
+|---|---|---|
+| 1 | **SOAP** | Patient vitals strip (BP, HR, Temp, Weight, Height, BMI), Quick Clinical Templates button, Chief Complaint, Physical Exam/Objective findings, Voice Dictation button |
+| 2 | **Wasfaty E-Prescription & Seha Sick Leave** | Structured Wasfaty/SFDA medication table builder (initialized as empty `[]`), Live Drug-Allergy Cross-Sensitivity alert, Official E-Rx Print/Preview modal, MOH Seha Sick Leave generator |
+| 3 | **Dental & Body Charting** | FDI interactive 32-tooth Odontogram and anatomical Body Chart SVG |
+| 4 | **Services & Billing** | Procedure/service selection from catalog, invoice quantity editor |
+
+The original DELTA-040 incorrectly documented the tabs as Overview / Clinical Notes / Billing / History. That was an earlier iteration of the design. The final implementation above is what the code actually contains.
+
+Additionally: the left sidebar of ConsultationPage contains a **Past Medical History** panel with clickable visit cards that open `ViewRecordModal` to inspect historical diagnosis, SOAP notes, and prescribed medications — not a "History" tab.
+
+**Report Chapter 4 update:** Replace any mention of "Overview / Clinical Notes / Billing / History" tabs in the Consultation Page description with the correct 4-tab structure above.
+
+---
+
+### [DELTA-038 CORRECTION] Financial analytics route is `/financial-analytics` not `/finance`
+
+The standalone Financial Analytics Page (superadmin only) is mounted at `/financial-analytics` in `App.tsx`, with a matching sidebar navigation link in `Sidebar.tsx`. The report and any API table should use this path.
+
+Also: the backend analytics endpoint is `GET /api/billing/analytics` (not `/api/finance/...`).
+
+---
+
+### [DELTA-037 CORRECTION] Room statuses have 4 values (not 3); room numbers are 101–501
+
+The `rooms` table status column has 4 values: `available`, `occupied`, **`cleaning`**, `maintenance`. The "cleaning" status was omitted from the original DELTA-037. Room numbers in the grid span 101–501 (not a generic "Room 1 to N" range).
+
+---
+
+### [DELTA-034 CORRECTION] SMS reminder route path
+
+The SMS appointment reminder endpoint is `POST /api/appointments/:appointmentId/reminder-sms`, not `POST /appointments/:id/send-reminder` as DELTA-034 described. The response is HTTP 200 (not 202) — the fire-and-forget pattern uses `setImmediate` to dispatch Twilio after the DB transaction commits, then returns 200 immediately. The audit log entry (`AUDIT_ACTIONS.SCHEDULE_APPOINTMENT`) is written inside the DB transaction.
+
+---
+
+## Sprint 3c — Clinical & Scheduling Features (Week 2)
+
+---
+
+### [DELTA-041] MOH Seha Certified Sick Leave Report Generator
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / DB Schema / API / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — `sick_leaves` table live, backend endpoint active, `SickLeaveModal.tsx` wired to ConsultationPage Tab 2 |
+
+**What changed:**
+New `sick_leaves` table and a dedicated backend module implementing a Ministry
+of Health (MOH) Seha Platform-compliant sick leave report. Components:
+
+**Schema** — `sick_leaves` table: `sl_id` (UUID PK), `patient_id` (FK),
+`doctor_id` (FK), `start_date`, `end_date`, `diagnosis_summary`, `notes`,
+`created_at`. A `SEHA-SL-XXXXXX` reference number is generated server-side
+(sequential or UUID prefix) and included in the printed document.
+
+**Backend** — `sickLeavesController.js`:
+- `POST /api/sick-leaves` (doctor only) — creates a record, binds the
+  real logged-in doctor's session context (`req.rlsSession.doctorId`) to
+  fetch the physician's actual name and specialty from the `doctors` table.
+  Never uses static placeholder strings for doctor identity.
+- `GET /api/sick-leaves/patient/:patientId` (doctor + admin) — retrieves
+  sick leave history for a patient.
+
+**Frontend** — `SickLeaveModal.tsx`: A structured form matching MOH Seha
+fields (patient name, national ID, diagnosis summary, from/to dates, issuing
+doctor's name + specialty + license number). Generates a printable A4-format
+sick leave certificate with the Seha verification reference number. Surfaced
+as a "Sick Leave" action button in ConsultationPage Tab 2
+(Wasfaty E-Prescription & Seha Sick Leave).
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "The system shall allow a doctor to generate an official MOH Seha-compliant sick leave certificate during a consultation, bound to the authenticated doctor's identity" |
+| Chapter 4 | §4.x ER Diagram | Add `sick_leaves` entity (sl_id, patient_id FK, doctor_id FK, start_date, end_date, diagnosis_summary, reference_no, created_at) |
+| Chapter 4 | §4.x API Design | Add `POST /api/sick-leaves` (doctor only) and `GET /api/sick-leaves/patient/:patientId` (doctor + admin) |
+| Chapter 4 | §4.x Design Decisions | Document the real-session-binding decision: the sick leave certificate's physician identity is always derived from `req.rlsSession.doctorId` → DB lookup — never from a form field the user types. A form field would allow any doctor to issue a certificate under another doctor's name, which is a regulatory fraud risk. |
+
+---
+
+### [DELTA-042] Visual Diagnostic Lab & Radiology Results Viewer
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — `LabResultsViewerModal.tsx` wired to ConsultationPage and PatientProfilePage |
+
+**What changed:**
+A new `LabResultsViewerModal.tsx` component implements a multi-panel diagnostic
+lab viewer. The viewer supports four panel types:
+
+| Panel | Fields shown |
+|---|---|
+| CBC (Complete Blood Count) | WBC, RBC, Hemoglobin, Hematocrit, Platelets |
+| Lipid Profile | Total Cholesterol, LDL, HDL, Triglycerides |
+| Renal Function | Creatinine, BUN, eGFR, Uric Acid |
+| Chest X-Ray | Findings text, impression notes, radiology image attachment link |
+
+Each numeric result displays an automated reference range status badge:
+`Normal` (green), `High` (amber), `Critical` (red). The modal also renders
+a lab stamp (clinic name, date, verifying technician) on the printable view.
+
+This enhances the existing lab results upload flow (DELTA-020) — previously
+staff could upload a PDF/image of lab results and the patient/doctor could
+download it. The viewer now parses structured result data (stored as JSONB
+in `lab_results`) and renders it in a clinical-grade panel layout with
+reference ranges, rather than requiring the reader to open the raw PDF.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Update FR for lab results: "The system shall display structured lab results with automated reference range status indicators (Normal/High/Critical), not only raw file downloads" |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the Lab Results Viewer Modal description: panel tabs, reference range badge system, lab stamp, and the print view |
+| Chapter 4 | §4.x Design Decisions | Document the local reference range evaluation decision: range checking runs client-side against the JSONB values already fetched — no separate API call. This keeps the display instant and avoids a second network round-trip for a read-only visual computation. |
+
+---
+
+### [DELTA-043] Interactive Doctor Schedule & 30-Min Time-Slot Booking Grid
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / DB Schema / API / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — `doctor_schedules` table live, `DoctorSchedulePicker.tsx` wired to appointment booking flow |
+
+**What changed:**
+A new `doctor_schedules` table and booking grid provide a visual time-slot
+picker for scheduling appointments:
+
+**Schema** — `doctor_schedules` table: `schedule_id` (UUID PK), `doctor_id`
+(FK), `slot_date` (DATE), `slot_time` (TIME), `status` (VARCHAR CHECK:
+`available` / `booked` / `break`), `created_at`. Each row is one 30-minute
+slot on one specific date for one doctor.
+
+Note: this is separate from `doctor_availability` (DELTA-009/019), which
+stores the doctor's *weekly recurring schedule* (e.g. "Sundays 9 AM – 5 PM").
+`doctor_schedules` stores the *instantiated* daily slot grid (the actual
+available/booked slots for a specific date), generated from the availability
+template when a date is selected in the UI.
+
+**Frontend** — `DoctorSchedulePicker.tsx`: A 30-minute grid spanning 9 AM –
+9 PM. Each slot displays its status with a badge: `Available` (teal),
+`Booked` (amber, shows patient name on hover if doctor/admin), `Doctor Break`
+(gray). Clicking an available slot selects it for the appointment creation
+form. Replaces the plain time-picker `<input type="time">` that was previously
+in `CreateAppointmentDialog`.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "Staff shall be able to select appointment time slots from a visual 30-minute grid showing real-time slot availability per doctor per date" |
+| Chapter 4 | §4.x ER Diagram | Add `doctor_schedules` entity (schedule_id, doctor_id FK, slot_date, slot_time, status); distinguish it from `doctor_availability` (weekly template vs. instantiated daily grid) |
+| Chapter 4 | §4.x UI Design / Screen Designs | Update the Appointment creation dialog description: the time field is a `DoctorSchedulePicker` visual grid, not a plain time picker |
+| Chapter 4 | §4.x Design Decisions | Document the two-table scheduling design: `doctor_availability` = weekly template (e.g. "doctor works Sundays 9–5"); `doctor_schedules` = instantiated slots for a specific date (generated on-demand when a date is picked). The separation means the availability template doesn't need to be re-queried to check every individual slot — the instantiated grid is the authoritative bookable surface. |
+
+---
+
+### [DELTA-044] Treating Doctor attribution on medical record cards
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI / DB Schema |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — `MedicalRecord.findById` and `medicalRecordsController.js` updated; `MedicalRecordsTab.tsx` and `RecordDetailPage.tsx` display doctor name badge |
+
+**What changed:**
+`MedicalRecord.findById` (and the listing queries it feeds) now executes a
+`LEFT JOIN doctors d ON d.doctor_id = mr.doctor_id` and returns `d.full_name
+AS doctor_name` alongside the record fields. Previously the medical record
+model only returned `doctor_id` (UUID) — the UI had no way to display a
+human-readable doctor name without a second lookup.
+
+The `doctor_name` value is now rendered as a badge on:
+- **`MedicalRecordsTab.tsx`** (in PatientProfilePage) — each record card shows
+  "Attending: Dr. [name]" (EN) / "الطبيب المعالج: د. [name]" (AR)
+- **`RecordDetailPage.tsx`** — displayed in the record header below the visit date
+
+This matters clinically: at a multi-doctor polyclinic where a patient may have
+been seen by different physicians across specialties (General, Dental,
+Pediatrics), the record list previously gave no indication of which doctor
+wrote each record. Now each record is unambiguously attributed.
+
+The same JOIN was also applied to the MedicalRecordsTab's cross-specialty
+history view (DELTA-035/044) — treating doctors across clinics are now visible
+in every record regardless of which clinic the record originated at.
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 4 | §4.x UI Design / Screen Designs | Update Medical Records / Patient Profile description: each record card displays attending doctor name badge ("Dr. [name]" / "د. [name]") |
+| Chapter 4 | §4.x Design Decisions | Document the JOIN-at-read approach: doctor name is resolved at query time via JOIN rather than stored denormalized in `medical_records` — avoids stale name data if a doctor updates their display name, at the cost of one JOIN per query (cheap at this scale). |
+
+---
+
+### [DELTA-045] Clinic name correction + operating hours + social links
+
+| Field | Value |
+|---|---|
+| **Category** | Functionality / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — all i18n files and UI references updated |
+
+**What changed:**
+Three localization/content corrections applied across all i18n files and
+backend services:
+
+**Clinic Arabic name** — corrected from `عيادة الأمين` (clinic, singular) to
+`مجمع الأمين الطبي` (polyclinic complex). The landing page hero, footer, sidebar
+wordmark, invoice header, and all `ar/*.json` locale files now use the
+correct name. The English name was already `Alamin PolyClinic` — consistent.
+
+**Operating hours** — corrected from "24/7" (placeholder) to the real clinic
+hours: **Daily 8 AM – 1 AM (Friday: 12 PM – 1 AM)** / **يومياً: ٨ ص – ١ ص
+(الجمعة: ١٢ ظ – ١ ص)**. Updated in the Quick Access emergency card, the
+footer contact section, and relevant i18n keys.
+
+**Branch names** — the two clinic branches are officially named:
+- **Al-Amin Clinic 1 — Namar** (Branch 1, main)
+- **Al-Amin Clinic 2 — Dirab** (Branch 2)
+These names are used in the NewWalkInDialog clinic picker, the
+`/specialties/:slug` page's branch switcher, and the Google Maps embed on
+the specialty detail pages.
+
+**Social media links** — official clinic social accounts added to the
+`LandingFooter`: Snapchat (`@alaminclinic`), Facebook (`Alamin-Clinicss`),
+Instagram (`@alaminclinic`), Twitter/X (`@alaminclinic`).
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 1 | §1.x Case Study — Alamin Clinic | Update any mention of "عيادة الأمين" to "مجمع الأمين الطبي"; update the operating hours if cited |
+| Chapter 4 | §4.x UI Design | Note the branch picker in NewWalkInDialog uses the real branch names (Namar, Dirab) not generic "Branch 1 / Branch 2" |
+
+---
+
+### [DELTA-046] `prescriptions_data` JSONB column + `notifications` table
+
+| Field | Value |
+|---|---|
+| **Category** | DB Schema / Functionality |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented |
+
+**What changed:**
+Two schema additions that support the Wasfaty E-Rx and notification systems:
+
+**`prescriptions_data` JSONB** — added to `medical_records`. Stores the
+structured Wasfaty/SFDA medication table as a JSON array of prescription
+objects (trade name, dosage form, strength, quantity, days supply, refills,
+frequency, instructions). Separate from the existing `prescription` TEXT
+column (which stored free-text notes) — the JSONB column is the machine-
+readable structured form used to generate the printable E-Rx document.
+
+**`notifications` table** — new table backing the live notification drawer
+(DELTA-030/038): `notification_id` (UUID PK), `user_id` (FK — recipient),
+`type` (VARCHAR: `visit_checkin` / `queue_sla_alert` / `unbilled_visit`),
+`title`, `body`, `is_read` (BOOLEAN DEFAULT false), `metadata` (JSONB —
+stores the visit_id or patient_id the notification links to), `created_at`.
+Live SQL queries joining `visits`, `patients`, and `doctors` populate
+notification rows when:
+- A patient checks in (walk-in or arrived appointment)
+- A visit exceeds 20 minutes in the waiting queue (SLA alert)
+- A visit is marked `completed` but has no `visit_invoices` row (unbilled alert)
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 4 | §4.x ER Diagram | Add `notifications` entity; add `prescriptions_data` JSONB to `medical_records` entity |
+| Chapter 4 | §4.x API Design | Add `GET /api/notifications` (own user's notifications), `PATCH /api/notifications/read-all` (mark all read) |
+| Chapter 4 | §4.x Design Decisions | Distinguish `prescriptions_data` (JSONB, structured Wasfaty E-Rx array) from `prescription` TEXT (free-text clinical notes) — both coexist on `medical_records`; the TEXT field supports quick dictation while the JSONB field supports the formal printable document format |
+
+---
+
 ## How to use this file
 
 1. After each sprint ends, check this file before editing the report.
@@ -1189,4 +2109,4 @@ correct behavior, just easy to misdiagnose as a bug in a hurry.
 
 ---
 
-*Last updated: Sprint 3c — DELTA-028 (2026-07-19)*
+*Last updated: Sprint 3c — DELTA-046 + corrections (2026-07-24)*
