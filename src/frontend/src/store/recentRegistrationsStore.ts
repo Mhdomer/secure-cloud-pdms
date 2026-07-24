@@ -16,8 +16,20 @@ interface RecentRegistrationsStore {
   clearEntries: () => void
 }
 
-/** Enough to comfortably cover "today" across a full front-desk shift without growing unbounded. */
-const MAX_ENTRIES = 20
+/** Enough to cover "just registered" UX without accumulating a long shift's worth of patient PII in sessionStorage. */
+const MAX_ENTRIES = 5
+
+/**
+ * Front-desk workstations are often shared across shifts without the
+ * browser tab ever closing, so `sessionStorage`'s "clears on tab close"
+ * guarantee alone isn't enough — entries are also dropped once they're
+ * older than a single shift, independent of whether/when clearAuth() ran.
+ */
+const MAX_AGE_MS = 8 * 60 * 60 * 1000
+
+function isFresh(entry: RecentRegistration): boolean {
+  return Date.now() - new Date(entry.registeredAt).getTime() < MAX_AGE_MS
+}
 
 /**
  * Session-local "who did I just register" trail for the Admin Dashboard's
@@ -50,13 +62,23 @@ export const useRecentRegistrationsStore = create<RecentRegistrationsStore>()(
       entries: [],
       addEntry: (entry) =>
         set((state) => ({
-          entries: [entry, ...state.entries].slice(0, MAX_ENTRIES),
+          entries: [entry, ...state.entries].filter(isFresh).slice(0, MAX_ENTRIES),
         })),
       clearEntries: () => set({ entries: [] }),
     }),
     {
       name: 'pdms-recent-registrations',
       storage: createJSONStorage(() => sessionStorage),
+      // Purge stale entries at hydration time too — a tab left open across
+      // a shift change never calls addEntry again, so filtering only there
+      // would let yesterday's rows sit in sessionStorage indefinitely.
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as RecentRegistrationsStore | undefined
+        return {
+          ...currentState,
+          entries: (persisted?.entries ?? []).filter(isFresh).slice(0, MAX_ENTRIES),
+        }
+      },
     },
   ),
 )
