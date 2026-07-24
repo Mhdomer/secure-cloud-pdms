@@ -19,6 +19,7 @@ const billingRoutes = require('./billing.routes');
 const billingHistoryRoutes = require('./billingHistory.routes');
 const sickLeavesRoutes = require('./sickLeaves.routes');
 const notificationsRoutes = require('./notifications.routes');
+const clinicalTemplatesRoutes = require('./clinicalTemplates.routes');
 
 const router = Router();
 
@@ -55,5 +56,6 @@ router.use('/visits/:visitId/invoice', billingRoutes);
 router.use('/', billingHistoryRoutes);
 router.use('/sick-leaves', sickLeavesRoutes);
 router.use('/notifications', notificationsRoutes);
+router.use('/clinical-templates', clinicalTemplatesRoutes);
 
 module.exports = router;

@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toaster'
 import { useLanguage } from '@/hooks/useLanguage'
-import { billingApi, recordsApi, visitsApi } from '@/lib/api'
+import { billingApi, recordsApi, visitsApi, clinicalTemplatesApi, type ClinicalTemplate } from '@/lib/api'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { cn } from '@/lib/utils'
 import { OdontogramBodyChart } from '@/components/clinical/OdontogramBodyChart'
@@ -145,6 +145,21 @@ export default function ConsultationPage() {
     enabled: !!visit?.patientId,
   })
   const recentRecords = historyPage?.records ?? []
+
+  const { data: templatesData } = useQuery({
+    queryKey: ['clinical-templates'],
+    queryFn: () => clinicalTemplatesApi.list(),
+  })
+  const templates = templatesData?.templates ?? []
+
+  const handleApplyTemplate = (tmpl: ClinicalTemplate) => {
+    setChiefComplaint(currentLang === 'ar' ? tmpl.chiefComplaintAr : tmpl.chiefComplaintEn)
+    setDiagnosis(`${currentLang === 'ar' ? tmpl.diagnosisAr : tmpl.diagnosisEn} (${tmpl.icd10})`)
+    setRecordNotes(
+      `[${currentLang === 'ar' ? 'الفحص السريري' : 'Physical Exam'}]: ${currentLang === 'ar' ? tmpl.examinationAr : tmpl.examinationEn}\n[${currentLang === 'ar' ? 'خطة العلاج' : 'Treatment Plan'}]: ${currentLang === 'ar' ? tmpl.treatmentPlanAr : tmpl.treatmentPlanEn}`
+    )
+    toast.success(currentLang === 'ar' ? `تم تطبيق قالب: ${tmpl.titleAr}` : `Applied template: ${tmpl.titleEn}`)
+  }
 
   const [chiefComplaint, setChiefComplaint] = useState('')
   const [diagnosis, setDiagnosis] = useState('')
@@ -726,6 +741,33 @@ export default function ConsultationPage() {
           <Card>
             <CardContent className="flex flex-col gap-3 pt-6">
               <h2 className="text-base font-semibold text-foreground">{t('consult.addRecordHeading')}</h2>
+
+              {/* Quick Clinical SOAP Templates Bar */}
+              {templates.length > 0 && (
+                <div className="flex flex-col gap-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                      ⚡ {currentLang === 'ar' ? 'قوالب التشخيص السريع (SOAP Templates)' : 'Quick Clinical SOAP Templates'}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {currentLang === 'ar' ? 'اضغط لتعبئة التقرير تلقائياً' : 'Click chip to auto-fill'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {templates.map((tmpl) => (
+                      <button
+                        key={tmpl.id}
+                        type="button"
+                        onClick={() => handleApplyTemplate(tmpl)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-primary-500 hover:text-primary-600 transition-all flex items-center gap-1"
+                      >
+                        <span>{currentLang === 'ar' ? tmpl.titleAr : tmpl.titleEn}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">({tmpl.icd10})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col gap-1.5">
                 <div className="flex justify-between items-center">

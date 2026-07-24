@@ -349,3 +349,58 @@ exports.sendTicketSms = async (req, res) => {
   });
   res.json(result);
 };
+
+// ── GET /api/visits/:visitId/tracker (Public Queue Tracker) ────────────────
+exports.getPublicQueueTracker = async (req, res) => {
+  const visitId = req.params.visitId;
+  const { pool } = require('../config/database');
+
+  const { rows } = await pool.query(
+    `SELECT v.visit_id, v.queue_no, v.status, v.checked_in_at, v.clinic, v.doctor_id,
+            p.full_name AS patient_name, d.full_name AS doctor_name
+       FROM visits v
+       JOIN patients p ON p.patient_id = v.patient_id
+       JOIN doctors d ON d.doctor_id = v.doctor_id
+      WHERE v.visit_id = $1`,
+    [visitId]
+  );
+
+  if (!rows.length) {
+    return res.status(404).json({ message: 'Visit ticket not found' });
+  }
+
+  const currentVisit = rows[0];
+
+  // Calculate live position statistics from today's visits for this doctor/clinic
+  const todayVisits = await pool.query(
+    `SELECT visit_id, queue_no, status, checked_in_at
+       FROM visits
+      WHERE doctor_id = $1
+        AND checked_in_at >= (date_trunc('day', NOW() AT TIME ZONE 'Asia/Riyadh') AT TIME ZONE 'Asia/Riyadh')
+      ORDER BY queue_no ASC`,
+    [currentVisit.doctor_id]
+  );
+
+  const currentlyServing = todayVisits.rows.find((v) => v.status === 'in_progress');
+  const waitingList = todayVisits.rows.filter((v) => v.status === 'waiting');
+  
+  // Calculate how many patients are waiting ahead of this specific ticket
+  const patientsAhead = waitingList.filter((v) => v.queue_no < currentVisit.queue_no).length;
+
+  res.json({
+    ticket: {
+      visitId: currentVisit.visit_id,
+      queueNo: currentVisit.queue_no,
+      status: currentVisit.status,
+      patientName: currentVisit.patient_name,
+      doctorName: currentVisit.doctor_name,
+      clinic: currentVisit.clinic || 'الطب العام General Medicine',
+      checkedInAt: currentVisit.checked_in_at,
+    },
+    queueStats: {
+      currentlyServingQueueNo: currentlyServing ? currentlyServing.queue_no : null,
+      patientsAhead: currentVisit.status === 'waiting' ? patientsAhead : 0,
+      estimatedWaitMins: currentVisit.status === 'waiting' ? (patientsAhead + 1) * 8 : 0,
+    },
+  });
+};

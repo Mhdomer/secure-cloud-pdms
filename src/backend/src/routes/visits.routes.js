@@ -77,4 +77,11 @@ router.post('/:visitId/send-ticket-sms',
   asyncHandler(ctrl.sendTicketSms)
 );
 
+// Public unauthenticated live queue ticket tracking route for patient phone screens
+router.get('/:visitId/tracker',
+  [param('visitId').isUUID()],
+  validateRequest,
+  asyncHandler(ctrl.getPublicQueueTracker)
+);
+
 module.exports = router;

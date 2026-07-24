@@ -579,3 +579,49 @@ export const notificationsApi = {
 
   markAllRead: () => api.post('/notifications/read-all').then((r) => r.data),
 }
+
+export interface ClinicalTemplate {
+  id: string
+  specialty: string
+  titleEn: string
+  titleAr: string
+  icd10: string
+  chiefComplaintEn: string
+  chiefComplaintAr: string
+  examinationEn: string
+  examinationAr: string
+  diagnosisEn: string
+  diagnosisAr: string
+  treatmentPlanEn: string
+  treatmentPlanAr: string
+}
+
+export const clinicalTemplatesApi = {
+  list: (specialty?: string) =>
+    api
+      .get<{ templates: ClinicalTemplate[] }>('/clinical-templates', { params: { specialty } })
+      .then((r) => r.data),
+}
+
+export interface PublicQueueTrackerData {
+  ticket: {
+    visitId: string
+    queueNo: number
+    status: string
+    patientName: string
+    doctorName: string
+    clinic: string
+    checkedInAt: string
+  }
+  queueStats: {
+    currentlyServingQueueNo: number | null
+    patientsAhead: number
+    estimatedWaitMins: number
+  }
+}
+
+export const queueTrackerApi = {
+  getTracker: (visitId: string) =>
+    api.get<PublicQueueTrackerData>(`/visits/${visitId}/tracker`).then((r) => r.data),
+}
+
