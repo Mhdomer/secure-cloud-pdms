@@ -25,6 +25,7 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+DEV_CREDENTIALS.md
 
 # Terraform (PSM2 — don't commit state or secrets)
 **/.terraform/

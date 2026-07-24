@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
+import { notifyStateChange } from '@/lib/syncChannel'
 
 import { BackLink } from '@/components/shared/BackLink'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -80,6 +81,7 @@ export default function BillVisitPage() {
     onSuccess: () => {
       toast.success(t('bill.paySuccess'))
       setConfirmPayOpen(false)
+      notifyStateChange()
       navigate(`/visits/${visitId}/invoice`)
     },
     onError: (error: AxiosError<{ error?: string }>) => {

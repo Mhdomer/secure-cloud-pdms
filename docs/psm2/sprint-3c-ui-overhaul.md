@@ -1043,3 +1043,14 @@ During Sprint 3c, the **Al-Amin Polyclinic Patient Data Management System (PDMS)
       2. Laboratory Technician receives sample, inputs quantitative values / attaches DICOM images, and signs off.
       3. System executes instant status transition to `completed`, triggering automated reference range evaluation (`Normal`, `High`, `Critical`) and live notification to doctor's clinical viewer portal.
 
+11. **🩺 Ergonomic Doctor Consultation Workspace & 4-Tab Workspace**:
+    - **Zero Emojis / Zero AI Decorative Clutter**: Replaced all emoji badges and rainbow outline icons with standard vector icons (`lucide-react`) or clean text.
+    - **4 Segmented Tabs**: Re-organized [ConsultationPage.tsx](file:///d:/Main_/FYP/PSM%201%20SECRH/src/frontend/src/pages/visits/ConsultationPage.tsx) into 4 segmented tabs (`SOAP`, `Wasfaty E-Prescription & Seha Sick Leave`, `Dental & Body Charting`, `Services & Billing`).
+    - **Clickable History Cards**: Interactive past visit cards in sidebar opening `ViewRecordModal` to inspect historical diagnosis, SOAP notes, and prescribed medications.
+    - **Empty Initial State**: Prescription list initialized clean as empty array `[]` (removed hardcoded Paracetamol default item).
+
+12. **🔑 Local Development Credentials Reference**:
+    - Created [DEV_CREDENTIALS.md](file:///d:/Main_/FYP/PSM%201%20SECRH/DEV_CREDENTIALS.md) in the workspace root, excluded from Git (`.gitignore`).
+    - Documented active development accounts and passwords for `superadmin` (`Admin123456!`), `admin` (`Admin123456!`), and `doctor` (`Doctor123456!`).
+
+

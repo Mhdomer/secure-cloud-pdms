@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, X, Plus, Trash2, Pill, FileText, FlaskConical } from 'lucide-react'
+import {
+  AlertTriangle,
+  X,
+  Plus,
+  Trash2,
+  FileText,
+  Printer,
+  CheckCircle2,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { BackLink } from '@/components/shared/BackLink'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -23,15 +31,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toaster'
 import { useLanguage } from '@/hooks/useLanguage'
 import { billingApi, recordsApi, visitsApi, clinicalTemplatesApi, type ClinicalTemplate } from '@/lib/api'
+import { notifyStateChange } from '@/lib/syncChannel'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { cn } from '@/lib/utils'
 import { OdontogramBodyChart } from '@/components/clinical/OdontogramBodyChart'
 import { EPrescriptionModal, type StructuredMedication } from '@/components/clinical/EPrescriptionModal'
 import { SickLeaveModal } from '@/components/clinical/SickLeaveModal'
-import { LabResultsViewerModal } from '@/components/clinical/LabResultsViewerModal'
 import { VoiceDictationButton } from '@/components/shared/VoiceDictationButton'
 import { checkDrugAllergyRisk } from '@/lib/allergyChecker'
 import type { InvoiceItem, InvoiceStatus } from '@/types/billing'
@@ -97,7 +106,8 @@ export default function ConsultationPage() {
   const [invoiceLoading, setInvoiceLoading] = useState(true)
   const [eRxOpen, setERxOpen] = useState(false)
   const [sickLeaveOpen, setSickLeaveOpen] = useState(false)
-  const [labResultsOpen, setLabResultsOpen] = useState(false)
+  const [viewRecordModalOpen, setViewRecordModalOpen] = useState(false)
+  const [selectedRecord, setSelectedRecord] = useState<any | null>(null)
 
   useEffect(() => {
     if (!visitId) return
@@ -173,15 +183,7 @@ export default function ConsultationPage() {
   const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false)
 
   // Interactive Structured E-Prescription Builder State
-  const [medications, setMedications] = useState<StructuredMedication[]>([
-    {
-      tradeName: 'Paracetamol 500mg',
-      dosage: '1 tablet',
-      frequency: '3 times daily (كل ٨ ساعات)',
-      duration: '5 days (٥ أيام)',
-      instructions: 'Take after meals (بعد الأكل)',
-    },
-  ])
+  const [medications, setMedications] = useState<StructuredMedication[]>([])
   const [newTradeName, setNewTradeName] = useState('')
   const [newDosage, setNewDosage] = useState('1 tablet')
   const [newFrequency, setNewFrequency] = useState('3 times daily')
@@ -260,11 +262,7 @@ export default function ConsultationPage() {
     mutationFn: () => billingApi.markDone(visitId!, { prescriptionNotes: prescription, notes }),
     onSuccess: () => {
       toast.success(t('consult.visitCompleted'))
-      // Global staleTime is 30s (main.tsx) — without this, the dashboard's
-      // queue counts and the sidebar's "Continue Consultation" link would
-      // keep showing this visit as in-progress for up to 30s after it's
-      // actually done, since a fresh mount alone doesn't refetch fresh data.
-      queryClient.invalidateQueries({ queryKey: ['visits', 'today', 'mine'] })
+      notifyStateChange()
       setConfirmCompleteOpen(false)
       navigate('/dashboard/doctor')
     },
@@ -300,146 +298,433 @@ export default function ConsultationPage() {
       : visit.gender === 'female'
         ? t('consult.genderFemale')
         : t('consult.genderUnknown')
-
   const canSaveRecord =
     chiefComplaint.trim().length > 0 && diagnosis.trim().length > 0 && !createRecordMutation.isPending
 
   return (
-    <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
-      <BackLink to="/dashboard/doctor" label={t('consult.backToQueue')} />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
-        {/* ── Left column — patient card, doesn't scroll ── */}
-        <Card className="lg:sticky lg:top-6">
-          <CardContent className="flex flex-col gap-4 pt-6">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-lg font-black text-primary-700" dir="ltr">
-                {t('consult.queueNo', { no: visit.queueNo })}
-              </span>
-              {visit.visitType && (
-                <Badge variant="secondary">{tAppointments(`types.${visit.visitType}`)}</Badge>
+    <div className="mx-auto flex max-w-[1280px] flex-col gap-6 font-sans">
+      <div className="sticky top-0 z-20 rounded-2xl bg-card border border-border p-5 shadow-sm backdrop-blur-md flex flex-wrap items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <BackLink to="/dashboard/doctor" label={t('consult.backToQueue')} />
+          <div className="h-8 w-px bg-border hidden sm:block" />
+          <div className="flex items-center gap-4">
+            <span
+              className={cn(
+                'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-extrabold shadow-sm',
+                avatarClassesFor(visit.patientId),
               )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span
-                className={cn(
-                  'flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-lg font-semibold',
-                  avatarClassesFor(visit.patientId),
-                )}
-                aria-hidden="true"
-              >
-                {initialsFor(visit.patientName)}
-              </span>
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate text-base font-semibold text-foreground" dir="auto">
+            >
+              {initialsFor(visit.patientName)}
+            </span>
+            <div className="space-y-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-lg font-bold text-foreground" dir="auto">
                   {visit.patientName}
-                </span>
-                <span className="truncate text-xs text-muted-foreground" dir="ltr">
-                  {t('consult.fileNoLine', { fileNo: visit.fileNo })}
-                  <span className="mx-1 text-neutral-300">·</span>
-                  {t('consult.ageYears', { age: calculateAge(visit.dateOfBirth) })}
-                </span>
+                </h1>
+                <Badge variant="outline" className="font-mono text-xs font-bold text-primary-700 bg-primary-50 px-2.5 py-0.5">
+                  {currentLang === 'ar' ? `تذكرة #${visit.queueNo}` : `Queue Ticket #${visit.queueNo}`}
+                </Badge>
+                {visit.visitType && (
+                  <Badge variant="secondary" className="text-xs px-2.5 py-0.5">
+                    {tAppointments(`types.${visit.visitType}`)}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap font-medium" dir="ltr">
+                <span>File: #{visit.fileNo}</span>
+                <span className="text-neutral-300">•</span>
+                <span>{calculateAge(visit.dateOfBirth)} Yrs</span>
+                <span className="text-neutral-300">•</span>
+                <span>{genderLabel}</span>
+                <span className="text-neutral-300">•</span>
+                <span>Blood: {visit.bloodType || 'N/A'}</span>
               </div>
             </div>
+          </div>
+        </div>
 
-            {visit.allergies && (
-              <>
-                <div className="border-t border-border" />
-                <div className="flex items-start gap-1.5 rounded-lg bg-warning-50 px-2.5 py-2 text-xs font-medium text-warning-600">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span>
-                    {t('consult.allergiesLabel')}: <span dir="auto">{visit.allergies}</span>
-                  </span>
-                </div>
-              </>
-            )}
+        <div className="flex items-center gap-4 ms-auto">
+          {visit.allergies && (
+            <div className="hidden lg:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-300 text-xs font-semibold">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>{t('consult.allergiesLabel')}: {visit.allergies}</span>
+            </div>
+          )}
+          <Button
+            type="button"
+            className="bg-primary-600 hover:bg-primary-700 text-white font-bold gap-2 text-xs h-10 px-5 shadow-md"
+            onClick={() => setConfirmCompleteOpen(true)}
+            disabled={completeMutation.isPending}
+          >
+            <CheckCircle2 className="w-4.5 h-4.5" />
+            {completeMutation.isPending ? t('consult.completing') : (currentLang === 'ar' ? 'إنهاء الكشف وإرسال للاستقبال' : 'Finish Consultation & Send to Cashier')}
+          </Button>
+        </div>
+      </div>
 
-            <div className="border-t border-border" />
-            <dl className="flex flex-col gap-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{t('consult.dobLabel')}</dt>
-                <dd className="font-medium text-foreground" dir="ltr">
-                  {visit.dateOfBirth}
-                </dd>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr] lg:items-start">
+        <Card className="lg:sticky lg:top-28">
+          <CardContent className="flex flex-col gap-4 pt-6">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {currentLang === 'ar' ? 'ملف المريض والزيارات' : 'Patient Profile & Visits'}
+            </h2>
+
+            <dl className="flex flex-col gap-2 text-xs">
+              <div className="flex justify-between py-1 border-b border-border">
+                <span className="text-muted-foreground">{t('consult.dobLabel')}</span>
+                <span className="font-medium">{visit.dateOfBirth}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{t('consult.genderLabel')}</dt>
-                <dd className="font-medium text-foreground">{genderLabel}</dd>
+              <div className="flex justify-between py-1 border-b border-border">
+                <span className="text-muted-foreground">{t('consult.phoneLabel')}</span>
+                <span className="font-medium" dir="ltr">{visit.contactNumber || 'N/A'}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{t('consult.bloodTypeLabel')}</dt>
-                <dd className="font-medium text-foreground" dir="ltr">
-                  {visit.bloodType ?? t('consult.bloodTypeUnknown')}
-                </dd>
+              <div className="flex justify-between py-1 border-b border-border">
+                <span className="text-muted-foreground">{t('consult.clinicLabel')}</span>
+                <span className="font-medium">{visit.clinic || 'General Clinic'}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{t('consult.phoneLabel')}</dt>
-                <dd className="font-medium text-foreground" dir="ltr">
-                  {visit.contactNumber ?? t('consult.phoneUnknown')}
-                </dd>
+              <div className="flex justify-between py-1">
+                <span className="text-muted-foreground">{currentLang === 'ar' ? 'وقت التسجيل' : 'Checked In'}</span>
+                <span className="font-medium" dir="ltr">{checkedInLabel}</span>
               </div>
             </dl>
 
-            <div className="border-t border-border" />
-            <dl className="flex flex-col gap-1.5 text-xs">
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{t('consult.clinicLabel')}</dt>
-                <dd className="font-medium text-foreground" dir="auto">
-                  {visit.clinic ?? t('consult.clinicUnknown')}
-                </dd>
+            <div className="border-t border-border pt-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {t('consult.recentHistory')}
+                </h3>
+                <span className="text-[10px] text-primary-600 font-semibold">
+                  {currentLang === 'ar' ? 'اضغط للتفاصيل' : 'Click to view'}
+                </span>
               </div>
-            </dl>
-            <p className="text-xs text-muted-foreground" dir="auto">
-              {t('consult.checkedInAt', { time: checkedInLabel })}
-            </p>
-
-            <div className="border-t border-border" />
-            <div className="flex flex-col gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {t('consult.recentHistory')}
-              </h3>
               {historyLoading ? (
-                <div className="flex flex-col gap-1.5">
-                  {[0, 1, 2].map((i) => (
-                    <span key={i} className="h-4 w-full animate-pulse rounded bg-neutral-200" />
+                <div className="space-y-1.5">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-4 bg-muted animate-pulse rounded" />
                   ))}
                 </div>
               ) : recentRecords.length === 0 ? (
                 <p className="text-xs text-muted-foreground">{t('consult.noHistory')}</p>
               ) : (
-                <ul className="flex flex-col gap-1 text-xs">
-                  {recentRecords.map((record) => (
-                    <li key={record.recordId} className="flex items-baseline gap-1.5 text-foreground">
-                      <span aria-hidden="true">•</span>
-                      <span className="truncate" dir="auto">
-                        {record.diagnosis}
-                      </span>
-                      <span className="ms-auto shrink-0 text-muted-foreground" dir="ltr">
-                        {new Intl.DateTimeFormat(currentLang === 'ar' ? 'ar-SA' : 'en-US', {
-                          month: 'short',
-                          year: 'numeric',
-                        }).format(new Date(record.createdAt))}
-                      </span>
+                <ul className="space-y-2 text-xs">
+                  {recentRecords.map((r) => (
+                    <li key={r.recordId}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedRecord(r)
+                          setViewRecordModalOpen(true)
+                        }}
+                        className="w-full text-start p-2.5 rounded-xl bg-card hover:bg-primary-50/50 border border-border hover:border-primary-300 transition-all group shadow-sm"
+                      >
+                        <div className="flex justify-between items-center text-[11px] text-muted-foreground font-mono mb-1">
+                          <span>{r.createdAt.slice(0, 10)}</span>
+                          <span className="group-hover:text-primary-600 font-semibold">{r.doctorName || 'Doctor'}</span>
+                        </div>
+                        <p className="font-bold text-foreground text-xs truncate" dir="auto">
+                          {r.diagnosis}
+                        </p>
+                        {r.chiefComplaint && (
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5" dir="auto">
+                            {r.chiefComplaint}
+                          </p>
+                        )}
+                      </button>
                     </li>
                   ))}
                 </ul>
               )}
-              <Link
-                to={`/patients/${visit.patientId}`}
-                className="text-xs font-medium text-primary-600 hover:underline"
-              >
-                {t('consult.viewAllRecords')}
-              </Link>
             </div>
           </CardContent>
         </Card>
 
-        {/* ── Right column — work area ── */}
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardContent className="flex flex-col gap-4 pt-6">
-              <h2 className="text-base font-semibold text-foreground">{t('consult.servicesHeading')}</h2>
+        <Tabs defaultValue="soap" className="w-full">
+          <TabsList className="w-full justify-start border-b border-border bg-muted/40 p-1 mb-6 rounded-xl flex-wrap h-auto">
+            <TabsTrigger value="soap" className="text-xs font-bold px-4 py-2">
+              {currentLang === 'ar' ? 'الفحص والتشخيص (SOAP)' : 'Clinical Exam & SOAP'}
+            </TabsTrigger>
+            <TabsTrigger value="erx" className="text-xs font-bold px-4 py-2">
+              {currentLang === 'ar' ? 'الوصفة والإجازة المرضية' : 'E-Prescription & Sick Leave'}
+            </TabsTrigger>
+            <TabsTrigger value="charting" className="text-xs font-bold px-4 py-2">
+              {currentLang === 'ar' ? 'مخطط الأسنان والجسم' : 'Dental & Body Charting'}
+            </TabsTrigger>
+            <TabsTrigger value="services" className="text-xs font-bold px-4 py-2">
+              {currentLang === 'ar' ? 'الخدمات والإجراءات' : 'Services & Billing'}
+              {items.length > 0 && (
+                <Badge variant="secondary" className="ms-1.5 px-1.5 py-0 text-[10px] bg-primary-100 text-primary-900">
+                  {items.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="soap" className="space-y-6 mt-0">
+            {templates.length > 0 && (
+              <Card className="p-4 bg-muted/30 border border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-foreground">
+                    {currentLang === 'ar' ? 'قوالب التشخيص السريع (Clinical SOAP Templates)' : 'Quick Clinical SOAP Templates'}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {currentLang === 'ar' ? 'اضغط لتعبئة التقرير تلقائياً' : 'Click template to auto-populate'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {templates.map((tmpl) => (
+                    <button
+                      key={tmpl.id}
+                      type="button"
+                      onClick={() => handleApplyTemplate(tmpl)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-card text-foreground border border-border shadow-sm hover:border-primary-500 hover:text-primary-600 transition-all flex items-center gap-1.5"
+                    >
+                      <span>{currentLang === 'ar' ? tmpl.titleAr : tmpl.titleEn}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">({tmpl.icd10})</span>
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            <Card className="p-4">
+              <span className="text-xs font-bold text-foreground block mb-3">
+                {currentLang === 'ar' ? 'العلامات الحيوية (Patient Vital Signs)' : 'Patient Vital Signs'}
+              </span>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+                <div>
+                  <Label htmlFor="v-bp" className="text-[11px] text-muted-foreground">BP (mmHg)</Label>
+                  <Input id="v-bp" placeholder="120/80" value={bp} onChange={(e) => setBp(e.target.value)} className="h-8 text-xs bg-card" />
+                </div>
+                <div>
+                  <Label htmlFor="v-hr" className="text-[11px] text-muted-foreground">HR (bpm)</Label>
+                  <Input id="v-hr" placeholder="72" value={hr} onChange={(e) => setHr(e.target.value)} className="h-8 text-xs bg-card" />
+                </div>
+                <div>
+                  <Label htmlFor="v-temp" className="text-[11px] text-muted-foreground">Temp (°C)</Label>
+                  <Input id="v-temp" placeholder="37.0" value={temp} onChange={(e) => setTemp(e.target.value)} className="h-8 text-xs bg-card" />
+                </div>
+                <div>
+                  <Label htmlFor="v-weight" className="text-[11px] text-muted-foreground">Weight (kg)</Label>
+                  <Input id="v-weight" placeholder="70" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs bg-card" />
+                </div>
+                <div>
+                  <Label htmlFor="v-height" className="text-[11px] text-muted-foreground">Height (cm)</Label>
+                  <Input id="v-height" placeholder="175" value={height} onChange={(e) => setHeight(e.target.value)} className="h-8 text-xs bg-card" />
+                </div>
+                <div>
+                  <Label htmlFor="v-bmi" className="text-[11px] text-muted-foreground">BMI</Label>
+                  <Input id="v-bmi" placeholder="22.9" value={bmi} onChange={(e) => setBmi(e.target.value)} className="h-8 text-xs bg-card" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 space-y-4">
+              <h2 className="text-sm font-bold text-foreground">
+                {t('consult.addRecordHeading')}
+              </h2>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="record-chief-complaint" className="text-xs font-semibold">{t('consult.recordChiefComplaintLabel')}</Label>
+                  <VoiceDictationButton onTranscript={(text) => setChiefComplaint((prev) => (prev ? `${prev} ${text}` : text))} />
+                </div>
+                <Input
+                  id="record-chief-complaint"
+                  value={chiefComplaint}
+                  onChange={(e) => setChiefComplaint(e.target.value)}
+                  placeholder={t('consult.recordChiefComplaintPlaceholder')}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="record-diagnosis" className="text-xs font-semibold">{t('consult.recordDiagnosisLabel')}</Label>
+                  <VoiceDictationButton onTranscript={(text) => setDiagnosis((prev) => (prev ? `${prev} ${text}` : text))} />
+                </div>
+                <Input
+                  id="record-diagnosis"
+                  value={diagnosis}
+                  onChange={(e) => setDiagnosis(e.target.value)}
+                  placeholder="e.g. Acute Pharyngitis (J02.9)"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="record-notes" className="text-xs font-semibold">{currentLang === 'ar' ? 'الفحص السريري والملاحظات' : 'Physical Exam & Clinical Notes'}</Label>
+                  <VoiceDictationButton onTranscript={(text) => setRecordNotes((prev) => (prev ? `${prev} ${text}` : text))} />
+                </div>
+                <Textarea
+                  id="record-notes"
+                  value={recordNotes}
+                  onChange={(e) => setRecordNotes(e.target.value)}
+                  rows={4}
+                  placeholder={currentLang === 'ar' ? 'نتائج الفحص السريري وخطة العلاج...' : 'Physical exam findings and treatment plan...'}
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <Button
+                  type="button"
+                  disabled={!canSaveRecord}
+                  onClick={() => createRecordMutation.mutate()}
+                  className="bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {createRecordMutation.isPending ? tCommon('saving') : t('consult.saveRecordButton')}
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="erx" className="space-y-6 mt-0">
+            <Card className="p-6 space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-border">
+                <h3 className="font-bold text-foreground text-sm sm:text-base">
+                  {currentLang === 'ar' ? 'وصفة وصفتي (Wasfaty SFDA E-Prescription)' : 'Wasfaty / SFDA E-Prescription'}
+                </h3>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs font-bold gap-1.5 border-primary-600 text-primary-700 hover:bg-primary-50"
+                  onClick={() => setERxOpen(true)}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  {currentLang === 'ar' ? 'طباعة / معاينة الرسمية' : 'Print / Preview Official E-Rx'}
+                </Button>
+              </div>
+
+              {liveAllergyRisk?.hasRisk && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-300 flex items-center gap-2.5 text-xs font-semibold">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{currentLang === 'ar' ? liveAllergyRisk.messageAr : liveAllergyRisk.messageEn}</span>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  {currentLang === 'ar' ? 'قائمة الأدوية المضافة بالوصفة' : 'Prescribed Medication List'}
+                </span>
+                {medications.length === 0 ? (
+                  <p className="text-xs italic text-muted-foreground p-4 bg-muted/40 rounded-xl text-center">
+                    {currentLang === 'ar' ? 'لا توجد أدوية مضافة بالوصفة بعد' : 'No medications added yet'}
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto border border-border rounded-xl">
+                    <table className="w-full text-xs text-start">
+                      <thead className="bg-muted font-bold text-foreground">
+                        <tr>
+                          <th className="p-2.5 text-start">#</th>
+                          <th className="p-2.5 text-start">{currentLang === 'ar' ? 'الدواء' : 'Medication'}</th>
+                          <th className="p-2.5 text-start">{currentLang === 'ar' ? 'الجرعة' : 'Dosage'}</th>
+                          <th className="p-2.5 text-start">{currentLang === 'ar' ? 'التكرار' : 'Frequency'}</th>
+                          <th className="p-2.5 text-start">{currentLang === 'ar' ? 'المدة' : 'Duration'}</th>
+                          <th className="p-2.5 text-start">{currentLang === 'ar' ? 'التعليمات' : 'Instructions'}</th>
+                          <th className="p-2.5 text-center" aria-hidden="true" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border font-medium">
+                        {medications.map((m, index) => (
+                          <tr key={index} className="hover:bg-muted/40">
+                            <td className="p-2.5 font-bold text-primary-600">{index + 1}</td>
+                            <td className="p-2.5 font-bold text-foreground">{m.tradeName}</td>
+                            <td className="p-2.5">{m.dosage}</td>
+                            <td className="p-2.5">{m.frequency}</td>
+                            <td className="p-2.5">{m.duration}</td>
+                            <td className="p-2.5 text-muted-foreground">{m.instructions || '—'}</td>
+                            <td className="p-2.5 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMedication(index)}
+                                className="p-1 text-danger-600 hover:text-danger-800 rounded-md hover:bg-danger-50"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
+                <span className="text-xs font-bold text-foreground">
+                  {currentLang === 'ar' ? 'إضافة دواء جديد للوصفة' : 'Add Medication Item'}
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <Label htmlFor="m-name" className="text-[11px] text-muted-foreground">{currentLang === 'ar' ? 'اسم الدواء' : 'Medication Name'}</Label>
+                    <Input id="m-name" placeholder="Amoxicillin 500mg" value={newTradeName} onChange={(e) => setNewTradeName(e.target.value)} className="h-8 text-xs bg-card" />
+                  </div>
+                  <div>
+                    <Label htmlFor="m-dosage" className="text-[11px] text-muted-foreground">{currentLang === 'ar' ? 'الجرعة' : 'Dosage'}</Label>
+                    <Input id="m-dosage" placeholder="1 tablet" value={newDosage} onChange={(e) => setNewDosage(e.target.value)} className="h-8 text-xs bg-card" />
+                  </div>
+                  <div>
+                    <Label htmlFor="m-freq" className="text-[11px] text-muted-foreground">{currentLang === 'ar' ? 'التكرار' : 'Frequency'}</Label>
+                    <Input id="m-freq" placeholder="3 times daily" value={newFrequency} onChange={(e) => setNewFrequency(e.target.value)} className="h-8 text-xs bg-card" />
+                  </div>
+                  <div>
+                    <Label htmlFor="m-dur" className="text-[11px] text-muted-foreground">{currentLang === 'ar' ? 'المدة' : 'Duration'}</Label>
+                    <Input id="m-dur" placeholder="5 days" value={newDuration} onChange={(e) => setNewDuration(e.target.value)} className="h-8 text-xs bg-card" />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Label htmlFor="m-inst" className="text-[11px] text-muted-foreground">{currentLang === 'ar' ? 'تعليمات الاستخدام' : 'Usage Instructions'}</Label>
+                    <Input id="m-inst" placeholder="Take after meals" value={newInstructions} onChange={(e) => setNewInstructions(e.target.value)} className="h-8 text-xs bg-card" />
+                  </div>
+                  <Button type="button" size="sm" className="h-8 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs gap-1" onClick={handleAddMedication}>
+                    <Plus className="w-3.5 h-3.5" />
+                    {currentLang === 'ar' ? 'إضافة الدواء' : 'Add Drug'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-border flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">
+                  {currentLang === 'ar' ? 'إصدار الإجازات المرضية المعتمدة حكومياً' : 'Official MOH Certified Medical Certificates'}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSickLeaveOpen(true)}
+                  className="h-8 text-xs font-bold gap-1.5 border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  {currentLang === 'ar' ? 'إصدار إجازة مرضية معتمدة (منصة صحة MOH)' : 'Issue Seha Sick Leave'}
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 3: Dental & Body Charting */}
+          <TabsContent value="charting" className="mt-0">
+            <OdontogramBodyChart
+              onUpdateFindings={(summary) => {
+                setRecordNotes((prev) => {
+                  const baseNotes = (prev || '')
+                    .split('\n')
+                    .filter((line) => !line.includes('[Clinical Chart]') && !line.includes('[نتائج الفحص السريري]'))
+                    .join('\n')
+                    .trim()
+
+                  if (!summary) return baseNotes
+                  return baseNotes ? `${baseNotes}\n${summary}` : summary
+                })
+              }}
+            />
+          </TabsContent>
+
+          {/* TAB 4: Services & Billing */}
+          <TabsContent value="services" className="space-y-6 mt-0">
+            <Card className="p-6 space-y-4">
+              <h2 className="text-sm font-bold text-foreground">{t('consult.servicesHeading')}</h2>
               <ServiceSelect onSelect={(svc) => addMutation.mutate(svc)} placeholder={t('consult.selectService')} />
 
               {items.length > 0 && (
@@ -471,400 +756,9 @@ export default function ConsultationPage() {
               {items.length === 0 && !invoiceLoading && (
                 <p className="text-xs italic text-muted-foreground">{t('consult.noServices')}</p>
               )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="flex flex-col gap-2 pt-6">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="visit-notes">{t('consult.notesHeading')}</Label>
-                <VoiceDictationButton
-                  onTranscript={(text) => setNotes((prev) => (prev ? `${prev} ${text}` : text))}
-                />
-              </div>
-              <Textarea
-                id="visit-notes"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder={t('consult.notesPlaceholder')}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Interactive Wasfaty/SFDA E-Prescription Builder */}
-          <Card className="overflow-hidden border-emerald-200/80 dark:border-emerald-900/50 shadow-sm">
-            <CardContent className="flex flex-col gap-4 pt-6">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Pill className="w-5 h-5 text-emerald-600" />
-                  <h3 className="font-bold text-slate-900 dark:text-white text-sm md:text-base">
-                    {currentLang === 'ar' ? 'وصفة وصفتي الإلكترونية (Wasfaty SFDA E-Prescription)' : 'Wasfaty / SFDA E-Prescription'}
-                  </h3>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs border-emerald-600 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
-                  onClick={() => setERxOpen(true)}
-                >
-                  📄 {currentLang === 'ar' ? 'طباعة / معاينة الرسمية' : 'Print / Preview Official E-Rx'}
-                </Button>
-              </div>
-
-              {/* Added Medications List Table */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {currentLang === 'ar' ? 'قائمة الأدوية المضافة بالوصفة' : 'Prescribed Medication List'}
-                </span>
-                {medications.length === 0 ? (
-                  <p className="text-xs italic text-slate-400 p-3 bg-slate-50 rounded-lg text-center">
-                    {currentLang === 'ar' ? 'لا توجد أدوية مضافة بالوصفة بعد' : 'No medications added yet'}
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-xl">
-                    <table className="w-full text-xs text-start">
-                      <thead className="bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-200">
-                        <tr>
-                          <th className="p-2 text-start">#</th>
-                          <th className="p-2 text-start">{currentLang === 'ar' ? 'الدواء' : 'Medication'}</th>
-                          <th className="p-2 text-start">{currentLang === 'ar' ? 'الجرعة' : 'Dosage'}</th>
-                          <th className="p-2 text-start">{currentLang === 'ar' ? 'التكرار' : 'Frequency'}</th>
-                          <th className="p-2 text-start">{currentLang === 'ar' ? 'المدة' : 'Duration'}</th>
-                          <th className="p-2 text-start">{currentLang === 'ar' ? 'تعليمات الاستخدام' : 'Instructions'}</th>
-                          <th className="p-2 text-center" aria-hidden="true" />
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-medium">
-                        {medications.map((m, index) => (
-                          <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                            <td className="p-2 font-bold text-emerald-600">{index + 1}</td>
-                            <td className="p-2 font-bold text-slate-900 dark:text-white">{m.tradeName}</td>
-                            <td className="p-2">{m.dosage}</td>
-                            <td className="p-2">{m.frequency}</td>
-                            <td className="p-2">{m.duration}</td>
-                            <td className="p-2 text-slate-600 dark:text-slate-400">{m.instructions || '—'}</td>
-                            <td className="p-2 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveMedication(index)}
-                                className="p-1 text-rose-600 hover:text-rose-800 rounded-md hover:bg-rose-50"
-                                title={currentLang === 'ar' ? 'حذف الدواء' : 'Remove Medication'}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              {/* Add New Medication Form */}
-              <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/50 rounded-xl space-y-3">
-                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                  {currentLang === 'ar' ? '+ إضافة دواء جديد للوصفة' : '+ Add New Medication to Prescription'}
-                </span>
-
-                {/* Smart Drug Allergy Warning Alert */}
-                {liveAllergyRisk && (
-                  <div className="p-3 rounded-xl bg-rose-100 dark:bg-rose-950/80 border-2 border-rose-500 text-rose-900 dark:text-rose-200 text-xs flex items-start gap-2.5 shadow-md animate-bounce">
-                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-extrabold text-sm text-rose-700 dark:text-rose-300">
-                        {currentLang === 'ar' ? '⚠️ تحذير خطير: تعارض مع حساسيات المريض!' : '⚠️ SEVERE ALLERGY CONFLICT DETECTED!'}
-                      </div>
-                      <p className="mt-0.5 font-semibold">
-                        {currentLang === 'ar' ? liveAllergyRisk.messageAr : liveAllergyRisk.messageEn}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
-                  <div className="sm:col-span-2">
-                    <div className="flex justify-between items-center mb-1">
-                      <Label htmlFor="med-name" className="text-[11px] text-slate-500">
-                        {currentLang === 'ar' ? 'اسم الدواء (Trade Name)' : 'Medication Name'}
-                      </Label>
-                      <VoiceDictationButton
-                        onTranscript={(text) => setNewTradeName((prev) => (prev ? `${prev} ${text}` : text))}
-                      />
-                    </div>
-                    <Input
-                      id="med-name"
-                      placeholder="e.g. Amoxicillin 500mg"
-                      value={newTradeName}
-                      onChange={(e) => setNewTradeName(e.target.value)}
-                      className="h-8 text-xs bg-white dark:bg-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="med-dosage" className="text-[11px] text-slate-500">
-                      {currentLang === 'ar' ? 'الجرعة (Dosage)' : 'Dosage'}
-                    </Label>
-                    <Input
-                      id="med-dosage"
-                      placeholder="e.g. 1 tablet"
-                      value={newDosage}
-                      onChange={(e) => setNewDosage(e.target.value)}
-                      className="h-8 text-xs bg-white dark:bg-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="med-freq" className="text-[11px] text-slate-500">
-                      {currentLang === 'ar' ? 'التكرار (Frequency)' : 'Frequency'}
-                    </Label>
-                    <Input
-                      id="med-freq"
-                      placeholder="e.g. 3 times daily"
-                      value={newFrequency}
-                      onChange={(e) => setNewFrequency(e.target.value)}
-                      className="h-8 text-xs bg-white dark:bg-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="med-dur" className="text-[11px] text-slate-500">
-                      {currentLang === 'ar' ? 'المدة (Duration)' : 'Duration'}
-                    </Label>
-                    <Input
-                      id="med-dur"
-                      placeholder="e.g. 5 days"
-                      value={newDuration}
-                      onChange={(e) => setNewDuration(e.target.value)}
-                      className="h-8 text-xs bg-white dark:bg-slate-900"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Label htmlFor="med-inst" className="text-[11px] text-slate-500">
-                      {currentLang === 'ar' ? 'تعليمات الاستخدام (Instructions)' : 'Usage Instructions'}
-                    </Label>
-                    <Input
-                      id="med-inst"
-                      placeholder="e.g. Take after meals / بعد الأكل"
-                      value={newInstructions}
-                      onChange={(e) => setNewInstructions(e.target.value)}
-                      className="h-8 text-xs bg-white dark:bg-slate-900"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1"
-                    onClick={handleAddMedication}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    {currentLang === 'ar' ? 'إضافة الدواء' : 'Add Medication'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Text Summary View */}
-              <div className="flex flex-col gap-1 pt-1">
-                <Label htmlFor="visit-prescription" className="text-xs font-semibold text-slate-500">
-                  {currentLang === 'ar' ? 'الملخص النصي للوصفة' : 'Prescription Text Summary'}
-                </Label>
-                <Textarea
-                  id="visit-prescription"
-                  value={prescription}
-                  onChange={(event) => setPrescription(event.target.value)}
-                  placeholder={t('consult.prescriptionPlaceholder')}
-                  rows={2}
-                  className="text-xs"
-                />
-              </div>
-
-              {/* Action Tools Toolbar */}
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSickLeaveOpen(true)}
-                  className="h-8 text-xs font-bold gap-1.5 border-emerald-300 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  {currentLang === 'ar' ? 'إصدار إجازة مرضية معتمدة (منصة صحة MOH)' : 'Issue Seha Sick Leave'}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLabResultsOpen(true)}
-                  className="h-8 text-xs font-bold gap-1.5 border-blue-300 text-blue-700 dark:text-blue-400 hover:bg-blue-50"
-                >
-                  <FlaskConical className="w-3.5 h-3.5" />
-                  {currentLang === 'ar' ? 'عرض نتائج الفحوصات والأشعة' : 'View Diagnostic Lab & X-Ray'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <SickLeaveModal
-            open={sickLeaveOpen}
-            onOpenChange={setSickLeaveOpen}
-            patientId={visit?.patientId}
-            patientName={visit?.patientName || undefined}
-            doctorName={visit?.doctorName ?? undefined}
-            clinicName={visit?.clinic || undefined}
-          />
-
-          <LabResultsViewerModal
-            open={labResultsOpen}
-            onOpenChange={setLabResultsOpen}
-            patientName={visit?.patientName}
-            fileNo={visit?.fileNo}
-          />
-
-          {/* Interactive Odontogram & Body Charting */}
-          <OdontogramBodyChart
-            onUpdateFindings={(summary) => {
-              setRecordNotes((prev) => {
-                const baseNotes = (prev || '')
-                  .split('\n')
-                  .filter((line) => !line.includes('[Clinical Chart]') && !line.includes('[نتائج الفحص السريري]'))
-                  .join('\n')
-                  .trim()
-
-                if (!summary) return baseNotes
-                return baseNotes ? `${baseNotes}\n${summary}` : summary
-              })
-            }}
-          />
-
-          <Card>
-            <CardContent className="flex flex-col gap-3 pt-6">
-              <h2 className="text-base font-semibold text-foreground">{t('consult.addRecordHeading')}</h2>
-
-              {/* Quick Clinical SOAP Templates Bar */}
-              {templates.length > 0 && (
-                <div className="flex flex-col gap-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                      ⚡ {currentLang === 'ar' ? 'قوالب التشخيص السريع (SOAP Templates)' : 'Quick Clinical SOAP Templates'}
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      {currentLang === 'ar' ? 'اضغط لتعبئة التقرير تلقائياً' : 'Click chip to auto-fill'}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {templates.map((tmpl) => (
-                      <button
-                        key={tmpl.id}
-                        type="button"
-                        onClick={() => handleApplyTemplate(tmpl)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-primary-500 hover:text-primary-600 transition-all flex items-center gap-1"
-                      >
-                        <span>{currentLang === 'ar' ? tmpl.titleAr : tmpl.titleEn}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">({tmpl.icd10})</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="record-chief-complaint">{t('consult.recordChiefComplaintLabel')}</Label>
-                  <VoiceDictationButton
-                    onTranscript={(text) => setChiefComplaint((prev) => (prev ? `${prev} ${text}` : text))}
-                  />
-                </div>
-                <Input
-                  id="record-chief-complaint"
-                  value={chiefComplaint}
-                  onChange={(event) => setChiefComplaint(event.target.value)}
-                  placeholder={t('consult.recordChiefComplaintPlaceholder')}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="record-diagnosis">{t('consult.recordDiagnosisLabel')}</Label>
-                  <VoiceDictationButton
-                    onTranscript={(text) => setDiagnosis((prev) => (prev ? `${prev} ${text}` : text))}
-                  />
-                </div>
-                <Input
-                  id="record-diagnosis"
-                  value={diagnosis}
-                  onChange={(event) => setDiagnosis(event.target.value)}
-                />
-              </div>
-
-              {/* Patient Vital Signs Entry Grid */}
-              <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                <span className="text-xs font-semibold text-foreground">Patient Vital Signs / العلامات الحيوية</span>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="vital-bp" className="text-[11px] text-muted-foreground">Blood Pressure (BP)</Label>
-                    <Input id="vital-bp" placeholder="e.g. 120/80" value={bp} onChange={(e) => setBp(e.target.value)} className="h-8 text-xs bg-white" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="vital-hr" className="text-[11px] text-muted-foreground">Heart Rate (bpm)</Label>
-                    <Input id="vital-hr" placeholder="e.g. 72" value={hr} onChange={(e) => setHr(e.target.value)} className="h-8 text-xs bg-white" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="vital-bmi" className="text-[11px] text-muted-foreground">BMI</Label>
-                    <Input id="vital-bmi" placeholder="e.g. 23.4" value={bmi} onChange={(e) => setBmi(e.target.value)} className="h-8 text-xs bg-white" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="vital-temp" className="text-[11px] text-muted-foreground">Temperature (°C)</Label>
-                    <Input id="vital-temp" placeholder="e.g. 37.1" value={temp} onChange={(e) => setTemp(e.target.value)} className="h-8 text-xs bg-white" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="vital-weight" className="text-[11px] text-muted-foreground">Weight (kg)</Label>
-                    <Input id="vital-weight" placeholder="e.g. 70" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs bg-white" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor="vital-height" className="text-[11px] text-muted-foreground">Height (cm)</Label>
-                    <Input id="vital-height" placeholder="e.g. 175" value={height} onChange={(e) => setHeight(e.target.value)} className="h-8 text-xs bg-white" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="record-notes">{t('consult.recordNotesLabel')}</Label>
-                  <VoiceDictationButton
-                    onTranscript={(text) => setRecordNotes((prev) => (prev ? `${prev} ${text}` : text))}
-                  />
-                </div>
-                <Textarea
-                  id="record-notes"
-                  value={recordNotes}
-                  onChange={(event) => setRecordNotes(event.target.value)}
-                  rows={2}
-                />
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="self-start"
-                disabled={!canSaveRecord}
-                onClick={() => createRecordMutation.mutate()}
-              >
-                {createRecordMutation.isPending ? t('consult.savingRecord') : t('consult.saveRecordButton')}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={completeMutation.isPending}
-            onClick={() => setConfirmCompleteOpen(true)}
-          >
-            {completeMutation.isPending ? t('consult.completing') : t('consult.completeButton')}
-          </Button>
-        </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={confirmCompleteOpen} onOpenChange={setConfirmCompleteOpen}>
@@ -884,6 +778,7 @@ export default function ConsultationPage() {
             </Button>
             <Button
               type="button"
+              className="bg-primary-600 hover:bg-primary-700 text-white font-bold"
               onClick={() => completeMutation.mutate()}
               disabled={completeMutation.isPending}
             >
@@ -904,6 +799,62 @@ export default function ConsultationPage() {
           medications={medications}
         />
       )}
+
+      <SickLeaveModal
+        open={sickLeaveOpen}
+        onOpenChange={setSickLeaveOpen}
+        patientId={visit?.patientId}
+        patientName={visit?.patientName || undefined}
+        doctorName={visit?.doctorName ?? undefined}
+        clinicName={visit?.clinic || undefined}
+      />
+
+      {/* View Full Past Medical Record Details Modal */}
+      <Dialog open={viewRecordModalOpen} onOpenChange={setViewRecordModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary-600" />
+              {currentLang === 'ar' ? 'تفاصيل السجل الطبي السابق' : 'Past Medical Record Details'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {selectedRecord?.createdAt ? new Date(selectedRecord.createdAt).toLocaleDateString() : ''} — Dr. {selectedRecord?.doctorName || 'Doctor'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedRecord && (
+            <div className="space-y-4 py-2 text-xs">
+              <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-1">
+                <span className="font-bold text-muted-foreground uppercase tracking-wider text-[10px]">
+                  {currentLang === 'ar' ? 'التشخيص' : 'Diagnosis'}
+                </span>
+                <p className="font-bold text-foreground text-sm" dir="auto">{selectedRecord.diagnosis}</p>
+              </div>
+
+              {selectedRecord.chiefComplaint && (
+                <div className="space-y-1">
+                  <span className="font-semibold text-muted-foreground">{currentLang === 'ar' ? 'الشكوى الرئيسية' : 'Chief Complaint'}</span>
+                  <p className="p-2.5 rounded-lg bg-card border border-border text-foreground" dir="auto">{selectedRecord.chiefComplaint}</p>
+                </div>
+              )}
+
+              {selectedRecord.notes && (
+                <div className="space-y-1">
+                  <span className="font-semibold text-muted-foreground">{currentLang === 'ar' ? 'الفحص السريري والملاحظات' : 'Physical Exam & Notes'}</span>
+                  <p className="p-2.5 rounded-lg bg-card border border-border text-foreground whitespace-pre-wrap" dir="auto">{selectedRecord.notes}</p>
+                </div>
+              )}
+
+              {selectedRecord.prescription && (
+                <div className="space-y-1">
+                  <span className="font-semibold text-muted-foreground">{currentLang === 'ar' ? 'الوصفة الطبية' : 'Prescription'}</span>
+                  <p className="p-2.5 rounded-lg bg-card border border-border text-foreground font-mono whitespace-pre-wrap" dir="auto">{selectedRecord.prescription}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ListOrdered } from 'lucide-react'
+import { ListOrdered, AlertTriangle, CreditCard } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
@@ -11,11 +11,15 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useLanguage } from '@/hooks/useLanguage'
-import { departmentsApi, visitsApi } from '@/lib/api'
+import { departmentsApi, visitsApi, billingApi } from '@/lib/api'
 import { elapsedMinutesSince } from '@/lib/utils'
 import { NewWalkInDialog } from '@/pages/visits/NewWalkInDialog'
 import { departmentLabel, type Department } from '@/types/department'
 import type { Visit } from '@/types/visit'
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10)
+}
 
 const VISITS_TODAY_QUERY_KEY = ['visits', 'today'] as const
 const REFRESH_INTERVAL_MS = 30_000
@@ -50,6 +54,8 @@ type FilterValue = (typeof FILTER_VALUES)[number]
 export default function TodaysVisitsPage() {
   const { t } = useTranslation('visits')
   const { t: tCommon } = useTranslation('common')
+  const { currentLang } = useLanguage()
+  const navigate = useNavigate()
   const [filter, setFilter] = useState<FilterValue>('completed')
 
   const { data, isLoading, isError } = useQuery({
@@ -62,6 +68,16 @@ export default function TodaysVisitsPage() {
     queryFn: () => departmentsApi.list(),
   })
   const departments = departmentsData?.departments ?? []
+
+  const { data: pendingBillingData } = useQuery({
+    queryKey: ['billing-history-all-pending'],
+    queryFn: () => billingApi.history({ status: 'pending_billing' }),
+    refetchInterval: 15_000,
+  })
+  const allPendingInvoices = pendingBillingData?.invoices ?? []
+  const overduePendingCount = allPendingInvoices.filter(
+    (inv) => inv.createdAt.slice(0, 10) !== todayIso()
+  ).length
 
   const visits = data?.visits ?? []
 
@@ -130,6 +146,29 @@ export default function TodaysVisitsPage() {
         </div>
         <NewWalkInDialog />
       </div>
+
+      {/* Overdue Unbilled Visits Alert Banner */}
+      {overduePendingCount > 0 && (
+        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-300 text-xs font-medium">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>
+              {currentLang === 'ar'
+                ? `تنبيه الاستقبال: يوجد عدد (${overduePendingCount}) فواتير غير محصلة من أيام سابقة بانتظار التقفيل من الاستقبال.`
+                : `Reception Alert: There are (${overduePendingCount}) overdue unbilled invoices from previous days waiting for payment.`}
+            </span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs gap-1.5 h-8 px-3 shrink-0"
+            onClick={() => navigate('/billing-history?status=pending_billing&allDates=true')}
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+            {currentLang === 'ar' ? 'تحصيل فواتير الأيام السابقة' : 'Collect Overdue Invoices'}
+          </Button>
+        </div>
+      )}
 
       <Tabs value={filter} onValueChange={(value) => setFilter(value as FilterValue)}>
         <TabsList>

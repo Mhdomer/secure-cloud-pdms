@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Receipt, Search } from 'lucide-react'
+import { Receipt, Search, AlertTriangle, CreditCard } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { EmptyState } from '@/components/shared/EmptyState'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
@@ -52,12 +52,31 @@ export default function BillingHistoryPage() {
   const { t: tCommon } = useTranslation('common')
   const { currentLang } = useLanguage()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  const initialStatus = searchParams.get('status')
+  const allDatesParam = searchParams.get('allDates')
 
   const today = useMemo(() => todayIso(), [])
-  const [fromDate, setFromDate] = useState(today)
-  const [toDate, setToDate] = useState(today)
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [fromDate, setFromDate] = useState(
+    allDatesParam === 'true' || initialStatus === 'pending_billing' ? '' : today
+  )
+  const [toDate, setToDate] = useState(
+    allDatesParam === 'true' || initialStatus === 'pending_billing' ? '' : today
+  )
+  const [statusFilter, setStatusFilter] = useState(initialStatus || 'all')
   const [search, setSearch] = useState('')
+
+  // Query all pending unbilled invoices without date limits to detect past-due/yesterday items
+  const { data: pendingData } = useQuery({
+    queryKey: ['billing-history-all-pending'],
+    queryFn: () => billingApi.history({ status: 'pending_billing' }),
+    refetchInterval: 15_000,
+  })
+  const allPendingInvoices = pendingData?.invoices ?? []
+  const overduePendingInvoices = allPendingInvoices.filter(
+    (inv) => inv.createdAt.slice(0, 10) !== today
+  )
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['billing-history', fromDate, toDate, statusFilter],
@@ -67,7 +86,7 @@ export default function BillingHistoryPage() {
         to: toDate || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
       }),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   })
 
   const invoices = data?.invoices ?? []
@@ -93,6 +112,42 @@ export default function BillingHistoryPage() {
           {tVisits('billingHistoryPage.description')}
         </p>
       </div>
+
+      {/* Overdue Unbilled Invoices Alert Banner */}
+      {overduePendingInvoices.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-300">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500 text-white shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm">
+                {currentLang === 'ar'
+                  ? `تنبيه الاستقبال: يوجد ${overduePendingInvoices.length} فواتير معلقة غير محصلة من أيام سابقة`
+                  : `Reception Alert: ${overduePendingInvoices.length} overdue unbilled invoices from previous days`}
+              </h3>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                {currentLang === 'ar'
+                  ? 'تم إكمال الكشف بواسطة الطبيب في أيام سابقة ولم يتم تحصيل قيمتها من الاستقبال بعد.'
+                  : 'Consultations were completed by doctors on previous days but payment was not yet collected at reception.'}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs gap-1.5 shrink-0"
+            onClick={() => {
+              setFromDate('')
+              setToDate('')
+              setStatusFilter('pending_billing')
+            }}
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+            {currentLang === 'ar' ? 'عرض الفواتير المعلقة الآن' : 'Show Pending Invoices Now'}
+          </Button>
+        </div>
+      )}
 
       {/* Filters Bar */}
       <Card className="flex flex-wrap items-center gap-4 p-4">
@@ -235,14 +290,27 @@ export default function BillingHistoryPage() {
                   <StatusPill status={inv.status} />
                 </TableCell>
                 <TableCell>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => navigate(`/visits/${inv.visitId}/invoice`)}
-                  >
-                    {tVisits('billingHistoryPage.table.viewInvoice')}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {(inv.status === 'pending_billing' || inv.status === 'draft' || inv.amountBalance > 0) && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 shadow-sm shrink-0"
+                        onClick={() => navigate(`/visits/${inv.visitId}/bill`)}
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        {currentLang === 'ar' ? 'تحصيل الفاتورة' : 'Bill / Collect'}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => navigate(`/visits/${inv.visitId}/invoice`)}
+                    >
+                      {tVisits('billingHistoryPage.table.viewInvoice')}
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

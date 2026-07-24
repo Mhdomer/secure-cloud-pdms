@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
 import { UserPlus, Send } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/components/ui/toaster'
 import { useLanguage } from '@/hooks/useLanguage'
 import { departmentsApi, doctorsApi, visitsApi } from '@/lib/api'
+import { notifyStateChange } from '@/lib/syncChannel'
 import { QueueTicketModal } from '@/components/visits/QueueTicketModal'
 import type { AppointmentType } from '@/types/appointment'
 import { departmentLabel } from '@/types/department'
@@ -54,8 +55,6 @@ export function NewWalkInDialog({ trigger }: NewWalkInDialogProps = {}) {
   const [open, setOpen] = useState(false)
   const [ticketModalOpen, setTicketModalOpen] = useState(false)
   const [result, setResult] = useState<Visit | null>(null)
-  const queryClient = useQueryClient()
-
   // A doctor belongs to exactly one clinic (many doctors per clinic, never
   // the reverse) — so which clinic a walk-in is under is never an
   // independent choice staff make here, it's implied entirely by which
@@ -97,7 +96,7 @@ export function NewWalkInDialog({ trigger }: NewWalkInDialogProps = {}) {
     mutationFn: visitsApi.create,
     onSuccess: (visit) => {
       setResult(visit)
-      queryClient.invalidateQueries({ queryKey: ['visits', 'today'] })
+      notifyStateChange()
     },
     onError: (error: AxiosError<{ error?: string }>) => {
       // Surfaces the backend's own message where there is one — e.g. the

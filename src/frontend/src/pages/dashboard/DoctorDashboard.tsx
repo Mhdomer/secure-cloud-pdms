@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion, type Variants } from 'framer-motion'
 import {
   AlarmClock,
@@ -32,6 +32,7 @@ import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
 import { appointmentsApi, patientsApi, recordsApi, visitsApi } from '@/lib/api'
+import { notifyStateChange } from '@/lib/syncChannel'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { getClinicWindow, minutesFromWindowStart } from '@/lib/clinicHours'
 import { todayWindowIso } from '@/lib/dateRange'
@@ -448,8 +449,6 @@ export default function DoctorDashboard() {
     queryFn: () => recordsApi.list({ limit: 20 }),
   })
 
-  const queryClient = useQueryClient()
-
   const {
     data: queueData,
     isLoading: queueLoading,
@@ -486,7 +485,7 @@ export default function DoctorDashboard() {
   const startMutation = useMutation({
     mutationFn: (visitId: string) => visitsApi.updateStatus(visitId, 'in_progress'),
     onSuccess: (_data, visitId) => {
-      queryClient.invalidateQueries({ queryKey: ['visits', 'today', 'mine'] })
+      notifyStateChange()
       navigate(`/visits/${visitId}/consult`)
     },
     onError: () => toast.error(tVisits('todaysVisits.statusUpdateError')),

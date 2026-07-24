@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/hooks/useLanguage'
 import { notificationsApi } from '@/lib/api'
+import { notifyStateChange } from '@/lib/syncChannel'
 
 interface NotificationItem {
   id: string
@@ -37,12 +38,15 @@ export function NotificationDrawer() {
   const { data } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => notificationsApi.list(),
-    refetchInterval: 15000,
+    refetchInterval: 5000,
   })
 
   const markAllMutation = useMutation({
     mutationFn: () => notificationsApi.markAllRead(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      notifyStateChange()
+    },
   })
 
   const rawNotifications = data?.notifications || []
