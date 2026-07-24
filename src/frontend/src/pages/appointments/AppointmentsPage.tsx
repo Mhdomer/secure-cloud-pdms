@@ -31,6 +31,7 @@ import { BookAppointmentDialog } from '@/pages/appointments/BookAppointmentDialo
 import { CancelAppointmentDialog } from '@/pages/appointments/CancelAppointmentDialog'
 import { CreateAppointmentDialog } from '@/pages/appointments/CreateAppointmentDialog'
 import { EditAppointmentDialog } from '@/pages/appointments/EditAppointmentDialog'
+import { RescheduleAppointmentDialog } from '@/pages/appointments/RescheduleAppointmentDialog'
 import type { Appointment, AppointmentType } from '@/types/appointment'
 
 const PAGE_LIMIT = 10
@@ -617,6 +618,11 @@ function AppointmentListCard({
         <div className="flex shrink-0 items-center gap-1">
           {isAdmin && <SendSmsReminderButton appointment={appointment} />}
           {isAdmin && <EditAppointmentDialog appointment={appointment} />}
+          {/* Admin already has full reschedule-and-more via EditAppointmentDialog
+              above — only the patient needs this dedicated, same-doctor,
+              time-only control (UC-21b: previously patients could only
+              cancel and rebook from scratch). */}
+          {isPatient && canAct && <RescheduleAppointmentDialog appointment={appointment} />}
           {canAct && <CancelAppointmentDialog appointment={appointment} />}
           {canComplete && <CompleteAppointmentButton appointment={appointment} />}
         </div>

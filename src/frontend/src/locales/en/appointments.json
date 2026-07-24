@@ -61,6 +61,17 @@
     "success": "Appointment cancelled.",
     "error": "Could not cancel the appointment. Please try again."
   },
+  "reschedule": "Reschedule",
+  "rescheduleDialog": {
+    "title": "Reschedule appointment",
+    "description": "Pick a new date and time with the same doctor. If this appointment was already confirmed, it will need to be confirmed again.",
+    "currentLabel": "Current time",
+    "newDateTimeLabel": "New date & time",
+    "submit": "Reschedule appointment",
+    "rescheduling": "Rescheduling…",
+    "success": "Appointment rescheduled.",
+    "error": "Could not reschedule the appointment. Please try again."
+  },
   "bookDialog": {
     "trigger": "Book appointment",
     "title": "Book an appointment",

@@ -134,10 +134,26 @@ router.patch(
   asyncHandler(appointmentsController.cancelAppointment)
 );
 
-// SMS Reminder trigger (Patient, Doctor, or Staff)
+// UC-21b — Reschedule Appointment (Admin: any; Patient: own only, checked
+// in the controller) — same admin+patient split as cancel above. Keeps the
+// same doctor; only the date/time moves.
+router.patch(
+  '/:appointmentId/reschedule',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.PATIENT),
+  [param('appointmentId').isUUID(), body('scheduled_at').isISO8601().custom(futureDate)],
+  validateRequest,
+  setupRLSContext,
+  asyncHandler(appointmentsController.rescheduleAppointment)
+);
+
+// SMS Reminder trigger (Admin, Doctor, or Superadmin — not the patient
+// themselves, matching the same role list as visits.routes.js's equivalent
+// send-ticket-sms endpoint)
 router.post(
   '/:appointmentId/reminder-sms',
   authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.DOCTOR, ROLES.SUPERADMIN),
   [param('appointmentId').isUUID()],
   validateRequest,
   setupRLSContext,
