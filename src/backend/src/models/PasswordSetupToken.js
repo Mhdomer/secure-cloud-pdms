@@ -15,12 +15,12 @@ class PasswordSetupToken {
     );
   }
 
-  static async create(executor, { userId, token, expiresAt }) {
+  static async create(executor, { userId, token, expiresAt, purpose = 'initial_setup' }) {
     const result = await executor.query(
-      `INSERT INTO password_setup_tokens (user_id, token, expires_at)
-       VALUES ($1, $2, $3)
-       RETURNING token_id, user_id, expires_at`,
-      [userId, token, expiresAt]
+      `INSERT INTO password_setup_tokens (user_id, token, expires_at, purpose)
+       VALUES ($1, $2, $3, $4)
+       RETURNING token_id, user_id, expires_at, purpose`,
+      [userId, token, expiresAt, purpose]
     );
     return result.rows[0];
   }
@@ -36,15 +36,15 @@ class PasswordSetupToken {
 
   /**
    * Atomically marks a token used only if it is still valid, returning the
-   * linked user_id (or null). Doing the check and the write in one
-   * statement closes the race window a plain "find, then update" would
+   * linked user_id and purpose (or null). Doing the check and the write in
+   * one statement closes the race window a plain "find, then update" would
    * leave between two concurrent submissions of the same token.
    */
   static async consumeIfValid(executor, token) {
     const result = await executor.query(
       `UPDATE password_setup_tokens SET used_at = NOW()
         WHERE token = $1 AND used_at IS NULL AND expires_at > NOW()
-        RETURNING user_id`,
+        RETURNING user_id, purpose`,
       [token]
     );
     return result.rows[0] || null;

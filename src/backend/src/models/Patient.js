@@ -32,6 +32,24 @@ class Patient {
   }
 
   /**
+   * Forgot-password lookup — both national_id (the patient's login username)
+   * and contact_number must match the same row. national_id alone already
+   * uniquely identifies a patient; requiring the phone too means a requester
+   * must already know the number on file before the system will text a code
+   * to it. contact_number itself carries no UNIQUE constraint, so a
+   * phone-only lookup could match more than one patient (e.g. a shared
+   * family number) with no principled way to choose which account to reset.
+   */
+  static async findByNationalIdAndContact(client, nationalId, contactNumber) {
+    const result = await client.query(
+      `SELECT patient_id, user_id, id_type, date_of_birth, full_name
+         FROM patients WHERE national_id = $1 AND contact_number = $2`,
+      [nationalId, contactNumber]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
    * Staff-facing lookup — national_id is checked as an exact match (the
    * primary search method), full_name as a substring match, contact_number
    * as a prefix match. `term` is bound as a query parameter throughout, so

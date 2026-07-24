@@ -6,19 +6,28 @@
  * transaction client).
  */
 class Otp {
-  static async create(executor, { phoneNumber, nationalId, idType, dateOfBirth, otpHash, expiresAt }) {
+  static async create(executor, {
+    phoneNumber,
+    nationalId,
+    idType,
+    dateOfBirth,
+    otpHash,
+    expiresAt,
+    purpose = 'registration',
+    userId = null,
+  }) {
     const result = await executor.query(
-      `INSERT INTO otp_verifications (phone_number, national_id, id_type, date_of_birth, otp_hash, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO otp_verifications (phone_number, national_id, id_type, date_of_birth, otp_hash, expires_at, purpose, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING otp_id, expires_at`,
-      [phoneNumber, nationalId, idType, dateOfBirth, otpHash, expiresAt]
+      [phoneNumber, nationalId, idType, dateOfBirth, otpHash, expiresAt, purpose, userId]
     );
     return result.rows[0];
   }
 
   static async findById(executor, otpId) {
     const result = await executor.query(
-      `SELECT otp_id, phone_number, national_id, id_type, date_of_birth, otp_hash, attempts, expires_at, verified_at
+      `SELECT otp_id, phone_number, national_id, id_type, date_of_birth, otp_hash, purpose, user_id, attempts, expires_at, verified_at
          FROM otp_verifications WHERE otp_id = $1`,
       [otpId]
     );

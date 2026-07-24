@@ -55,4 +55,18 @@ const otpVerifyLimiter = rateLimit({
   message: { error: 'Too many attempts. Please request a new code.' },
 });
 
-module.exports = { globalLimiter, loginLimiter, otpRequestLimiter, otpVerifyLimiter };
+// Forgot-password (phone OTP reset) — a separate instance from
+// otpRequestLimiter even though the shape is identical, so a patient's
+// registration-OTP attempts and password-reset-OTP attempts don't drain the
+// same per-phone budget (two semantically distinct actions sharing one
+// counter would be a surprising cross-feature coupling).
+const passwordResetRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.body?.phone_number || req.ip,
+  message: { error: 'Too many password reset requests for this number. Please try again later.' },
+});
+
+module.exports = { globalLimiter, loginLimiter, otpRequestLimiter, otpVerifyLimiter, passwordResetRequestLimiter };
