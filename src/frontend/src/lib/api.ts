@@ -44,6 +44,7 @@ import type {
   CancelAppointmentPayload,
   CreateAppointmentPayload,
   CreateAppointmentResponse,
+  RescheduleAppointmentPayload,
   UpdateAppointmentPayload,
 } from '@/types/appointment'
 import type {
@@ -180,6 +181,8 @@ export const usersApi = {
 
 export const doctorsApi = {
   listActive: () => api.get<ListActiveDoctorsResponse>('/doctors').then((res) => res.data),
+  /** Doctor only — the signed-in doctor's own name/specialisation, for greetings/headers that shouldn't show the raw login username. */
+  me: () => api.get<{ doctorId: string; fullName: string; specialisation: string | null }>('/doctors/me').then((res) => res.data),
   /** Viewable by any authenticated role — backs the "what hours is this doctor available" hint on booking dialogs. */
   getAvailability: (doctorId: string) =>
     api.get<DoctorAvailabilityResponse>(`/doctors/${doctorId}/availability`).then((res) => res.data),
@@ -230,6 +233,8 @@ export const patientsApi = {
   search: (params: SearchPatientsParams) =>
     api.get<SearchPatientsResponse>('/patients', { params }).then((res) => res.data),
   get: (patientId: string) => api.get<Patient>(`/patients/${patientId}`).then((res) => res.data),
+  /** Patient only — the signed-in patient's own name/file number, for greetings/headers that shouldn't show the raw login username (which is their national ID). */
+  me: () => api.get<{ patientId: string; fullName: string; fileNo: number }>('/patients/me').then((res) => res.data),
   update: (patientId: string, payload: UpdatePatientPayload) =>
     api.put<UpdatePatientResponse>(`/patients/${patientId}`, payload).then((res) => res.data),
   assignDoctor: (patientId: string, payload: AssignDoctorPayload) =>
@@ -318,6 +323,11 @@ export const appointmentsApi = {
     api
       .patch<AppointmentMutationResponse>(`/appointments/${appointmentId}/cancel`, payload)
       .then((res) => res.data),
+  /** UC-21b — same endpoint for Admin (any) and Patient (own only, checked server-side). Same doctor, new time only. */
+  reschedule: (appointmentId: string, payload: RescheduleAppointmentPayload) =>
+    api
+      .patch<AppointmentMutationResponse>(`/appointments/${appointmentId}/reschedule`, payload)
+      .then((res) => res.data),
   /** Quick Check-In (Feature E) — admin/superadmin only, marks status 'arrived'. */
   checkin: (appointmentId: string) =>
     api
@@ -337,7 +347,10 @@ export const appointmentsApi = {
 
 // ── Invoices (billing documents — admin uploads, admin + doctor view) ──────
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api') as string
+// Derived from the same axios instance's baseURL (set once, above) rather
+// than re-reading import.meta.env here — two independent reads of the same
+// env var could silently diverge if only one call site were ever updated.
+const API_BASE_URL = api.defaults.baseURL as string
 
 export interface UploadInvoicePayload {
   file: File
@@ -434,15 +447,6 @@ export const visitsApi = {
     api.get<{ count: number }>('/visits/pending-count').then((r) => r.data.count),
   sendTicketSms: (visitId: string) =>
     api.post<{ success: boolean; trackingUrl: string; queueNo: number; phone?: string }>(`/visits/${visitId}/send-ticket-sms`).then((r) => r.data),
-}
-
-// ── Rooms (Room & Equipment Allocation Module) ──
-import type { ClinicRoom, RoomStatus } from '@/types/room'
-
-export const roomsApi = {
-  list: () => api.get<ClinicRoom[]>('/rooms').then((r) => r.data),
-  update: (roomId: string, payload: { status?: RoomStatus; assigned_visit_id?: string | null }) =>
-    api.patch<ClinicRoom>(`/rooms/${roomId}`, payload).then((r) => r.data),
 }
 
 // ── Billing (doctor adds items during consultation, staff discounts + collects payment) ──
@@ -604,12 +608,13 @@ export const clinicalTemplatesApi = {
 }
 
 export interface PublicQueueTrackerData {
+  // No patientName/doctorName — this endpoint is unauthenticated (reached via
+  // a raw visit_id in an SMS link), so the response is deliberately scoped to
+  // non-PHI fields only.
   ticket: {
     visitId: string
     queueNo: number
     status: string
-    patientName: string
-    doctorName: string
     clinic: string
     checkedInAt: string
   }
