@@ -2,18 +2,15 @@ import { Clock, UserCheck, CheckCircle2, AlertTriangle, Send } from 'lucide-reac
 import { useLanguage } from '@/hooks/useLanguage'
 import { elapsedMinutesSince } from '@/lib/utils'
 import type { Visit } from '@/types/visit'
-import type { ClinicRoom } from '@/types/room'
 
 interface LobbyKanbanBoardProps {
   visits: Visit[]
-  rooms?: ClinicRoom[]
   onUpdateStatus: (visitId: string, status: Visit['status']) => void
   onSendSms?: (visitId: string) => void
 }
 
 export function LobbyKanbanBoard({
   visits,
-  rooms = [],
   onUpdateStatus,
   onSendSms,
 }: LobbyKanbanBoardProps) {
@@ -73,7 +70,6 @@ export function LobbyKanbanBoard({
             </div>
           ) : (
             waitingVisits.map((v) => {
-              const assignedRoom = rooms.find((r) => r.assigned_visit_id === v.visitId)
               return (
                 <div
                   key={v.visitId}
@@ -97,11 +93,6 @@ export function LobbyKanbanBoard({
 
                   <div className="flex items-center justify-between pt-1">
                     {getWaitBadge(v.checkedInAt)}
-                    {assignedRoom ? (
-                      <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded">
-                        {assignedRoom.name_ar || assignedRoom.name_en}
-                      </span>
-                    ) : null}
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2">
