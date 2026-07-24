@@ -27,11 +27,22 @@ export function AppointmentsTab({ patientId }: { patientId: string }) {
   const { t: tAppointments } = useTranslation('appointments')
   const { currentLang } = useLanguage()
 
+  // Rounded to a whole day rather than the exact current millisecond —
+  // React 18 StrictMode intentionally double-invokes this on mount in dev,
+  // and an exact `now.getTime()` timestamp differs by a few ms between the
+  // two passes, so the query key below came out different each time and
+  // React Query fired two independent, racing fetches instead of
+  // deduplicating one (QA-2026-07-24 finding H-6 — reproduced as "Could
+  // not load this patient's appointments" on every fresh mount). Rounding
+  // to a day keeps the same ±30-day window semantics while making the key
+  // identical across both passes, so React Query's normal deduplication
+  // actually applies.
   const { from, to } = useMemo(() => {
-    const now = new Date()
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
     return {
-      from: new Date(now.getTime() - THIRTY_DAYS_MS).toISOString(),
-      to: new Date(now.getTime() + THIRTY_DAYS_MS).toISOString(),
+      from: new Date(startOfToday.getTime() - THIRTY_DAYS_MS).toISOString(),
+      to: new Date(startOfToday.getTime() + THIRTY_DAYS_MS).toISOString(),
     }
   }, [])
 
