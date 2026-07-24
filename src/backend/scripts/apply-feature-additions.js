@@ -7,7 +7,7 @@ const client = new Client({
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME || 'pdms',
   user: process.env.MIGRATION_DB_USER || process.env.DB_USER || 'postgres',
-  password: process.env.MIGRATION_DB_PASSWORD || process.env.DB_PASSWORD || '2013',
+  password: process.env.MIGRATION_DB_PASSWORD || process.env.DB_PASSWORD,
 });
 
 async function run() {
@@ -26,33 +26,10 @@ async function run() {
     ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS patient_amount DECIMAL(10,2) DEFAULT 0;
     ALTER TABLE visit_invoices ADD COLUMN IF NOT EXISTS insurance_amount DECIMAL(10,2) DEFAULT 0;
 
-    -- 3. Room & Equipment Allocation Table
-    CREATE TABLE IF NOT EXISTS clinic_rooms (
-      room_id        UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-      room_number    VARCHAR(20) UNIQUE NOT NULL,
-      name_en        VARCHAR(100) NOT NULL,
-      name_ar        VARCHAR(100) NOT NULL,
-      department_key VARCHAR(50) REFERENCES departments(key),
-      status         VARCHAR(20) NOT NULL DEFAULT 'available'
-                       CHECK (status IN ('available','occupied','cleaning','maintenance')),
-      assigned_visit_id UUID REFERENCES visits(visit_id) ON DELETE SET NULL,
-      created_at     TIMESTAMPTZ DEFAULT NOW(),
-      updated_at     TIMESTAMPTZ DEFAULT NOW()
-    );
-
-    ALTER TABLE visits ADD COLUMN IF NOT EXISTS room_id UUID REFERENCES clinic_rooms(room_id) ON DELETE SET NULL;
-
-    INSERT INTO clinic_rooms (room_number, name_en, name_ar, department_key) VALUES
-      ('101', 'General Clinic 1',     'عيادة الطب العام ١',     'general'),
-      ('102', 'General Clinic 2',     'عيادة الطب العام ٢',     'general'),
-      ('201', 'Dental Surgery 1',     'عيادة الأسنان ١',        'dental'),
-      ('202', 'Dental Surgery 2',     'عيادة الأسنان ٢',        'dental'),
-      ('301', 'Dermatology & Laser',  'عيادة الجلدية والتجميل', 'dermatology'),
-      ('401', 'Pediatrics Room',      'عيادة طب الأطفال',      'pediatrics'),
-      ('501', 'Phlebotomy & Sample',  'سحب العينات والمختبر',   'laboratory')
-    ON CONFLICT (room_number) DO NOTHING;
-
-    GRANT SELECT, INSERT, UPDATE, DELETE ON clinic_rooms TO pdms_app;
+    -- Room & Equipment Allocation Table — removed 2026-07-24, never wired
+    -- into any screen (see schema.sql's clinic_rooms section for the full
+    -- removal note). Left out of this historical migration script too so
+    -- re-running it doesn't resurrect the table schema.sql just dropped.
 
     -- 4. Sick Leaves Table
     CREATE TABLE IF NOT EXISTS sick_leaves (
