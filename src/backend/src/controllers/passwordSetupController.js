@@ -79,11 +79,13 @@ async function setPassword(req, res) {
     const row = await PasswordSetupToken.consumeIfValid(client, token);
     if (!row) return null;
     await User.updatePassword(client, row.user_id, passwordHash);
-    // Clears failed_attempts and reactivates a locked account — a no-op for
-    // a never-locked first-time-setup account, correct behavior for a
-    // forgot-password reset ("I reset my password, so unlock me too").
-    await User.reactivate(client, row.user_id);
     if (row.purpose === 'password_reset') {
+      // Clears failed_attempts and reactivates a locked account — "I reset
+      // my password, so unlock me too." Scoped to the reset flow only: the
+      // plain first-time-setup flow must never touch is_active, or it could
+      // silently override an admin's explicit deactivation of an account
+      // that's still mid-setup.
+      await User.reactivate(client, row.user_id);
       await AuditLog.log(client, {
         userId: row.user_id,
         action: AUDIT_ACTIONS.PASSWORD_RESET_COMPLETED,

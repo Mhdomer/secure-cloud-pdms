@@ -118,6 +118,12 @@ async function verifyOtp(req, res) {
   // non-null user_id — without this check, a matching code on a registration
   // row would 500 instead of cleanly falling into the generic error below.
   if (otp.purpose !== 'password_reset') return genericError();
+  // Defense-in-depth: patients.user_id is nullable (ON DELETE SET NULL), so
+  // an orphaned patient row could in theory produce a password_reset OTP
+  // with a null user_id if a hard-delete path is ever added later. No such
+  // path exists today, but this keeps that case a clean generic error
+  // instead of a 500 in generateSetupToken/PasswordSetupToken.create below.
+  if (!otp.user_id) return genericError();
   if (otp.verified_at) return genericError();
   if (new Date(otp.expires_at) < new Date()) return genericError();
   if (otp.attempts >= MAX_OTP_ATTEMPTS) return genericError();
