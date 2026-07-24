@@ -79,6 +79,19 @@ router.get(
   asyncHandler(patientsController.searchPatients)
 );
 
+// Signed-in patient's own profile (name, file number) — patientId derived
+// from the session, never a route param. Registered before /:patientId so
+// the literal "me" path isn't shadowed by that param route. Added to fix
+// dashboards greeting a patient by their raw username instead of their
+// real name (QA-2026-07-24 finding M-6).
+router.get(
+  '/me',
+  authenticateJWT,
+  authorizeRole(ROLES.PATIENT),
+  setupRLSContext,
+  asyncHandler(patientsController.getMyProfile)
+);
+
 // UC-07 — View Patient Profile
 router.get(
   '/:patientId',

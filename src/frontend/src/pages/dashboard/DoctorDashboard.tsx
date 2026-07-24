@@ -31,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { toast } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 import { useLanguage } from '@/hooks/useLanguage'
-import { appointmentsApi, patientsApi, recordsApi, visitsApi } from '@/lib/api'
+import { appointmentsApi, doctorsApi, patientsApi, recordsApi, visitsApi } from '@/lib/api'
 import { notifyStateChange } from '@/lib/syncChannel'
 import { avatarClassesFor, initialsFor } from '@/lib/avatar'
 import { getClinicWindow, minutesFromWindowStart } from '@/lib/clinicHours'
@@ -389,6 +389,17 @@ export default function DoctorDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
 
+  // authStore deliberately only ever holds userId/username/role (never PII
+  // like a real name), so the greeting used to fall back to the raw login
+  // username ("Good afternoon, Dr. drmohamed") — this fetches the doctor's
+  // actual name once and falls back to the username only while it's still
+  // loading or if it fails, so the header never regresses to a blank state.
+  const { data: myProfile } = useQuery({
+    queryKey: ['doctors', 'me'],
+    queryFn: () => doctorsApi.me(),
+  })
+  const greetingName = myProfile?.fullName ?? user?.username
+
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const now = useMemo(() => new Date(), [])
   const { from, to } = useMemo(() => todayWindowIso(now), [now])
@@ -602,7 +613,7 @@ export default function DoctorDashboard() {
         className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between"
       >
         <h1 className="text-2xl font-semibold text-foreground">
-          {t(`doctor.greeting${greetingPeriod}`, { name: user?.username })}
+          {t(`doctor.greeting${greetingPeriod}`, { name: greetingName })}
         </h1>
         <p dir="auto" className="text-sm text-muted-foreground">
           {dateInCurrentLang}
