@@ -164,6 +164,15 @@ export default function LoginPage() {
                   )}
                 />
 
+                <div className="flex justify-end">
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm font-medium text-brand-gold-300 hover:underline"
+                  >
+                    {t('forgotPasswordLink')}
+                  </Link>
+                </div>
+
                 {formError && (
                   <p role="alert" className="text-start text-sm font-medium text-danger-500">
                     {formError}

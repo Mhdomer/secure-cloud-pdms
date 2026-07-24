@@ -8,11 +8,15 @@ import type {
   LoginResponse,
   RequestOtpPayload,
   RequestOtpResponse,
+  RequestPasswordResetOtpPayload,
+  RequestPasswordResetOtpResponse,
   SetupPasswordPayload,
   SetupPasswordResponse,
   ValidateSetupTokenResponse,
   VerifyOtpPayload,
   VerifyOtpResponse,
+  VerifyPasswordResetOtpPayload,
+  VerifyPasswordResetOtpResponse,
 } from '@/types/auth'
 import type {
   AddToCareTeamPayload,
@@ -158,6 +162,17 @@ export const passwordSetupApi = {
     api.get<ValidateSetupTokenResponse>('/auth/setup-password', { params: { token } }).then((res) => res.data),
   setPassword: (payload: SetupPasswordPayload) =>
     api.post<SetupPasswordResponse>('/auth/setup-password', payload).then((res) => res.data),
+}
+
+const AUTH_FORGOT_PASSWORD_PATH = '/auth/forgot-password/'
+
+// Forgot password (patients only, phone OTP) — public, no session cookie
+// required for either step. See docs/superpowers/specs/2026-07-24-forgot-password-design.md.
+export const forgotPasswordApi = {
+  requestOtp: (payload: RequestPasswordResetOtpPayload) =>
+    api.post<RequestPasswordResetOtpResponse>(`${AUTH_FORGOT_PASSWORD_PATH}request-otp`, payload).then((res) => res.data),
+  verifyOtp: (payload: VerifyPasswordResetOtpPayload) =>
+    api.post<VerifyPasswordResetOtpResponse>(`${AUTH_FORGOT_PASSWORD_PATH}verify-otp`, payload).then((res) => res.data),
 }
 
 // ── Users (admin-managed staff accounts) ───────────────────────────────────

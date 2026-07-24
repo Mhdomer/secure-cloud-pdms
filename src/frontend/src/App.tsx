@@ -16,6 +16,7 @@ import FacilitiesPage from '@/pages/landing/FacilitiesPage'
 import PatientInfoPage from '@/pages/landing/PatientInfoPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 import SetupPasswordPage from '@/pages/auth/SetupPasswordPage'
 import QueueTrackerPage from '@/pages/public/QueueTrackerPage'
 import PatientKioskPage from '@/pages/public/PatientKioskPage'
@@ -84,6 +85,7 @@ function App() {
             <Route path="/patient-info" element={<PatientInfoPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/setup-password" element={<SetupPasswordPage />} />
             <Route path="/queue-tracker" element={<QueueTrackerPage />} />
             <Route path="/kiosk" element={<PatientKioskPage />} />

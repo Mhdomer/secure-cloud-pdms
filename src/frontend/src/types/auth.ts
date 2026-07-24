@@ -110,3 +110,31 @@ export interface SetupPasswordPayload {
 export interface SetupPasswordResponse {
   message: string
 }
+
+// ── Forgot password (patient self-service, phone OTP — reuses UC-19's OTP
+// infrastructure) ───────────────────────────────────────────────────────────
+
+/** POST /api/auth/forgot-password/request-otp (public). */
+export interface RequestPasswordResetOtpPayload {
+  national_id: string
+  phone_number: string
+}
+
+export interface RequestPasswordResetOtpResponse {
+  requestId: string
+  expiresInSeconds: number
+  message: string
+  /** Dev/demo only — never present in production, or when the pair didn't match a real patient. */
+  devOtpCode?: string
+}
+
+/** POST /api/auth/forgot-password/verify-otp (public). */
+export interface VerifyPasswordResetOtpPayload {
+  requestId: string
+  otp_code: string
+}
+
+export interface VerifyPasswordResetOtpResponse {
+  /** e.g. "/setup-password?token=..." — navigate here directly on success. */
+  redirectUrl: string
+}
