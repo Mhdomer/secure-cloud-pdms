@@ -5,6 +5,7 @@ const validateRequest     = require('../middleware/validateRequest');
 const { authenticateJWT } = require('../middleware/authMiddleware');
 const { authorizeRole }   = require('../middleware/rbacMiddleware');
 const { setupRLSContext }  = require('../middleware/rlsContext');
+const { publicTrackerLimiter } = require('../middleware/rateLimiter');
 const asyncHandler = require('../utils/asyncHandler');
 const ctrl = require('../controllers/visitsController');
 const { ROLES, APPOINTMENT_TYPES } = require('../config/constants');
@@ -69,6 +70,17 @@ router.patch('/:visitId/status',
   asyncHandler(ctrl.updateStatus)
 );
 
+// Admin/superadmin — void a mistaken walk-in check-in (finding H-2). Only
+// a still-'waiting' visit (nothing charted yet) can be cancelled; the
+// controller enforces that atomically.
+router.patch('/:visitId/cancel',
+  authenticateJWT,
+  authorizeRole(ROLES.ADMIN, ROLES.SUPERADMIN),
+  [param('visitId').isUUID()],
+  validateRequest, setupRLSContext,
+  asyncHandler(ctrl.cancelVisit)
+);
+
 router.post('/:visitId/send-ticket-sms',
   authenticateJWT,
   authorizeRole(ROLES.ADMIN, ROLES.DOCTOR, ROLES.SUPERADMIN),
@@ -79,6 +91,7 @@ router.post('/:visitId/send-ticket-sms',
 
 // Public unauthenticated live queue ticket tracking route for patient phone screens
 router.get('/:visitId/tracker',
+  publicTrackerLimiter,
   [param('visitId').isUUID()],
   validateRequest,
   asyncHandler(ctrl.getPublicQueueTracker)

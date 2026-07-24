@@ -55,4 +55,16 @@ const otpVerifyLimiter = rateLimit({
   message: { error: 'Too many attempts. Please request a new code.' },
 });
 
-module.exports = { globalLimiter, loginLimiter, otpRequestLimiter, otpVerifyLimiter };
+// GET /visits/:visitId/tracker is fully public/unauthenticated (reached via
+// a raw visit_id UUID in an SMS link) — the only thing standing between it
+// and a visit_id-scanning script is a tighter-than-global per-IP ceiling,
+// same reasoning as the OTP limiters above.
+const publicTrackerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+});
+
+module.exports = { globalLimiter, loginLimiter, otpRequestLimiter, otpVerifyLimiter, publicTrackerLimiter };
