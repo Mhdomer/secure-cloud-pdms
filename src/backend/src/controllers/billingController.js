@@ -1,6 +1,6 @@
 'use strict';
 const { withTransaction } = require('../config/database');
-const { calcItem, calcTotals } = require('../utils/invoiceCalc');
+const { calcItem, calcTotals, round } = require('../utils/invoiceCalc');
 const AuditLog = require('../models/AuditLog');
 const { AUDIT_ACTIONS, ROLES } = require('../config/constants');
 
@@ -77,15 +77,18 @@ function toItemRow(r) {
 }
 
 /**
- * `visits`/`visit_invoices`/`invoice_items` have no RLS (schema.sql only
- * protects patients/medical_records/lab_results), so this is the only
- * place a doctor or patient session is scoped to their own visit — without
- * it, any doctor could read, bill, or write prescription_notes onto any
- * other doctor's patient's visit just by knowing/guessing a visitId, and
- * any patient could read another patient's invoice the same way. Same
+ * `visits`/`visit_invoices`/`invoice_items` DO now carry RLS (schema.sql's
+ * "HIGH-03 audit fix" section — `admin_all_visits`/`doctor_own_visits`/
+ * `patient_own_visits` and their `_invoices`/`_items` equivalents, added
+ * after this function and comment were first written). This app-layer
+ * check is intentionally redundant with that DB-layer enforcement, not a
+ * substitute for it — kept because it's what actually produces a clean
+ * 404 (RLS alone would just make the row invisible, which without this
+ * explicit check would surface as a confusing empty-result path deeper in
+ * each handler) and because defense-in-depth here is cheap. Same
  * generic-404 convention as visitsController (avoids leaking which case
- * occurred). Admin is unrestricted, matching admin_select_patients
- * elsewhere — staff bill any patient's visit.
+ * occurred — missing vs. not-yours). Admin is unrestricted, matching
+ * admin_select_patients elsewhere — staff bill any patient's visit.
  */
 async function assertOwnVisit(client, visitId, session) {
   const { rows } = await client.query(`SELECT doctor_id, patient_id FROM visits WHERE visit_id = $1`, [visitId]);
@@ -119,12 +122,45 @@ async function ensureDraftInvoice(client, visitId, userId) {
     const e = new Error('Visit not found'); e.statusCode = 404; throw e;
   }
   const v = visit.rows[0];
-  const { rows } = await client.query(
+  // ON CONFLICT DO NOTHING + fallback SELECT (rather than a bare INSERT)
+  // closes a real race: two near-simultaneous first-add-item calls for the
+  // same visit (double-click, retried request) could otherwise both pass
+  // the "no existing invoice" check above and both attempt the INSERT —
+  // visit_invoices.visit_id is UNIQUE, so the loser would throw an
+  // unhandled 23505 instead of just reusing the winner's row.
+  const inserted = await client.query(
     `INSERT INTO visit_invoices (visit_id, patient_id, doctor_id, created_by)
-     VALUES ($1,$2,$3,$4) RETURNING invoice_id`,
+     VALUES ($1,$2,$3,$4)
+     ON CONFLICT (visit_id) DO NOTHING
+     RETURNING invoice_id`,
     [visitId, v.patient_id, v.doctor_id, userId]
   );
+  if (inserted.rows.length) return inserted.rows[0].invoice_id;
+  const { rows } = await client.query(
+    `SELECT invoice_id FROM visit_invoices WHERE visit_id = $1`, [visitId]
+  );
   return rows[0].invoice_id;
+}
+
+/**
+ * Locks the invoice row for the remainder of this transaction — every
+ * billing mutation (addItem, removeItem, updateQty, updateDiscount,
+ * payInvoice) takes this lock first, so two concurrent mutations against
+ * the *same* invoice serialize instead of racing (lost updates on totals,
+ * duplicate line items, double-processed payments — see
+ * docs/psm2/qa-audit-2026-07-24.md finding H-1). Postgres blocks a second
+ * `FOR UPDATE` on the same row until the first transaction commits/rolls
+ * back, so the second caller simply waits and then sees the first caller's
+ * committed result before doing its own read-modify-write.
+ */
+async function lockInvoice(client, invoiceId) {
+  const { rows } = await client.query(
+    `SELECT * FROM visit_invoices WHERE invoice_id = $1 FOR UPDATE`, [invoiceId]
+  );
+  if (!rows.length) {
+    const e = new Error('Invoice not found'); e.statusCode = 404; throw e;
+  }
+  return rows[0];
 }
 
 async function refreshTotals(client, invoiceId) {
@@ -203,11 +239,12 @@ exports.addItem = async (req, res) => {
     await assertOwnVisit(client, req.params.visitId, req.rlsSession);
     const invoiceId = await ensureDraftInvoice(client, req.params.visitId, req.user.userId);
 
-    // Verify invoice is still editable by doctor
-    const inv = await client.query(
-      `SELECT status FROM visit_invoices WHERE invoice_id = $1`, [invoiceId]
-    );
-    if (!['draft'].includes(inv.rows[0].status)) {
+    // Locks the invoice row so two near-simultaneous addItem calls for the
+    // same invoice (double-click, retried request) can't both read the
+    // same "no existing line for this service" snapshot and both insert a
+    // duplicate row instead of merging into one qty (finding H-1).
+    const inv = await lockInvoice(client, invoiceId);
+    if (inv.status !== 'draft') {
       const e = new Error('Invoice is no longer editable'); e.statusCode = 409; throw e;
     }
 
@@ -224,20 +261,25 @@ exports.addItem = async (req, res) => {
       : undefined;
 
     if (existing) {
+      // A resent unit_price on a merge used to be silently dropped (finding
+      // M-2) — if the caller explicitly sent one this time (e.g. the
+      // catalog price changed mid-consultation), honor it instead of
+      // always reusing whatever price the first add happened to use.
+      const mergedPrice = unit_price ?? existing.unit_price;
       const calc = calcItem({
-        unit_price: existing.unit_price,
+        unit_price: mergedPrice,
         qty: existing.qty + qty,
         discount_pct: existing.discount_pct,
         vat_pct: existing.vat_pct,
       });
       await client.query(
         `UPDATE invoice_items
-            SET qty=$1, discount_amount=$2, net_price=$3, vat_amount=$4, total_with_vat=$5
-          WHERE item_id=$6`,
-        [calc.qty, calc.discount_amount, calc.net_price, calc.vat_amount, calc.total_with_vat, existing.item_id]
+            SET qty=$1, unit_price=$2, discount_amount=$3, net_price=$4, vat_amount=$5, total_with_vat=$6
+          WHERE item_id=$7`,
+        [calc.qty, calc.unit_price, calc.discount_amount, calc.net_price, calc.vat_amount, calc.total_with_vat, existing.item_id]
       );
     } else {
-      let code_no = null, name_en = null, name_ar = null, price = unit_price;
+      let code_no = null, name_en = null, name_ar = null, price = unit_price, vatPct = 15;
       if (service_id) {
         const svc = await client.query(
           `SELECT * FROM clinic_services WHERE service_id = $1`, [service_id]
@@ -247,10 +289,15 @@ exports.addItem = async (req, res) => {
           name_en    = svc.rows[0].name_en;
           name_ar    = svc.rows[0].name_ar;
           price      = unit_price ?? svc.rows[0].base_price;
+          // Was hardcoded to 15 regardless of the catalog's own vat_pct
+          // (finding C-2) — a service deliberately configured at 0% VAT
+          // (Saudi VAT zero-rates a lot of essential healthcare) was
+          // silently overridden and the patient over-charged.
+          vatPct     = svc.rows[0].vat_pct != null ? parseFloat(svc.rows[0].vat_pct) : 15;
         }
       }
 
-      const calc = calcItem({ unit_price: price, qty, discount_pct: 0, vat_pct: 15 });
+      const calc = calcItem({ unit_price: price, qty, discount_pct: 0, vat_pct: vatPct });
       const nextOrder = await client.query(
         `SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM invoice_items WHERE invoice_id=$1`,
         [invoiceId]
@@ -264,7 +311,7 @@ exports.addItem = async (req, res) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [invoiceId, service_id ?? null, code_no, name_en, name_ar,
          calc.qty, calc.unit_price, 0, 0, calc.net_price,
-         15, calc.vat_amount, calc.total_with_vat, nextOrder.rows[0].n]
+         calc.vat_pct, calc.vat_amount, calc.total_with_vat, nextOrder.rows[0].n]
       );
     }
 
@@ -286,21 +333,21 @@ exports.addItem = async (req, res) => {
 exports.removeItem = async (req, res) => {
   await withTransaction(req.rlsSession, async (client) => {
     await assertOwnVisit(client, req.params.visitId, req.rlsSession);
-    const invRow = await client.query(
-      `SELECT vi.invoice_id, vi.status FROM visit_invoices vi
-        WHERE vi.visit_id = $1`, [req.params.visitId]
+    const invIdRow = await client.query(
+      `SELECT invoice_id FROM visit_invoices WHERE visit_id = $1`, [req.params.visitId]
     );
-    if (!invRow.rows.length) {
+    if (!invIdRow.rows.length) {
       const e = new Error('Invoice not found'); e.statusCode = 404; throw e;
     }
-    if (invRow.rows[0].status !== 'draft') {
+    const inv = await lockInvoice(client, invIdRow.rows[0].invoice_id);
+    if (inv.status !== 'draft') {
       const e = new Error('Invoice is no longer editable'); e.statusCode = 409; throw e;
     }
     await client.query(
       `DELETE FROM invoice_items WHERE item_id=$1 AND invoice_id=$2`,
-      [req.params.itemId, invRow.rows[0].invoice_id]
+      [req.params.itemId, inv.invoice_id]
     );
-    await refreshTotals(client, invRow.rows[0].invoice_id);
+    await refreshTotals(client, inv.invoice_id);
   });
   res.json({ message: 'Item removed' });
 };
@@ -313,12 +360,27 @@ exports.markDone = async (req, res) => {
   const { prescription_notes, notes } = req.body;
   await withTransaction(req.rlsSession, async (client) => {
     await assertOwnVisit(client, req.params.visitId, req.rlsSession);
-    await client.query(
+    // Used to have no status precondition at all — a direct API call (or a
+    // doctor navigating straight to a visit's /consult URL without ever
+    // clicking "start") could jump 'waiting' straight to 'completed', or
+    // silently resurrect an already-'billed'/'cancelled' visit. Checked
+    // explicitly here (not just left to the DB trigger below) so this
+    // gives a specific, on-topic message rather than the trigger's more
+    // generic one — `assertOwnVisit` above already confirmed the visit
+    // exists and is this doctor's, so 0 rows here can only mean the status
+    // precondition failed, never a missing-visit case.
+    const updated = await client.query(
       `UPDATE visits SET status='completed', completed_at=NOW(),
               prescription_notes=$1, notes=COALESCE($3, notes)
-        WHERE visit_id=$2`,
+        WHERE visit_id=$2 AND status='in_progress'
+        RETURNING visit_id`,
       [prescription_notes ?? null, req.params.visitId, notes ?? null]
     );
+    if (!updated.rows.length) {
+      const e = new Error('This visit has not been started yet, or was already completed');
+      e.statusCode = 409;
+      throw e;
+    }
     const invoiceId = await ensureDraftInvoice(client, req.params.visitId, req.user.userId);
     await client.query(
       `UPDATE visit_invoices SET status='pending_billing' WHERE invoice_id=$1`,
@@ -342,25 +404,29 @@ exports.markDone = async (req, res) => {
 exports.updateDiscount = async (req, res) => {
   const { discount_pct } = req.body;
   const result = await withTransaction(req.rlsSession, async (client) => {
-    const itemRow = await client.query(
-      `SELECT ii.*, vi.status, vi.invoice_id
-         FROM invoice_items ii
-         JOIN visit_invoices vi ON vi.invoice_id = ii.invoice_id
-        WHERE ii.item_id = $1 AND vi.visit_id = $2`,
-      [req.params.itemId, req.params.visitId]
+    const invIdRow = await client.query(
+      `SELECT invoice_id FROM visit_invoices WHERE visit_id = $1`, [req.params.visitId]
     );
-    if (!itemRow.rows.length) {
+    if (!invIdRow.rows.length) {
       const e = new Error('Item not found'); e.statusCode = 404; throw e;
     }
-    const item = itemRow.rows[0];
+    const inv = await lockInvoice(client, invIdRow.rows[0].invoice_id);
     // Once any money has moved (paid/partial) or the invoice is voided,
     // a discount change would silently desync amount_paid/amount_balance
     // from the new totals — only draft/pending_billing are editable, not
     // just "not yet paid" (the original check here only blocked 'paid',
     // missing 'partial' and 'cancelled').
-    if (!['draft', 'pending_billing'].includes(item.status)) {
+    if (!['draft', 'pending_billing'].includes(inv.status)) {
       const e = new Error('Invoice is no longer editable'); e.statusCode = 409; throw e;
     }
+    const itemRow = await client.query(
+      `SELECT * FROM invoice_items WHERE item_id = $1 AND invoice_id = $2`,
+      [req.params.itemId, inv.invoice_id]
+    );
+    if (!itemRow.rows.length) {
+      const e = new Error('Item not found'); e.statusCode = 404; throw e;
+    }
+    const item = itemRow.rows[0];
     const calc = calcItem({
       unit_price: item.unit_price,
       qty: item.qty,
@@ -394,20 +460,24 @@ exports.updateQty = async (req, res) => {
   const { qty } = req.body;
   const result = await withTransaction(req.rlsSession, async (client) => {
     await assertOwnVisit(client, req.params.visitId, req.rlsSession);
+    const invIdRow = await client.query(
+      `SELECT invoice_id FROM visit_invoices WHERE visit_id = $1`, [req.params.visitId]
+    );
+    if (!invIdRow.rows.length) {
+      const e = new Error('Item not found'); e.statusCode = 404; throw e;
+    }
+    const inv = await lockInvoice(client, invIdRow.rows[0].invoice_id);
+    if (inv.status !== 'draft') {
+      const e = new Error('Invoice is no longer editable'); e.statusCode = 409; throw e;
+    }
     const itemRow = await client.query(
-      `SELECT ii.*, vi.status, vi.invoice_id
-         FROM invoice_items ii
-         JOIN visit_invoices vi ON vi.invoice_id = ii.invoice_id
-        WHERE ii.item_id = $1 AND vi.visit_id = $2`,
-      [req.params.itemId, req.params.visitId]
+      `SELECT * FROM invoice_items WHERE item_id = $1 AND invoice_id = $2`,
+      [req.params.itemId, inv.invoice_id]
     );
     if (!itemRow.rows.length) {
       const e = new Error('Item not found'); e.statusCode = 404; throw e;
     }
     const item = itemRow.rows[0];
-    if (item.status !== 'draft') {
-      const e = new Error('Invoice is no longer editable'); e.statusCode = 409; throw e;
-    }
     const calc = calcItem({
       unit_price: item.unit_price,
       qty,
@@ -430,56 +500,126 @@ exports.updateQty = async (req, res) => {
 };
 
 // ── PATCH /visits/:visitId/invoice/pay  (ADMIN ONLY) ─────────────────────
-// Staff collects payment and finalizes the invoice.
+// Staff collects payment. Records one entry in the invoice_payments ledger
+// per call and derives amount_paid as the running SUM of that ledger —
+// this used to SET amount_paid directly, which silently erased any prior
+// partial payment on a second collection call (finding C-1). A partial
+// invoice can now be paid down over any number of calls until it reaches
+// 'paid'; the amount owed by the patient (`patient_amount` — the full bill,
+// or the post-insurance co-pay) is established once on the *first* payment
+// and never recomputed afterward, so a later call that doesn't resend
+// insurance details can't accidentally reset the patient's owed amount
+// back to the full bill (finding M-1).
 exports.payInvoice = async (req, res) => {
-  const { payment_method, amount_paid, insurance_co } = req.body;
   const result = await withTransaction(req.rlsSession, async (client) => {
-    const { rows } = await client.query(
-      `SELECT * FROM visit_invoices WHERE visit_id=$1`, [req.params.visitId]
+    const invIdRow = await client.query(
+      `SELECT invoice_id FROM visit_invoices WHERE visit_id=$1`, [req.params.visitId]
     );
-    if (!rows.length) {
+    if (!invIdRow.rows.length) {
       const e = new Error('Invoice not found'); e.statusCode = 404; throw e;
     }
-    if (rows[0].status === 'paid') {
+    // Locks the invoice for the rest of this transaction — two concurrent
+    // PATCH /pay calls on the same invoice (double-submit on a slow
+    // connection, two staff terminals) now serialize instead of both
+    // reading the same pre-payment snapshot and one silently clobbering
+    // the other's payment (finding H-1).
+    const inv = await lockInvoice(client, invIdRow.rows[0].invoice_id);
+
+    if (inv.status === 'paid') {
       const e = new Error('Invoice already paid'); e.statusCode = 409; throw e;
     }
     // Also reject 'draft' (doctor hasn't marked the visit done yet — nothing
-    // for staff to bill) and 'cancelled' (voided) — the original check only
-    // caught the already-paid case, not these.
-    if (!['pending_billing', 'partial'].includes(rows[0].status)) {
+    // for staff to bill) and 'cancelled' (voided).
+    if (!['pending_billing', 'partial'].includes(inv.status)) {
       const e = new Error('Invoice is not ready for payment'); e.statusCode = 409; throw e;
     }
-    const inv     = rows[0];
+
     const {
       payment_method,
       insurance_co,
       approval_code,
       policy_number,
       coverage_percent = 0,
-      amount_paid
+      amount_paid,
     } = req.body;
 
     const grandTotal = parseFloat(inv.grand_total);
-    const covPct = parseFloat(coverage_percent || 0);
-    let insAmount = 0;
-    let coPay = 0;
-    let expectedPatientAmount = grandTotal;
+    const alreadyPaid = parseFloat(inv.amount_paid) || 0;
+    // status is only ever 'pending_billing' immediately before the first
+    // payment on this invoice — every later call sees 'partial' instead
+    // (or 'paid', already rejected above). More reliable than checking
+    // alreadyPaid === 0, which an insurance invoice with a 0 co-pay could
+    // also hit legitimately.
+    const isFirstPayment = inv.status === 'pending_billing';
 
-    if (payment_method === 'insurance' && covPct > 0) {
-      insAmount = Math.round(grandTotal * (covPct / 100) * 100) / 100;
-      coPay = Math.round((grandTotal - insAmount) * 100) / 100;
-      expectedPatientAmount = coPay;
+    let covPct, insAmount, coPay, patientAmount;
+    if (isFirstPayment) {
+      covPct = parseFloat(coverage_percent || 0);
+      if (payment_method === 'insurance' && covPct > 0) {
+        insAmount = round(grandTotal * (covPct / 100));
+        coPay = round(grandTotal - insAmount);
+        patientAmount = coPay;
+      } else {
+        covPct = 0;
+        insAmount = 0;
+        coPay = 0;
+        patientAmount = grandTotal;
+      }
+    } else {
+      // Subsequent payment on an already-partial invoice: the amount the
+      // patient owes was locked in on the first payment — reuse it rather
+      // than recomputing from whatever insurance fields (or lack of them)
+      // this particular call happens to send.
+      covPct = parseFloat(inv.coverage_percent) || 0;
+      insAmount = parseFloat(inv.insurance_amount) || 0;
+      coPay = parseFloat(inv.co_pay_amount) || 0;
+      patientAmount = parseFloat(inv.patient_amount) || grandTotal;
     }
 
-    const paid    = parseFloat(amount_paid);
-    const balance = Math.round((expectedPatientAmount - paid) * 100) / 100;
-    const status  = balance <= 0 ? 'paid' : 'partial';
+    const thisPayment = round(parseFloat(amount_paid));
+    if (!(thisPayment > 0)) {
+      const e = new Error('Payment amount must be greater than zero'); e.statusCode = 400; throw e;
+    }
+    const remainingBefore = round(patientAmount - alreadyPaid);
+    // Overpayment was previously unbounded — amount_balance could go
+    // negative and print raw on the invoice with no refund/change tracking
+    // anywhere (finding H-3). A tiny epsilon (a tenth of a cent) absorbs
+    // genuine binary-floating-point representation noise from the `round`
+    // arithmetic above without letting a real overpayment through — 0.01
+    // was tried first and found to be exactly one cent too generous: it let
+    // a real 1-cent overpayment on a zero-balance invoice through
+    // (0.01 > 0 + 0.01 is false), confirmed live while testing this fix.
+    if (thisPayment > remainingBefore + 0.001) {
+      const e = new Error(
+        `Payment of ${thisPayment.toFixed(2)} exceeds the remaining balance of ${remainingBefore.toFixed(2)}`
+      );
+      e.statusCode = 400;
+      throw e;
+    }
 
+    await client.query(
+      `INSERT INTO invoice_payments (invoice_id, amount, payment_method, collected_by)
+       VALUES ($1,$2,$3,$4)`,
+      [inv.invoice_id, thisPayment, payment_method, req.user.userId]
+    );
+
+    const newAmountPaid = round(alreadyPaid + thisPayment);
+    const newBalance = round(patientAmount - newAmountPaid);
+    const newStatus = newBalance <= 0 ? 'paid' : 'partial';
+
+    // $11 is deliberately passed twice (as $11 and $14) rather than reused —
+    // reusing the same placeholder in both `SET status = $11` and
+    // `CASE WHEN $11 = 'paid'` makes Postgres deduce two different types for
+    // it and fail the whole query with "inconsistent types deduced for
+    // parameter $11" (confirmed against this project's local DB — same
+    // class of bug visitsController.updateStatus already documents and
+    // works around the same way).
     const { rows: updated } = await client.query(
       `UPDATE visit_invoices
           SET payment_method=$1, insurance_co=$2, approval_code=$3, policy_number=$4,
               coverage_percent=$5, co_pay_amount=$6, patient_amount=$7, insurance_amount=$8,
-              amount_paid=$9, amount_balance=$10, status=$11, paid_at=NOW(), paid_by=$12
+              amount_paid=$9, amount_balance=$10, status=$11, paid_by=$12,
+              paid_at = CASE WHEN $14 = 'paid' THEN NOW() ELSE paid_at END
         WHERE invoice_id=$13 RETURNING *`,
       [
         payment_method,
@@ -488,13 +628,14 @@ exports.payInvoice = async (req, res) => {
         policy_number ?? null,
         covPct,
         coPay,
-        expectedPatientAmount,
+        patientAmount,
         insAmount,
-        paid,
-        balance,
-        status,
+        newAmountPaid,
+        newBalance,
+        newStatus,
         req.user.userId,
-        inv.invoice_id
+        inv.invoice_id,
+        newStatus,
       ]
     );
     await client.query(
@@ -510,6 +651,44 @@ exports.payInvoice = async (req, res) => {
     return toInvoiceRow(updated[0]);
   });
   res.json(result);
+};
+
+// ── PATCH /visits/:visitId/invoice/cancel  (ADMIN + SUPERADMIN) ─────────
+// Voids an invoice created by mistake (wrong-patient walk-in, duplicate
+// check-in) — previously there was no way to ever get an invoice out of
+// the billing worklist once created; `schema.sql` already modeled
+// status='cancelled' but nothing ever set it (finding H-2). Only
+// draft/pending_billing can be cancelled — once any money has been
+// collected (partial/paid) this endpoint refuses, since voiding a
+// part-paid invoice needs a refund decision a human should make
+// explicitly, not something this button should do silently.
+exports.cancelInvoice = async (req, res) => {
+  await withTransaction(req.rlsSession, async (client) => {
+    const invIdRow = await client.query(
+      `SELECT invoice_id FROM visit_invoices WHERE visit_id=$1`, [req.params.visitId]
+    );
+    if (!invIdRow.rows.length) {
+      const e = new Error('Invoice not found'); e.statusCode = 404; throw e;
+    }
+    const inv = await lockInvoice(client, invIdRow.rows[0].invoice_id);
+    if (!['draft', 'pending_billing'].includes(inv.status)) {
+      const e = new Error('Only a draft or pending-billing invoice can be cancelled');
+      e.statusCode = 409;
+      throw e;
+    }
+    await client.query(
+      `UPDATE visit_invoices SET status='cancelled' WHERE invoice_id=$1`,
+      [inv.invoice_id]
+    );
+    await AuditLog.log(client, {
+      userId: req.user.userId,
+      action: AUDIT_ACTIONS.CANCEL_INVOICE,
+      resource: 'visit_invoices',
+      recordId: inv.invoice_id,
+      ipAddress: req.ip,
+    });
+  });
+  res.json({ message: 'Invoice cancelled' });
 };
 
 // ── GET /patients/:patientId/billing  (admin + doctor) ───────────────────
@@ -696,13 +875,19 @@ exports.getBillingHistory = async (req, res) => {
     const params = [];
     const conditions = ['1=1'];
 
+    // Naive `created_at::date` casts against the DB session's own timezone
+    // (UTC in production) instead of the clinic's real Riyadh calendar day
+    // — a filter near midnight could mis-bucket invoices by up to 3 hours
+    // (finding M-3). `AT TIME ZONE 'Asia/Riyadh'` converts to Riyadh local
+    // time first, matching the same anchoring visitsController.js's
+    // TODAY_START_SQL already documents as mandatory for this project.
     if (from) {
       params.push(from);
-      conditions.push(`vi.created_at::date >= $${params.length}`);
+      conditions.push(`(vi.created_at AT TIME ZONE 'Asia/Riyadh')::date >= $${params.length}::date`);
     }
     if (to) {
       params.push(to);
-      conditions.push(`vi.created_at::date <= $${params.length}`);
+      conditions.push(`(vi.created_at AT TIME ZONE 'Asia/Riyadh')::date <= $${params.length}::date`);
     }
     if (status && status !== 'all') {
       params.push(status);
@@ -769,13 +954,20 @@ exports.getFinancialAnalytics = async (req, res) => {
   const targetDate = req.query.date || null;
 
   const result = await withTransaction(req.rlsSession, async (client) => {
+    // Both branches now convert to Riyadh local time before extracting the
+    // calendar date. The explicit-date branch previously did a naive
+    // `created_at::date` cast against the DB session's own timezone (UTC
+    // in production) — picking a date near midnight could mis-bucket
+    // invoices by up to 3 hours relative to the clinic's real day
+    // (finding M-3), unlike the "today" branch which already anchored
+    // correctly.
     const dateClause = targetDate
-      ? `vi.created_at::date = $1::date`
-      : `vi.created_at::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Riyadh')::date`;
+      ? `(vi.created_at AT TIME ZONE 'Asia/Riyadh')::date = $1::date`
+      : `(vi.created_at AT TIME ZONE 'Asia/Riyadh')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Riyadh')::date`;
     const params = targetDate ? [targetDate] : [];
 
     const summaryRes = await client.query(
-      `SELECT 
+      `SELECT
          COUNT(*)::int AS total_invoices,
          COALESCE(SUM(vi.grand_total), 0)::numeric AS gross,
          COALESCE(SUM(vi.subtotal), 0)::numeric AS subtotal,
@@ -790,10 +982,19 @@ exports.getFinancialAnalytics = async (req, res) => {
       params
     );
 
+    // Was SUM(vi.grand_total) — the full billed amount, including the
+    // still-outstanding portion of every 'partial' invoice — divided by
+    // total_collected above, which is SUM(vi.amount_paid), the actual cash
+    // in hand. Those two are on different bases; the moment any partial
+    // payment exists in the window, the numerator can exceed the
+    // denominator and the bar reads over 100% (finding H-4, reproduced
+    // live as "general (127%)" on the superadmin dashboard). Summing
+    // amount_paid here instead matches what "Gross Revenue" above it
+    // already means: money actually collected, broken down by department.
     const deptRes = await client.query(
-      `SELECT 
-         COALESCE(v.clinic, 'General') AS dept_name, 
-         COALESCE(SUM(vi.grand_total), 0)::numeric AS dept_revenue
+      `SELECT
+         COALESCE(v.clinic, 'General') AS dept_name,
+         COALESCE(SUM(vi.amount_paid), 0)::numeric AS dept_revenue
        FROM visit_invoices vi
        JOIN visits v ON v.visit_id = vi.visit_id
        WHERE ${dateClause} AND vi.status IN ('paid', 'partial')

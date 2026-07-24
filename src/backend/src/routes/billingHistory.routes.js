@@ -83,6 +83,8 @@ router.get(
   '/billing/analytics',
   authenticateJWT,
   authorizeRole(ROLES.SUPERADMIN),
+  [query('date').optional().isISO8601({ strict: true }).bail().isLength({ min: 10, max: 10 })],
+  validateRequest,
   setupRLSContext,
   asyncHandler(ctrl.getFinancialAnalytics)
 );

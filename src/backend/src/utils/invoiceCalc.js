@@ -1,6 +1,14 @@
 'use strict';
 
-function round(n) { return Math.round(n * 100) / 100; }
+// Plain `Math.round(n*100)/100` is not safe at exact half-cent boundaries —
+// binary floating point can't represent most decimals exactly, so e.g.
+// `1.005 * 100 === 100.49999999999999` in JS, rounding the wrong way.
+// Adding Number.EPSILON before rounding is the standard, minimal
+// compensation for that representation error. This still isn't arbitrary-
+// precision decimal arithmetic, but it closes the specific half-cent
+// mis-rounding class of bug without restructuring every call site around
+// integer cents (docs/psm2/qa-audit-2026-07-24.md finding M-4).
+function round(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 
 function calcItem({ unit_price, qty = 1, discount_pct = 0, vat_pct = 15 }) {
   const price    = parseFloat(unit_price);
@@ -47,4 +55,4 @@ function calcTotals(items, insuranceOptions = {}) {
   };
 }
 
-module.exports = { calcItem, calcTotals };
+module.exports = { calcItem, calcTotals, round };

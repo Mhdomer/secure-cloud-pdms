@@ -105,7 +105,11 @@ export default function BillVisitPage() {
     )
   }
 
-  if (invoice.status !== 'pending_billing') {
+  // 'partial' is now a valid state to land here in, not just
+  // 'pending_billing' — a partially-paid invoice used to have no screen
+  // anywhere that could ever collect the rest (finding C-1); this page now
+  // handles both, distinguishing them via isFirstPayment below.
+  if (!['pending_billing', 'partial'].includes(invoice.status)) {
     return (
       <div className="mx-auto flex max-w-[640px] flex-col gap-4">
         <EmptyState title={t('bill.notReadyTitle')} />
@@ -119,8 +123,23 @@ export default function BillVisitPage() {
   }).format(new Date(invoice.checkedInAt))
 
   const grandTotal = invoice.grandTotal
-  const balance = Math.round((grandTotal - (Number(amountPaid) || 0)) * 100) / 100
-  const canSubmit = paymentMethod !== null && !payMutation.isPending
+  const isFirstPayment = invoice.status === 'pending_billing'
+  // Server-maintained truth: on 'pending_billing' this equals grandTotal
+  // (nothing collected yet); on 'partial' it's already the patient's
+  // locked-in owed amount minus whatever's been collected so far (which
+  // may differ from grandTotal once insurance coverage was applied on the
+  // first payment) — never recompute this client-side from grandTotal
+  // alone, or a partial-payment collection would show the wrong amount
+  // still owed.
+  const remainingBalance = invoice.amountBalance
+  const thisPayment = Number(amountPaid) || 0
+  const balance = Math.round((remainingBalance - thisPayment) * 100) / 100
+  // Epsilon matches the backend's (billingController.payInvoice) — kept in
+  // sync so the button's enabled/disabled state agrees with what the
+  // server will actually accept, rather than letting a click through that
+  // the server would then 400.
+  const canSubmit =
+    paymentMethod !== null && thisPayment > 0 && thisPayment <= remainingBalance + 0.001 && !payMutation.isPending
 
   return (
     <div className="mx-auto flex max-w-[960px] flex-col gap-6">
@@ -183,10 +202,22 @@ export default function BillVisitPage() {
             <TotalRow label={t('bill.totals.vat')} value={invoice.totalVat} />
             <div className="my-1 border-t border-border" />
             <TotalRow label={t('bill.totals.grandTotal')} value={grandTotal} bold />
+            {!isFirstPayment && (
+              <>
+                <TotalRow label={t('bill.alreadyCollectedLabel')} value={invoice.amountPaid} />
+                <TotalRow label={t('bill.remainingBalanceLabel')} value={remainingBalance} bold />
+              </>
+            )}
           </div>
 
           <div className="flex flex-col gap-4 border-t border-border pt-4">
             <h2 className="text-base font-semibold text-foreground">{t('bill.paymentTitle')}</h2>
+
+            {!isFirstPayment && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                {t('bill.partialNotice')}
+              </p>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">{t('bill.paymentMethod')}</label>
@@ -204,7 +235,11 @@ export default function BillVisitPage() {
               </div>
             </div>
 
-            {paymentMethod === 'insurance' && (
+            {/* Insurance coverage split is established once, on the first
+                payment, and locked in server-side from then on (finding
+                M-1) — showing this form again on a repeat collection would
+                just re-ask for details that no longer change anything. */}
+            {paymentMethod === 'insurance' && isFirstPayment && (
               <div className="space-y-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-foreground">Insurance Provider / شركة التأمين</label>
@@ -281,6 +316,7 @@ export default function BillVisitPage() {
                 type="number"
                 step="0.01"
                 min="0"
+                max={remainingBalance}
                 dir="ltr"
                 value={amountPaid}
                 onChange={(event) => setAmountPaid(event.target.value)}
@@ -296,7 +332,7 @@ export default function BillVisitPage() {
             </div>
 
             <Button size="lg" className="w-full" disabled={!canSubmit} onClick={() => setConfirmPayOpen(true)}>
-              {t('bill.generateInvoice')}
+              {isFirstPayment ? t('bill.generateInvoice') : t('bill.collectPayment')}
             </Button>
           </div>
         </CardContent>
@@ -343,7 +379,11 @@ export default function BillVisitPage() {
               {tCommon('cancel')}
             </Button>
             <Button type="button" onClick={() => payMutation.mutate()} disabled={payMutation.isPending}>
-              {payMutation.isPending ? t('bill.generating') : t('bill.generateInvoice')}
+              {payMutation.isPending
+                ? t('bill.generating')
+                : isFirstPayment
+                  ? t('bill.generateInvoice')
+                  : t('bill.collectPayment')}
             </Button>
           </DialogFooter>
         </DialogContent>

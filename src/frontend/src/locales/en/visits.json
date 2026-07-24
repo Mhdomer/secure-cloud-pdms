@@ -77,6 +77,9 @@
     "notReadyTitle": "This visit is not ready for billing yet.",
     "loadError": "Could not load this invoice.",
     "notFoundTitle": "Invoice not found.",
+    "partialNotice": "This invoice was partially paid. Collect the remaining balance below.",
+    "alreadyCollectedLabel": "Already Collected (SAR)",
+    "remainingBalanceLabel": "Remaining Balance",
     "visitHeader": {
       "patient": "Patient",
       "fileNo": "File #",
@@ -120,6 +123,7 @@
     "amountPaidLabel": "Amount Paid (SAR)",
     "balanceLabel": "Balance",
     "generateInvoice": "Generate Invoice",
+    "collectPayment": "Collect Payment",
     "generating": "Processing…",
     "paySuccess": "Payment recorded. Invoice generated.",
     "payError": "Could not process payment. Please try again.",
