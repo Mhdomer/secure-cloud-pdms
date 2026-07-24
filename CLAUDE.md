@@ -210,3 +210,7 @@ Apply font family switch as part of the same language toggle that sets dir="rtl"
 - Sprint 3c self-registration (OTP) + self-booking design: `docs/psm2/self-registration-design.md`
 - Report edits still owed for Sprint 3c work: `docs/psm2/report-delta.md`
 - RLS policy gotcha (empty-string UUID cast) + rules for writing new RLS policies: `docs/psm2/rls-policy-guidelines.md`
+- Security audit findings fixed 2026-07-24 (per-file changes + workflow, incl. the public-tracker RLS breakage and its fix): `docs/psm2/security-audit-fixes-2026-07-24.md`
+- Full-site QA pass 2026-07-24 (billing/invoice bugs incl. stuck partial payments, StrictMode query bug, feature recommendations per role): `docs/psm2/qa-audit-2026-07-24.md`
+- QA audit fixes applied 2026-07-24 (invoice_payments ledger, payment locking, cancel/void workflow, per-file changes + live verification): `docs/psm2/qa-fixes-2026-07-24.md`
+- Feature additions 2026-07-24 (rooms feature removed, visit status transition trigger, patient appointment reschedule UC-21b): `docs/psm2/feature-additions-2026-07-24.md`
