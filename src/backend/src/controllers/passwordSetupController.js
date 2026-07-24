@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs');
 const { pool, withTransaction } = require('../config/database');
 const User = require('../models/User');
 const PasswordSetupToken = require('../models/PasswordSetupToken');
+const AuditLog = require('../models/AuditLog');
+const { AUDIT_ACTIONS } = require('../config/constants');
 
 const BCRYPT_COST = 12;
 const WEAK_PASSWORD_MESSAGE = 'Password must be at least 8 characters and contain at least one number';
@@ -77,6 +79,18 @@ async function setPassword(req, res) {
     const row = await PasswordSetupToken.consumeIfValid(client, token);
     if (!row) return null;
     await User.updatePassword(client, row.user_id, passwordHash);
+    // Clears failed_attempts and reactivates a locked account — a no-op for
+    // a never-locked first-time-setup account, correct behavior for a
+    // forgot-password reset ("I reset my password, so unlock me too").
+    await User.reactivate(client, row.user_id);
+    if (row.purpose === 'password_reset') {
+      await AuditLog.log(client, {
+        userId: row.user_id,
+        action: AUDIT_ACTIONS.PASSWORD_RESET_COMPLETED,
+        resource: 'users',
+        ipAddress: req.ip,
+      });
+    }
     return row;
   });
 

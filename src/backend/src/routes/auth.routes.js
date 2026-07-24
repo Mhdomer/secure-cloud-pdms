@@ -4,11 +4,12 @@ const { Router } = require('express');
 const { body } = require('express-validator');
 
 const validateRequest = require('../middleware/validateRequest');
-const { loginLimiter, otpRequestLimiter, otpVerifyLimiter } = require('../middleware/rateLimiter');
+const { loginLimiter, otpRequestLimiter, otpVerifyLimiter, passwordResetRequestLimiter } = require('../middleware/rateLimiter');
 const { authenticateJWT } = require('../middleware/authMiddleware');
 const asyncHandler = require('../utils/asyncHandler');
 const authController = require('../controllers/authController');
 const patientRegistrationController = require('../controllers/patientRegistrationController');
+const passwordResetController = require('../controllers/passwordResetController');
 
 const router = Router();
 
@@ -75,6 +76,29 @@ router.post(
   ],
   validateRequest,
   asyncHandler(patientRegistrationController.completeRegistration)
+);
+
+// Forgot password (patients only) — phone OTP, reuses UC-19's OTP
+// infrastructure. See docs/superpowers/specs/2026-07-24-forgot-password-design.md.
+router.post(
+  '/forgot-password/request-otp',
+  passwordResetRequestLimiter,
+  [
+    body('national_id').trim().isLength({ min: 1, max: 20 }),
+    body('phone_number')
+      .isMobilePhone('any', { strictMode: true })
+      .withMessage('Enter a phone number in international format, e.g. +966501234567'),
+  ],
+  validateRequest,
+  asyncHandler(passwordResetController.requestOtp)
+);
+
+router.post(
+  '/forgot-password/verify-otp',
+  otpVerifyLimiter,
+  [body('requestId').isUUID(), body('otp_code').trim().isLength({ min: 6, max: 6 }).isNumeric()],
+  validateRequest,
+  asyncHandler(passwordResetController.verifyOtp)
 );
 
 module.exports = router;
