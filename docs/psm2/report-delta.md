@@ -2100,6 +2100,91 @@ notification rows when:
 
 ---
 
+## Sprint 3c — Forgot Password (Patient Self-Service)
+
+---
+
+### [DELTA-047] Patient self-service forgot-password flow (phone OTP)
+
+| Field | Value |
+|---|---|
+| **Category** | Security / API / Functionality / UI |
+| **Sprint** | Sprint 3c |
+| **Status** | Implemented — verified live end-to-end (happy path, non-enumeration, rate limiting, unlock-on-reset) |
+
+**What changed:**
+Patients who forget their password can now reset it themselves via phone
+OTP, reusing the exact `otp_verifications`/`password_setup_tokens`
+infrastructure already built for UC-19 self-registration rather than
+introducing a parallel mechanism. Staff accounts (doctor/admin/superadmin)
+have no verified contact channel to build self-service on — `doctors.phone`
+exists as a schema column but nothing reads or writes it — so they see a
+static "contact your system administrator" notice on the same page instead
+of a form.
+
+Two new public endpoints on `auth.routes.js`, backed by a new
+`passwordResetController.js`:
+- `POST /api/auth/forgot-password/request-otp` — looks up the patient by
+  **national ID + phone number together** (national ID alone already
+  identifies the account; requiring the phone too acts as a second factor
+  and sidesteps `contact_number` having no UNIQUE constraint). Rate-limited
+  to 3/phone/hour via a new, separate `passwordResetRequestLimiter` (kept
+  distinct from `otpRequestLimiter` so registration-OTP and reset-OTP
+  attempts don't drain the same per-phone budget).
+- `POST /api/auth/forgot-password/verify-otp` — on success, mints a
+  short-lived (30-minute) `password_setup_tokens` row via the existing
+  `generateSetupToken` helper (extended with optional `ttlMs`/`purpose`)
+  and redirects into the **existing, unmodified** `SetupPasswordPage.tsx` —
+  no new password-setting UI needed.
+
+Non-enumeration: `request-otp`'s response is identical in shape whether or
+not the identifier pair matches a real patient (mirrors
+`authController.js`'s `DUMMY_HASH` compare-on-every-path principle) — a
+real `bcrypt.hash()` still runs on the no-match branch, and a syntactically
+valid but unresolvable `requestId` is returned instead of skipping straight
+to a response.
+
+Schema: `otp_verifications.purpose` CHECK widened to include
+`'password_reset'`, plus a new nullable `user_id` column linking a reset
+OTP to the account it's resetting; `password_setup_tokens` gained a
+`purpose` column (`'initial_setup' | 'password_reset'`) so the shared
+`setPassword` controller can tell the two flows apart.
+
+Frontend: new `ForgotPasswordPage.tsx` (2-step form: identify → OTP code)
+at `/forgot-password`, linked from a new "Forgot password?" line under the
+password field on `LoginPage.tsx`.
+
+**Bug found and fixed live:** the first pass had `setPassword`
+unconditionally reactivating (`is_active = true`, clear `failed_attempts`)
+on every token consumption, including the plain first-time QR setup flow —
+meaning a still-valid setup token could silently undo an admin's explicit
+deactivation of an account that was still mid-setup. Fixed by scoping the
+reactivate call to the `password_reset` branch only. A defense-in-depth
+null check on `otp.user_id` was added alongside it (`patients.user_id` is
+nullable via `ON DELETE SET NULL`; nothing produces a null today, but this
+keeps a future hard-delete path a clean 400 instead of a 500).
+
+**Verified live:** full happy path against a disposable test patient
+(request-otp → SMS-stub code → verify-otp → setup-password → login with
+new password); non-enumeration (wrong phone / fabricated identifier
+returns the identical response shape and generically fails at verify);
+rate limiting (4th request in the window → 429); unlock-on-reset (account
+locked via 3 failed logins, then a successful reset flow confirmed both
+`is_active` and `failed_attempts` cleared).
+
+**Report sections to update:**
+
+| Chapter | Section | What to edit |
+|---|---|---|
+| Chapter 3 | §3.5.1 Functional Requirements | Add FR: "A patient who forgets their password shall be able to reset it via phone OTP verification without staff intervention"; note staff accounts are explicitly out of scope (no verified contact channel) |
+| Chapter 4 | §4.x API Design | Add `POST /auth/forgot-password/request-otp` and `POST /auth/forgot-password/verify-otp` (both public, rate-limited) to the endpoint table |
+| Chapter 4 | §4.x Security Design | Document the non-enumeration mechanic (identical response shape/timing regardless of match) as a specific anti-enumeration control, alongside the existing `DUMMY_HASH` login-side precedent it mirrors |
+| Chapter 4 | §4.x Security Design | Note the account-unlock scoping bug as a "lessons learned": reusing a shared endpoint (`setPassword`) across two purposes requires explicitly scoping any purpose-specific side effect, not assuming shared code implies shared behavior is always correct |
+| Chapter 4 | §4.x DB Schema / ER Diagram | Add `otp_verifications.user_id` (nullable FK) and `password_setup_tokens.purpose` to the schema description |
+| Chapter 4 | §4.x UI Design / Screen Designs | Add the Forgot Password page (2-step: identify, verify code) and its login-page entry point to the screen list |
+
+---
+
 ## How to use this file
 
 1. After each sprint ends, check this file before editing the report.
@@ -2109,4 +2194,4 @@ notification rows when:
 
 ---
 
-*Last updated: Sprint 3c — DELTA-046 + corrections (2026-07-24)*
+*Last updated: Sprint 3c — DELTA-047 (2026-07-25)*

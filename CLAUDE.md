@@ -214,3 +214,4 @@ Apply font family switch as part of the same language toggle that sets dir="rtl"
 - Full-site QA pass 2026-07-24 (billing/invoice bugs incl. stuck partial payments, StrictMode query bug, feature recommendations per role): `docs/psm2/qa-audit-2026-07-24.md`
 - QA audit fixes applied 2026-07-24 (invoice_payments ledger, payment locking, cancel/void workflow, per-file changes + live verification): `docs/psm2/qa-fixes-2026-07-24.md`
 - Feature additions 2026-07-24 (rooms feature removed, visit status transition trigger, patient appointment reschedule UC-21b): `docs/psm2/feature-additions-2026-07-24.md`
+- Forgot-password flow (patient self-service, phone OTP) added 2026-07-25 — design rationale: `docs/superpowers/specs/2026-07-24-forgot-password-design.md`; report delta: `docs/psm2/report-delta.md` DELTA-047; UI tracker: `docs/psm2/sprint-3c-ui-overhaul.md` Screen 18
