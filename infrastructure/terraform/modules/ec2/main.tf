@@ -46,10 +46,18 @@ resource "aws_iam_role_policy" "app_permissions" {
     Version = "2012-10-17"
     Statement = [
       {
+        # No logs:CreateLogGroup — the application log group is exclusively
+        # Terraform-managed (modules/monitoring/main.tf), never
+        # auto-created by the app/CloudWatch Logs agent. If the EC2 role
+        # could create it, an instance booting before (or during) a
+        # monitoring-module apply could create the group first, and the
+        # subsequent Terraform apply of aws_cloudwatch_log_group.app would
+        # then fail with ResourceAlreadyExistsException since the group
+        # exists outside Terraform's state. Least-privilege side benefit:
+        # the role can only write to a group that already exists.
         Sid    = "CloudWatchLogsWrite"
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ]

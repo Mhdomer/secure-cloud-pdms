@@ -1,0 +1,103 @@
+name: Security Scan
+
+# Reusable workflow — the actual security gate for stages 2, 3, 4, and 5 of
+# the 6-stage pipeline (chapter-4 Section 4.3.6): SonarQube SAST, Docker
+# build, Trivy image scan, Checkov IaC scan. Both ci.yml (pull_request) and
+# deploy.yml (push to main) call this workflow so the exact same checks run
+# in both places — deploy.yml can never skip scanning just because it was
+# triggered by something other than a reviewed PR (e.g. a direct push to
+# main). Stage 1 (checkout) and stage 6 (Terraform Apply) are not here —
+# checkout happens inside each job below as needed, and Terraform Apply
+# only ever runs from deploy.yml, gated on this workflow's success.
+#
+# Every scan step is a hard gate: no step below sets continue-on-error, and
+# every scanner is configured to exit non-zero on a finding at or above the
+# thresholds documented in CLAUDE.md's "Security Gates (Non-Negotiable)"
+# section — zero CRITICAL Trivy CVEs, zero unsuppressed Checkov findings
+# (this project's existing modules already manage accepted exceptions via
+# inline `# checkov:skip=...` justification comments, not a CLI severity
+# filter, so the pipeline matches that established convention exactly).
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  sast:
+    name: SonarQube SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # SonarQube needs full git history for new-code/blame analysis
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # No continue-on-error — a non-OK quality gate (which includes
+        # SonarQube's hardcoded-secret and SQL-injection rule sets, per
+        # chapter-3 Section 3.4.5) fails this job and blocks the caller.
+
+  container-scan:
+    name: Docker Build & Trivy Image Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        # Built and scanned only — never pushed to a registry from this
+        # workflow. Publishing a scanned image (ECR) and rolling it out to
+        # the EC2 Auto Scaling Group via SSM is tracked as a follow-up item
+        # (docs/psm2/sprints/sprint-4-summary.md) and intentionally out of
+        # this sprint's scope, which chapter-3/chapter-5 define as the CI/CD
+        # pipeline + CloudWatch + CloudTrail, not container registry
+        # provisioning.
+        uses: docker/build-push-action@v6
+        with:
+          context: src/backend
+          file: src/backend/Dockerfile
+          push: false
+          load: true
+          tags: pdms-backend:${{ github.sha }}
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: pdms-backend:${{ github.sha }}
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+          vuln-type: os,library
+
+  iac-scan:
+    name: Checkov IaC Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infrastructure/terraform
+          framework: terraform
+          soft_fail: false
+          quiet: true

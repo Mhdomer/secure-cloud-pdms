@@ -41,6 +41,12 @@ async function login(req, res) {
       resource: 'users',
       ipAddress,
     });
+    // Structured line on every failed attempt (not just lockout) — this is
+    // the only signal a CloudWatch Logs metric filter can read (stdout is
+    // shipped to CloudWatch; the audit_log DB row above is not). Backs the
+    // "5+ failed logins in 5 minutes" alarm in infrastructure/terraform/modules/monitoring
+    // (chapter-4 Section 4.3.8.6). Never log the username or password.
+    logger.warn('Failed login attempt', { event: 'LOGIN_FAILED', ipAddress });
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
@@ -52,9 +58,10 @@ async function login(req, res) {
     if (attempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
       await User.setActive(pool, user.user_id, false);
       await AuditLog.log(pool, { userId: user.user_id, action: AUDIT_ACTIONS.ACCOUNT_LOCKOUT, resource: 'users', ipAddress });
-      logger.warn('Account locked after repeated failed logins', { userId: user.user_id });
+      logger.warn('Account locked after repeated failed logins', { event: 'LOGIN_FAILED', userId: user.user_id, ipAddress });
     } else {
       await AuditLog.log(pool, { userId: user.user_id, action: AUDIT_ACTIONS.LOGIN_FAILED, resource: 'users', ipAddress });
+      logger.warn('Failed login attempt', { event: 'LOGIN_FAILED', userId: user.user_id, ipAddress });
     }
 
     return res.status(401).json({ error: 'Invalid credentials' });

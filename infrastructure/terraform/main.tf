@@ -135,3 +135,23 @@ module "cloudtrail" {
   log_retention_days    = var.log_retention_days
   tags                   = local.common_tags
 }
+
+########################################
+# Monitoring — application log group, failed-login/5xx-rate/RDS-CPU alarms,
+# and the security dashboard. Notifies the CloudTrail module's SNS topic.
+########################################
+
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  project_name               = var.project_name
+  environment                  = var.environment
+  kms_key_arn                  = module.kms.key_arn
+  log_retention_days          = var.log_retention_days
+  alarm_sns_topic_arn         = module.cloudtrail.sns_topic_arn
+  alb_arn_suffix               = module.alb.alb_arn_suffix
+  target_group_arn_suffix     = module.alb.target_group_arn_suffix
+  rds_instance_id              = module.rds.db_instance_id
+  cloudtrail_log_group_name   = module.cloudtrail.cloudwatch_log_group_name
+  tags                         = local.common_tags
+}

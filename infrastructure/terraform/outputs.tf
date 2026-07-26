@@ -24,3 +24,8 @@ output "ssm_db_credentials_path" {
   description = "SSM Parameter Store path prefix where the EC2 app role reads DB credentials."
   value       = local.ssm_db_prefix
 }
+
+output "monitoring_dashboard_name" {
+  description = "CloudWatch dashboard name — failed logins, ALB 5xx rate, RDS CPU, CloudTrail volume."
+  value       = module.monitoring.dashboard_name
+}

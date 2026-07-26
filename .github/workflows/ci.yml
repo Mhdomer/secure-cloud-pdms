@@ -1,0 +1,29 @@
+name: CI
+
+# Stages 1-5 of the 6-stage pipeline (chapter-4 Section 4.3.6). Runs on
+# every pull request targeting main, so a critical finding is caught and
+# blocks the merge before code ever reaches main — shift-left, per
+# chapter-3 Section 3.2.2. Stage 6 (Terraform Apply) never runs from this
+# workflow; it only runs from deploy.yml, after a merge to main.
+#
+# All actual scan logic lives in security-scan.yml so ci.yml and deploy.yml
+# can never drift out of sync with each other.
+
+on:
+  pull_request:
+    branches: [main]
+    # Explicit beyond the opened/synchronize/reopened default — a PR whose
+    # base branch is retargeted to main (an "edited" event) must also
+    # re-trigger the gate, otherwise a branch-protection check waiting on
+    # this workflow can get stuck with no obvious way to unstick it short
+    # of a no-op push.
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Security Gate
+    uses: ./.github/workflows/security-scan.yml
+    secrets: inherit
