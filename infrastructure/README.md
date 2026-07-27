@@ -20,7 +20,7 @@ All AWS infrastructure is defined as code. No manual console provisioning.
 | Secrets | AWS Secrets Manager (DB credentials, JWT secret) |
 
 ## Remote State
-- S3 bucket: `pdms-terraform-state`
+- S3 bucket: `pdms-terraform-state-730077843716`
 - DynamoDB table: `pdms-terraform-locks`
 - Region: `ap-southeast-1` (Singapore)
 

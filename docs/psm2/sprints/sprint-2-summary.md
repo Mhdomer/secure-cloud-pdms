@@ -8,7 +8,7 @@
 Full three-tier AWS infrastructure provisioned via Terraform.
 All resources in `infrastructure/terraform/` as root module calling 6 child modules.
 
-Remote state: S3 `pdms-terraform-state` / key `prod/terraform.tfstate` / region `ap-southeast-1`
+Remote state: S3 `pdms-terraform-state-730077843716` / key `prod/terraform.tfstate` / region `ap-southeast-1`
 State lock: DynamoDB `pdms-terraform-locks`
 
 ---
