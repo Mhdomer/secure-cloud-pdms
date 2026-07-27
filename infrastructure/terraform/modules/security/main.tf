@@ -61,12 +61,17 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https" {
 
 resource "aws_vpc_security_group_ingress_rule" "alb_http_redirect" {
   # checkov:skip=CKV_AWS_260: Intentional per design (Table 4.2) — port 80
-  # exists solely so the ALB HTTP listener (modules/alb
-  # aws_lb_listener.http_redirect) can issue a 301 redirect to HTTPS. No
-  # target group is ever attached to the HTTP listener, so no plaintext
-  # application traffic is ever forwarded.
+  # exists so the ALB HTTP listener can issue a 301 redirect to HTTPS
+  # (modules/alb aws_lb_listener.http_redirect) when var.enable_https = true
+  # (the intended long-term state). While the project-level enable_https
+  # override in infrastructure/terraform/variables.tf is false (no domain/
+  # ACM cert yet — temporary, documented exception), this same port instead
+  # carries real application traffic via aws_lb_listener.http_forward. This
+  # rule is not re-scoped for that mode since the port number is identical
+  # either way; see enable_https's description for the actual security
+  # trade-off being made.
   security_group_id = aws_security_group.alb.id
-  description        = "HTTP from internet — listener rule redirects to 443, no plaintext app traffic accepted"
+  description        = "HTTP from internet — 443 redirect when enable_https=true, direct app forward when enable_https=false (see infrastructure/terraform/variables.tf)"
   cidr_ipv4          = "0.0.0.0/0"
   ip_protocol        = "tcp"
   from_port          = 80

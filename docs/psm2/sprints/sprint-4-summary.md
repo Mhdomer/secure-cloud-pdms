@@ -221,3 +221,55 @@ against the actual naming convention each other module uses, not by a live apply
 `infrastructure/terraform/README.md` (module list, status line),
 `.github/workflows/security-scan.yml` (trivy-action tag fix),
 `.github/workflows/README.md` (IAM bullet updated to reflect the new module).
+
+---
+
+## Follow-up (2026-07-26): temporary HTTP-only override (`enable_https`)
+
+**Why**: chapter-4's design (and CLAUDE.md's "Key Design Decisions") specifies HTTPS-only on the ALB.
+An ACM certificate requires DNS validation against a domain, and the user has no budget to register one
+until either the July 2027 presentation or the stakeholder's go/no-go decision on continuing the system
+— whichever comes first. Rather than silently deploying HTTP-only or hacking around the requirement,
+this is implemented as an explicit, reviewed variable with a loud comment trail, so the deviation from
+the submitted PSM1 design is visible in the code itself, not hidden.
+
+**What changed**:
+- `infrastructure/terraform/modules/alb/variables.tf` — `certificate_arn` now defaults to `""`
+  (previously required); new `enable_https` variable, **module-level default `true`** (secure-by-default
+  at the reusable-module level).
+- `infrastructure/terraform/modules/alb/main.tf` — `aws_lb_listener.https` and `.http_redirect` now
+  `count = var.enable_https ? 1 : 0`, with a `lifecycle.precondition` on the HTTPS listener requiring a
+  non-empty `certificate_arn`. New `aws_lb_listener.http_forward` (`count = var.enable_https ? 0 : 1`)
+  forwards port 80 directly to the target group when HTTPS is off.
+- `infrastructure/terraform/variables.tf` — **root-level `enable_https` default is `false`** (the actual
+  project override), with a long comment explaining why and pointing back here. This is the one place
+  the exception is knowingly opted into — the module's own default stays `true`.
+- `infrastructure/terraform/main.tf` — passes `enable_https = var.enable_https` into the `alb` module.
+- `infrastructure/terraform/modules/security/main.tf` — updated the port-80 ingress rule's comment,
+  which previously asserted "no plaintext app traffic is ever forwarded"; that's no longer true while
+  `enable_https = false`, since the same port now carries real application traffic instead of only a
+  redirect.
+- `infrastructure/terraform/terraform.tfvars.example` — documented both variables and how to flip them
+  once a domain/cert exist.
+- `CLAUDE.md` — the "ALB: HTTPS only" design-decision bullet now notes the temporary override inline,
+  and a new References entry points here.
+
+**Security gate re-run**, both operating modes:
+```
+enable_https = false (current default): Passed: 353, Failed: 0, Skipped: 33
+enable_https = true  (intended state):  Passed: 355, Failed: 0, Skipped: 33
+```
+Three new findings surfaced only in the `false` path and were each traced to their actual root cause and
+skipped with justification, not blanket-suppressed: `CKV2_AWS_20` (ALB doesn't redirect HTTP→HTTPS —
+true, on purpose) on `aws_lb.main`; `CKV_AWS_2`/`CKV_AWS_103` (ALB isn't HTTPS / doesn't use TLS 1.2) on
+the new `aws_lb_listener.http_forward`; `CKV_AWS_378` (load balancer uses HTTP) on
+`aws_lb_target_group.app`, which only fires because `http_forward` connects a client-facing HTTP
+listener to it — the target group's own HTTP protocol to the EC2 backend is normal ALB architecture in
+*either* mode (TLS terminates at the ALB) and isn't itself the issue.
+
+**Not verified live**: no AWS credentials were available to `terraform plan`/`apply` either mode here;
+verified by checkov (both variable states) and by hand-tracing the conditional resource `count`s.
+
+**Carried-forward reminder**: flip `enable_https` to `true` and supply a real `acm_certificate_arn`
+before this system ever holds real patient data — this is a demo/no-budget accommodation, not a revised
+security posture.

@@ -24,8 +24,15 @@ variable "app_port" {
 }
 
 variable "certificate_arn" {
-  description = "ACM certificate ARN for the HTTPS listener. Must be issued/validated before apply — see docs/psm2 for ACM DNS validation steps."
+  description = "ACM certificate ARN for the HTTPS listener. Required (must be issued/validated before apply — see docs/psm2 for ACM DNS validation steps) only when enable_https = true; ignored otherwise."
   type        = string
+  default     = ""
+}
+
+variable "enable_https" {
+  description = "Whether to provision the HTTPS listener (443, ACM cert) with an HTTP->HTTPS redirect. When false, provisions a direct HTTP (port 80) forward instead, with no ACM cert required. This is a deliberate, temporary exception path for environments without a domain/cert yet — never the intended state once real patient data is involved. See infrastructure/terraform/variables.tf's project-level enable_https default for why this project currently overrides it."
+  type        = bool
+  default     = true
 }
 
 variable "health_check_path" {

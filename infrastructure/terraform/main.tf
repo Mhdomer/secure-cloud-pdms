@@ -81,7 +81,9 @@ module "rds" {
 }
 
 ########################################
-# ALB — internet-facing, HTTPS only, forwards to EC2 target group
+# ALB — internet-facing, forwards to EC2 target group.
+# HTTPS-only is the design (chapter-4); var.enable_https's project-level
+# default below is the sole, documented exception to that.
 ########################################
 
 module "alb" {
@@ -94,6 +96,7 @@ module "alb" {
   alb_security_group_id   = module.security.alb_sg_id
   app_port                 = var.app_port
   certificate_arn          = var.acm_certificate_arn
+  enable_https             = var.enable_https
   health_check_path       = var.health_check_path
   kms_key_arn              = module.kms.key_arn
   log_retention_days      = var.log_retention_days

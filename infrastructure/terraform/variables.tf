@@ -82,8 +82,26 @@ variable "db_skip_final_snapshot" {
 ########################################
 
 variable "acm_certificate_arn" {
-  description = "ACM certificate ARN for the ALB HTTPS listener. Must already be issued and validated (DNS validation against the clinic's domain) before apply."
+  description = "ACM certificate ARN for the ALB HTTPS listener. Must already be issued and validated (DNS validation against the clinic's domain) before apply. Only required when enable_https = true; safe to leave as the default empty string otherwise."
   type        = string
+  default     = ""
+}
+
+# TEMPORARY PROJECT-LEVEL OVERRIDE — chapter-4's design (and CLAUDE.md's
+# "Key Design Decisions" list) specifies HTTPS-only. This default is
+# deliberately false, not true, because no domain is registered yet: ACM
+# certificates require DNS validation against a domain the project doesn't
+# own, and registering one is being held off pending either presentation
+# funding or the stakeholder's go/no-go decision on continuing the system
+# (see docs/psm2/sprints/sprint-4-summary.md for the dated note). Flip this
+# to true, and set acm_certificate_arn to a real issued certificate, once a
+# domain exists — never leave this false for a deployment holding real
+# patient data. The alb module's own default (modules/alb/variables.tf) is
+# still `true`, i.e. secure-by-default; this root override is the one place
+# that knowingly opts out, so the exception stays visible and easy to revert.
+variable "enable_https" {
+  type    = bool
+  default = false
 }
 
 variable "app_port" {

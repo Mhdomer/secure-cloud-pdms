@@ -1,7 +1,12 @@
 ########################################
 # Application Load Balancer — the only internet-facing entry point.
-# HTTPS only (TLS 1.2+), HTTP listener exists solely to 301-redirect to
-# HTTPS. Access logs delivered to a dedicated, encrypted, private S3 bucket.
+# HTTPS only (TLS 1.2+) is the default and intended design (CLAUDE.md /
+# chapter-4): the HTTP listener exists solely to 301-redirect to HTTPS.
+# var.enable_https = false is a deliberate, temporary override (no domain/
+# ACM cert provisioned yet) that instead forwards HTTP directly — see that
+# variable's description and infrastructure/terraform/variables.tf's
+# project-level default for the justification. Access logs delivered to a
+# dedicated, encrypted, private S3 bucket regardless of which path is active.
 ########################################
 
 data "aws_elb_service_account" "main" {}
@@ -133,6 +138,12 @@ resource "aws_lb" "main" {
   # AWS has shipped Log4Shell (CVE-2021-44228) detection as part of that rule
   # group since December 2021 — there is no separate AWS-managed "Log4j" rule
   # group to attach independently.
+  # checkov:skip=CKV2_AWS_20: Only fails while var.enable_https = false — a
+  # deliberate, temporary exception (no domain/ACM cert registered yet; see
+  # that variable's description in modules/alb/variables.tf and the
+  # project-level override in infrastructure/terraform/variables.tf). When
+  # enable_https = true (the intended state), aws_lb_listener.http_redirect
+  # exists and this check passes normally.
   name                       = "${var.project_name}-${var.environment}-alb"
   internal                   = false
   load_balancer_type         = "application"
@@ -155,6 +166,15 @@ resource "aws_lb" "main" {
 }
 
 resource "aws_lb_target_group" "app" {
+  # checkov:skip=CKV_AWS_378: This target group's HTTP protocol is normal
+  # ALB architecture regardless of enable_https (TLS terminates at the ALB;
+  # the ALB-to-backend hop inside the VPC is plain HTTP in both modes — see
+  # aws_lb_listener.https above, which forwards to this same target group
+  # over HTTPS on the client-facing side). This check only fires while
+  # var.enable_https = false, because aws_lb_listener.http_forward then
+  # connects a client-facing HTTP listener directly to this group — the
+  # actual, documented exception (see that resource's checkov:skip comment
+  # below), not an issue with this target group's own configuration.
   name        = "${var.project_name}-${var.environment}-app-tg"
   port        = var.app_port
   protocol    = "HTTP"
@@ -175,6 +195,8 @@ resource "aws_lb_target_group" "app" {
 }
 
 resource "aws_lb_listener" "https" {
+  count = var.enable_https ? 1 : 0
+
   load_balancer_arn = aws_lb.main.arn
   port                = 443
   protocol            = "HTTPS"
@@ -185,9 +207,18 @@ resource "aws_lb_listener" "https" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.app.arn
   }
+
+  lifecycle {
+    precondition {
+      condition     = var.certificate_arn != ""
+      error_message = "certificate_arn must be a real, issued ACM certificate ARN when enable_https = true."
+    }
+  }
 }
 
 resource "aws_lb_listener" "http_redirect" {
+  count = var.enable_https ? 1 : 0
+
   load_balancer_arn = aws_lb.main.arn
   port                = 80
   protocol            = "HTTP"
@@ -200,6 +231,33 @@ resource "aws_lb_listener" "http_redirect" {
       protocol    = "HTTPS"
       status_code = "HTTP_301"
     }
+  }
+}
+
+resource "aws_lb_listener" "http_forward" {
+  # checkov:skip=CKV_AWS_2: Deliberate, temporary exception, not an oversight
+  # — see var.enable_https's description (modules/alb/variables.tf) and the
+  # project-level override + justification in
+  # infrastructure/terraform/variables.tf. No domain/ACM certificate is
+  # provisioned yet (budget + pending stakeholder go/no-go decision, per
+  # docs/psm2/sprints/sprint-4-summary.md); this listener only exists while
+  # enable_https = false and must not be the state this system is in once it
+  # holds real patient data.
+  # checkov:skip=CKV_AWS_103: same root cause as CKV_AWS_2 — this listener
+  # has no TLS at all (plain HTTP), by design, only while enable_https =
+  # false. Re-enabling HTTPS is a single variable flip: this listener
+  # (count = 0 when enable_https = true) is replaced by aws_lb_listener.https,
+  # which already enforces TLS 1.2+ via
+  # ssl_policy = "ELBSecurityPolicy-TLS13-1-2-2021-06".
+  count = var.enable_https ? 0 : 1
+
+  load_balancer_arn = aws_lb.main.arn
+  port               = 80
+  protocol           = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
   }
 }
 

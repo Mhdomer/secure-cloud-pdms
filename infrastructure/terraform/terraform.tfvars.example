@@ -29,9 +29,16 @@ db_instance_class   = "db.t3.micro"
 db_multi_az         = true
 db_deletion_protection = true
 
-# ACM certificate must already be issued/validated for the clinic's domain
-# before `terraform apply` — Terraform does not create it in this sprint.
-acm_certificate_arn = "arn:aws:acm:ap-southeast-1:123456789012:certificate/REPLACE-ME"
+# HTTPS-only is the intended design (chapter-4 / CLAUDE.md) — enable_https
+# defaults to false at the root only because no domain is registered yet
+# (see infrastructure/terraform/variables.tf's enable_https comment for the
+# full justification). Once you have a domain and an issued ACM cert:
+#   enable_https        = true
+#   acm_certificate_arn  = "arn:aws:acm:ap-southeast-1:123456789012:certificate/REAL-ID"
+# Leave both commented out / at their defaults until then — the ALB will
+# serve plain HTTP on port 80 instead, with no ACM cert required.
+# enable_https        = true
+# acm_certificate_arn = "arn:aws:acm:ap-southeast-1:123456789012:certificate/REPLACE-ME"
 
 # Pin to a specific, patched Amazon Linux 2023 AMI ID — never resolve "latest".
 ec2_ami_id = "ami-REPLACE-ME"
