@@ -141,3 +141,83 @@ tree already had an uncommitted edit marking Sprint 4 "In progress" from a prior
 explicit instruction that file was left alone rather than folding a further edit into someone else's
 pending change. The line still needs a manual one-word update (`In progress` → `Complete`) alongside
 whatever else is pending in that file.
+
+---
+
+## Follow-up (2026-07-26): GitHub Actions OIDC deploy role
+
+Editor diagnostics on `deploy.yml`/`security-scan.yml` surfaced several loose ends from the original
+Sprint 4 pass, worked through interactively rather than as a fresh orchestrator run:
+
+- **`environment: production` didn't resolve** — the GitHub Environment referenced by `deploy.yml`
+  didn't exist yet. Created via `gh api --method PUT repos/Mhdomer/secure-cloud-pdms/environments/production`.
+  The required-reviewer protection rule the workflow comment assumes is **still not configured**
+  (`protection_rules: []` on creation) — a manual step in repo Settings → Environments → production,
+  not something `gh api`/Terraform did here.
+- **`aquasecurity/trivy-action@0.28.0` didn't resolve** — the action's actual release tags are
+  `v`-prefixed (confirmed via `gh api repos/aquasecurity/trivy-action/tags`); the pin was missing the
+  `v`. Fixed to `@v0.28.0` in `security-scan.yml`. All other action pins in the three workflow files
+  were checked against their real tags and were already correct.
+- **Every `secrets.*` reference was unresolvable** — `gh secret list` confirmed zero secrets exist on
+  the repo yet (`SONAR_TOKEN`, `SONAR_HOST_URL`, `AWS_DEPLOY_ROLE_ARN`,
+  `TF_KMS_KEY_ADMINISTRATOR_ARNS`, `TF_ACM_CERTIFICATE_ARN`, `TF_EC2_AMI_ID`). Not fixed here — these
+  are credential/ARN values the user sets directly via `gh secret set`, not something to paste into an
+  AI conversation.
+- **`AWS_DEPLOY_ROLE_ARN` had nothing to point at** — no OIDC identity provider or deploy role existed
+  in AWS or in Terraform; `deploy.yml` was written assuming infrastructure that was never provisioned.
+  Built `infrastructure/terraform/modules/github-oidc`:
+  - `aws_iam_openid_connect_provider` for `token.actions.githubusercontent.com` (no `thumbprint_list`
+    — confirmed via the `aws-iam` skill and the `terraform-provider-aws` v5.100.0 docs via Context7
+    that AWS validates GitHub's cert chain against its own trusted CAs for this issuer).
+  - `aws_iam_role.deploy`, trust policy scoped via `StringEquals` on both
+    `token.actions.githubusercontent.com:aud` (`sts.amazonaws.com`) and `:sub`
+    (`repo:Mhdomer/secure-cloud-pdms:environment:production` — the environment-claim form GitHub emits
+    for jobs that declare an `environment:` key, which `deploy.yml`'s `terraform-apply` job is the only
+    one across all three workflow files to do).
+  - Permissions scoped to resource-level ARNs everywhere the AWS API supports them (KMS: single key
+    ARN; S3/RDS/logs/SNS/CloudTrail: `${project}-${environment}-*`-prefixed ARNs, matching every other
+    module's actual naming convention); `Resource: "*"` only for EC2/Auto Scaling/ELBv2/CloudWatch
+    control-plane APIs that don't support resource-level ARNs at all, with inline
+    `# checkov:skip=...` justification per the project's established convention.
+  - `iam:PassRole` scoped to an explicit list of the three *other* project roles (EC2, RDS enhanced
+    monitoring, CloudTrail→CloudWatch), each paired via `iam:PassedToService` with the one service it's
+    actually ever passed to — closing the PassRole-to-compute privilege-escalation path the `aws-iam`
+    skill flags. Verified via AWS docs (not assumed) that `iam:PassedToService` matches the *passed
+    role's own trust-policy principal* (`monitoring.rds.amazonaws.com` for the RDS role), not the
+    calling API's service (`rds.amazonaws.com`) — getting this backwards would have made
+    `terraform apply` fail the first time RDS Enhanced Monitoring was touched.
+  - **Design correction caught during review, not after**: the deploy role's own name
+    (`${project}-${environment}-deploy-role`) matches the same `${project}-${environment}-*` shape used
+    for scoping IAM management of the *other* roles. A wildcard `Resource` on that statement would have
+    let the deploy role reach its own inline policies via `iam:PutRolePolicy` (never denied — ordinary
+    policy iteration has to stay self-service via CI) and, over a couple of `terraform apply` runs,
+    rewrite its way to `iam:UpdateAssumeRolePolicy` despite an explicit `Deny` guardrail on that action
+    — because the guardrail is itself just another inline policy on the same role. Fixed by switching
+    from a wildcard to an explicit `locals.other_project_role_arns` list that structurally excludes the
+    deploy role's own ARN, so there's no Allow-granted path to itself at all; the `Deny` guardrail is
+    now genuine defense-in-depth against a future accidental wildcard, not the only thing standing
+    between the role and self-escalation.
+  - **Bootstrap constraint**: this module cannot create the credentials it grants access through — the
+    first `terraform apply` that creates these resources must be run manually with the operator's own
+    AWS credentials. Documented in the module's header comment and `.github/workflows/README.md`.
+  - Wired into root `main.tf` (`module "github_oidc"`, depends on `module.kms.key_arn`),
+    `variables.tf` (`github_repository`, `github_oidc_environment`, `terraform_state_bucket`,
+    `terraform_state_key`, `terraform_lock_table` — the last three mirror `backend.tf`'s literals since
+    Terraform can't read its own backend block), `outputs.tf` (`github_deploy_role_arn`), and
+    `terraform.tfvars.example` (documented that the deploy role does *not* need to be added to
+    `kms_key_administrator_arns` — it already gets `kms:*` on the CMK via its own identity policy,
+    which the key's existing `EnableRootAccountFullAccess` statement turns into usable access).
+
+**Security gate re-run**: `checkov -d infrastructure/terraform --framework terraform` →
+Passed checks: 356, Failed checks: 0, Skipped checks: 29 (26 pre-existing + 3 new
+`CKV_AWS_287`/`289`/`290` skips, same statement and same justification as the pre-existing
+`CKV_AWS_355`/`356` skips on that statement). No AWS credentials were available to run
+`terraform plan`/`apply` here — the module was validated by hand-tracing every resource-level ARN
+against the actual naming convention each other module uses, not by a live apply.
+
+**Files changed**: `infrastructure/terraform/modules/github-oidc/{main,variables,outputs}.tf` (new),
+`infrastructure/terraform/main.tf`/`variables.tf`/`outputs.tf` (wired `module "github_oidc"`),
+`infrastructure/terraform/terraform.tfvars.example` (documented new vars),
+`infrastructure/terraform/README.md` (module list, status line),
+`.github/workflows/security-scan.yml` (trivy-action tag fix),
+`.github/workflows/README.md` (IAM bullet updated to reflect the new module).

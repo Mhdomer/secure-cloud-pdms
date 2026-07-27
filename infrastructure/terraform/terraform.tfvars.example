@@ -7,11 +7,21 @@ project_name = "pdms"
 environment  = "prod"
 aws_region   = "ap-southeast-1"
 
-# IAM principal ARNs allowed to administer the KMS CMK (Terraform deployer
-# role / named break-glass admins). Example placeholder — replace with real ARNs.
+# IAM principal ARNs allowed to administer the KMS CMK (named human
+# break-glass admins). Example placeholder — replace with real ARNs.
+# NOTE: the CI/CD deploy role (modules/github-oidc, Sprint 4) does NOT need
+# to be listed here — it already gets kms:* on this key via its own IAM
+# identity policy, which the key's "EnableRootAccountFullAccess" statement
+# (modules/kms/main.tf) turns into usable access without a separate
+# key-policy entry per principal.
 kms_key_administrator_arns = [
-  "arn:aws:iam::123456789012:role/pdms-terraform-deploy-role"
+  "arn:aws:iam::123456789012:role/pdms-break-glass-admin"
 ]
+
+# GitHub repository allowed to assume the CI/CD deploy role (Sprint 4,
+# modules/github-oidc) — sole scope of the OIDC trust condition.
+github_repository       = "Mhdomer/secure-cloud-pdms"
+github_oidc_environment = "production"
 
 db_name             = "pdms"
 db_username         = "pdms_admin"

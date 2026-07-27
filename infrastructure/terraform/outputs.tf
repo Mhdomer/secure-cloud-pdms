@@ -29,3 +29,8 @@ output "monitoring_dashboard_name" {
   description = "CloudWatch dashboard name — failed logins, ALB 5xx rate, RDS CPU, CloudTrail volume."
   value       = module.monitoring.dashboard_name
 }
+
+output "github_deploy_role_arn" {
+  description = "ARN to store as the AWS_DEPLOY_ROLE_ARN GitHub Actions secret (see .github/workflows/deploy.yml)."
+  value       = module.github_oidc.deploy_role_arn
+}

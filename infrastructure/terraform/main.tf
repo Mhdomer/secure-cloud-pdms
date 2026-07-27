@@ -155,3 +155,23 @@ module "monitoring" {
   cloudtrail_log_group_name   = module.cloudtrail.cloudwatch_log_group_name
   tags                         = local.common_tags
 }
+
+########################################
+# GitHub OIDC — federated deploy role for .github/workflows/deploy.yml.
+# See modules/github-oidc/main.tf's header comment for the manual bootstrap
+# step this module requires before CI can use it.
+########################################
+
+module "github_oidc" {
+  source = "./modules/github-oidc"
+
+  project_name             = var.project_name
+  environment                = var.environment
+  github_repository        = var.github_repository
+  github_oidc_environment  = var.github_oidc_environment
+  kms_key_arn               = module.kms.key_arn
+  terraform_state_bucket   = var.terraform_state_bucket
+  terraform_state_key      = var.terraform_state_key
+  terraform_lock_table     = var.terraform_lock_table
+  tags                      = local.common_tags
+}

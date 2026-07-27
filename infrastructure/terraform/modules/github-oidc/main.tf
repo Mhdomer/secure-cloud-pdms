@@ -1,0 +1,336 @@
+########################################
+# GitHub Actions OIDC federation — Sprint 4 (chapter-4 Section 4.3.6, Stage 6:
+# Terraform Apply). Lets .github/workflows/deploy.yml assume an AWS role via
+# short-lived web-identity tokens instead of long-lived IAM access keys
+# stored as GitHub secrets.
+#
+# BOOTSTRAP NOTE: this module cannot create the credentials it grants access
+# through. The first `terraform apply` that creates these resources must be
+# run manually with the operator's own AWS credentials (console or local
+# CLI with an admin/break-glass identity) — see infrastructure/README.md.
+# After that, deploy.yml's terraform-apply job authenticates as
+# aws_iam_role.deploy for every subsequent apply.
+########################################
+
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+resource "aws_iam_openid_connect_provider" "github" {
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+
+  # No thumbprint_list: for GitHub (and Auth0/GitLab/Google/S3-hosted JWKS
+  # issuers), AWS validates the OIDC certificate chain against its own
+  # trusted root CAs rather than a configured thumbprint — the
+  # thumbprint_list argument on aws_iam_openid_connect_provider is only
+  # load-bearing for issuers outside that trusted-CA set (terraform-provider-aws
+  # docs, resource: aws_iam_openid_connect_provider).
+
+  tags = var.tags
+}
+
+resource "aws_iam_role" "deploy" {
+  name = "${var.project_name}-${var.environment}-deploy-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "GitHubActionsOidcFederation"
+      Effect = "Allow"
+      Principal = {
+        Federated = aws_iam_openid_connect_provider.github.arn
+      }
+      Action = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          # GitHub emits the `repo:OWNER/REPO:environment:NAME` form of the
+          # `sub` claim for any job that declares an `environment:` key,
+          # which supersedes the ref/branch-based form for that job. This is
+          # deploy.yml's terraform-apply job, and it is the ONLY job across
+          # ci.yml/deploy.yml/security-scan.yml that requests AWS
+          # credentials — every other job (SAST, image scan, IaC scan) runs
+          # with no `permissions: id-token: write` and cannot mint a token
+          # this role would even accept.
+          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:environment:${var.github_oidc_environment}"
+        }
+      }
+    }]
+  })
+
+  tags = var.tags
+}
+
+########################################
+# Deploy-role permissions — scoped to this project's resources wherever the
+# underlying AWS API supports resource-level ARNs; Resource: "*" only where
+# the service genuinely does not (documented per-statement below). The real
+# access boundary is WHO can assume this role at all (the OIDC trust
+# condition above, scoped to one exact repo + one exact GitHub Environment),
+# not resource-ARN restriction on APIs that don't offer it.
+########################################
+
+resource "aws_iam_role_policy" "terraform_backend" {
+  name = "${var.project_name}-${var.environment}-deploy-backend-policy"
+  role = aws_iam_role.deploy.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "TerraformStateObject"
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:PutObject"]
+        Resource = "arn:aws:s3:::${var.terraform_state_bucket}/${var.terraform_state_key}"
+      },
+      {
+        Sid      = "TerraformStateBucketList"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = "arn:aws:s3:::${var.terraform_state_bucket}"
+      },
+      {
+        Sid    = "TerraformStateLock"
+        Effect = "Allow"
+        Action = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+        Resource = "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${var.terraform_lock_table}"
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "manage_project_resources" {
+  name = "${var.project_name}-${var.environment}-deploy-resources-policy"
+  role = aws_iam_role.deploy.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ManageProjectKmsKey"
+        Effect   = "Allow"
+        Action   = ["kms:*"]
+        Resource = var.kms_key_arn
+        # Scoped to this project's single CMK ARN, not "*". The key's own
+        # resource policy (modules/kms/main.tf, EnableRootAccountFullAccess
+        # statement) is what actually turns this identity-policy grant into
+        # usable access — KMS evaluates key policy AND identity policy, so
+        # this is the intersection of two independently-scoped policies.
+      },
+      {
+        Sid    = "ManageProjectS3Buckets"
+        Effect = "Allow"
+        Action = ["s3:*"]
+        Resource = [
+          "arn:aws:s3:::${var.project_name}-${var.environment}-*",
+          "arn:aws:s3:::${var.project_name}-${var.environment}-*/*",
+        ]
+        # Every project-managed bucket (cloudtrail logs today; any future
+        # frontend/static-hosting bucket) follows this exact naming
+        # convention — see modules/cloudtrail/main.tf's `bucket` argument.
+        # The separate, unprefixed Terraform state bucket is granted above
+        # in terraform_backend, scoped to only the two actions apply needs.
+      },
+      {
+        Sid    = "ManageProjectRds"
+        Effect = "Allow"
+        Action = ["rds:*"]
+        Resource = [
+          "arn:aws:rds:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:db:${var.project_name}-${var.environment}-*",
+          "arn:aws:rds:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:subgrp:${var.project_name}-${var.environment}-*",
+          "arn:aws:rds:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:pg:${var.project_name}-${var.environment}-*",
+        ]
+      },
+      {
+        Sid    = "ManageProjectLogs"
+        Effect = "Allow"
+        Action = ["logs:*"]
+        Resource = [
+          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/${var.project_name}/${var.environment}*",
+          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/${var.project_name}/${var.environment}*:*",
+        ]
+      },
+      {
+        Sid      = "ManageProjectSns"
+        Effect   = "Allow"
+        Action   = ["sns:*"]
+        Resource = "arn:aws:sns:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${var.project_name}-${var.environment}-*"
+      },
+      {
+        Sid      = "ManageProjectCloudTrail"
+        Effect   = "Allow"
+        Action   = ["cloudtrail:*"]
+        Resource = "arn:aws:cloudtrail:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:trail/${var.project_name}-${var.environment}-*"
+      },
+      {
+        # checkov:skip=CKV_AWS_355: EC2/VPC (subnets, route tables, NAT/IGW,
+        # NACLs, security groups, launch templates), Auto Scaling, and ELBv2
+        # control-plane APIs overwhelmingly do not support resource-level
+        # ARNs for the Create/Describe/Modify actions `terraform apply` needs
+        # (see each service's page in the AWS "Actions, resources, and
+        # condition keys" reference) — Resource: "*" is the only expressible
+        # grant. CloudWatch metric/alarm/dashboard APIs have the same gap.
+        # checkov:skip=CKV_AWS_356: same false positive as CKV_AWS_355 — see
+        # the module-level comment above: the access boundary for this role
+        # is the OIDC trust condition (one repo, one GitHub Environment), not
+        # a resource-ARN restriction these specific APIs don't offer.
+        # checkov:skip=CKV_AWS_287: not a credentials-exposure grant — ec2:*/
+        # autoscaling:*/elasticloadbalancing:*/cloudwatch:* contain no
+        # sts:*, secretsmanager:*, or ssm:GetParameter*(WithDecryption)
+        # action; this project's actual credential reads are scoped
+        # separately and tightly (modules/ec2's ReadOwnDbCredentialsFromSsm
+        # statement, not this one).
+        # checkov:skip=CKV_AWS_289: same false positive as CKV_AWS_355/356 —
+        # flagged for the "*" resource these specific APIs require, not for
+        # an actual unconstrained permissions-management grant (no iam:*
+        # action appears in this statement at all).
+        # checkov:skip=CKV_AWS_290: same false positive as CKV_AWS_355/356/289
+        # — "write access without constraints" here means "without a
+        # resource-ARN constraint", which these specific Create/Modify APIs
+        # do not support; the constraint that exists is WHO can assume this
+        # role (OIDC trust condition), not a resource ARN.
+        Sid    = "ManageProjectComputeNetworking"
+        Effect = "Allow"
+        Action = [
+          "ec2:*",
+          "autoscaling:*",
+          "elasticloadbalancing:*",
+          "cloudwatch:*",
+        ]
+        Resource = "*"
+      },
+    ]
+  })
+}
+
+locals {
+  # Explicit enumeration, not a `${project}-${environment}-*` wildcard.
+  # aws_iam_role.deploy's own name also matches that wildcard shape, so a
+  # wildcard Resource here would let the deploy role reach its own IAM
+  # role/policies via iam:PutRolePolicy/iam:AttachRolePolicy (neither of
+  # which the guardrail policy below denies, since ordinary policy
+  # iteration must stay self-service via CI) — and from there rewrite the
+  # guardrail itself over a couple of `terraform apply` runs, eventually
+  # reaching iam:UpdateAssumeRolePolicy despite that guardrail. Listing the
+  # exact other roles this stack creates closes that path structurally:
+  # the deploy role is never a member of the set it's permitted to manage.
+  other_project_role_names = [
+    "${var.project_name}-${var.environment}-ec2-role",              # modules/ec2
+    "${var.project_name}-${var.environment}-rds-monitoring-role",   # modules/rds
+    "${var.project_name}-${var.environment}-cloudtrail-cwlogs-role", # modules/cloudtrail
+  ]
+  other_project_role_arns = [
+    for name in local.other_project_role_names :
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${name}"
+  ]
+  other_project_instance_profile_arns = [
+    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:instance-profile/${var.project_name}-${var.environment}-ec2-instance-profile", # modules/ec2
+  ]
+}
+
+resource "aws_iam_role_policy" "manage_project_iam" {
+  name = "${var.project_name}-${var.environment}-deploy-iam-policy"
+  role = aws_iam_role.deploy.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ManageOtherProjectIamRoles"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:GetRole",
+          "iam:UpdateRole",
+          "iam:TagRole",
+          "iam:UntagRole",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:CreateInstanceProfile",
+          "iam:DeleteInstanceProfile",
+          "iam:GetInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile",
+          "iam:TagInstanceProfile",
+        ]
+        Resource = concat(local.other_project_role_arns, local.other_project_instance_profile_arns)
+        # Deliberately excludes iam:UpdateAssumeRolePolicy — no role this
+        # deploy role manages should ever have its trust policy changed by
+        # `terraform apply`; every trust policy in this stack is set once
+        # at create time. And see local.other_project_role_names above for
+        # why this is an explicit list, not this role's own name-prefix.
+      },
+      {
+        Sid      = "PassOtherProjectRolesToTheirOwningService"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
+        Resource = local.other_project_role_arns
+        Condition = {
+          StringEquals = {
+            "iam:PassedToService" = ["ec2.amazonaws.com", "cloudtrail.amazonaws.com", "monitoring.rds.amazonaws.com"]
+          }
+        }
+        # Closes the classic PassRole-to-compute privilege-escalation path
+        # (aws-iam skill: PassRole with Resource:"*" + a compute create/update
+        # action = escalation to any passable role): scoped to the three
+        # explicit other-project role ARNs AND to only the service each is
+        # ever passed to. Note iam:PassedToService matches the PASSED ROLE's
+        # own trust-policy principal, not the API caller's service —
+        # modules/rds/main.tf's rds_enhanced_monitoring role trusts
+        # monitoring.rds.amazonaws.com, not rds.amazonaws.com, even though
+        # it's set via an rds:* API call.
+      },
+    ]
+  })
+}
+
+########################################
+# Guardrail — defense-in-depth, not the sole control. The real protection is
+# structural: manage_project_iam above grants IAM actions only against the
+# explicit local.other_project_role_arns list, which never includes this
+# role's own ARN (see the comment on that local), so this role has no
+# Allow-granted path to its own policies at all, and none of its Allow
+# statements anywhere grant iam:UpdateAssumeRolePolicy or an
+# OIDC-provider-modifying action — IAM's default-deny already blocks all of
+# this on its own. This policy is the explicit backstop in case a future
+# edit ever widens one of those Allow statements back to a wildcard that
+# happens to catch this role too. Widening this role's trust, or
+# re-pointing the OIDC provider, must always be a manual `terraform apply`
+# with the operator's own elevated credentials — never something a GitHub
+# Actions run can grant itself.
+########################################
+
+resource "aws_iam_role_policy" "deny_self_trust_escalation" {
+  name = "${var.project_name}-${var.environment}-deploy-guardrail-policy"
+  role = aws_iam_role.deploy.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "DenyModifyingOwnTrustBoundary"
+        Effect   = "Deny"
+        Action   = ["iam:UpdateAssumeRolePolicy", "iam:DeleteRole"]
+        Resource = aws_iam_role.deploy.arn
+      },
+      {
+        Sid    = "DenyModifyingOidcProvider"
+        Effect = "Deny"
+        Action = [
+          "iam:UpdateOpenIDConnectProviderThumbprint",
+          "iam:DeleteOpenIDConnectProvider",
+          "iam:AddClientIDToOpenIDConnectProvider",
+          "iam:RemoveClientIDFromOpenIDConnectProvider",
+        ]
+        Resource = aws_iam_openid_connect_provider.github.arn
+      },
+    ]
+  })
+}

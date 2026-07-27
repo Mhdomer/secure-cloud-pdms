@@ -1,6 +1,6 @@
 # Terraform Configuration
 
-**Status: PSM 2 Sprint 4 — VPC, subnets, security groups, NACLs, RDS, KMS, ALB, EC2, CloudTrail, CloudWatch monitoring implemented**
+**Status: PSM 2 Sprint 4 — VPC, subnets, security groups, NACLs, RDS, KMS, ALB, EC2, CloudTrail, CloudWatch monitoring, GitHub OIDC deploy role implemented**
 
 ## Module Structure
 
@@ -21,6 +21,7 @@ terraform/
     ec2/          # Launch template, Auto Scaling Group, IAM instance role (SSM-only access)
     cloudtrail/   # CloudTrail trail, encrypted S3 bucket, CloudWatch Logs integration
     monitoring/   # App log group + failed-login/ALB-5xx-rate/RDS-CPU alarms + dashboard (Sprint 4, chapter-4 §4.3.8.6)
+    github-oidc/  # GitHub Actions OIDC provider + least-privilege deploy role for deploy.yml (Sprint 4)
 ```
 
 Frontend delivery (S3 + CloudFront) and application container deployment are implemented in Sprint 3 alongside the Node.js/Express backend and React frontend.

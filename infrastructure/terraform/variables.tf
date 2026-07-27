@@ -134,3 +134,37 @@ variable "log_retention_days" {
   type        = number
   default     = 90
 }
+
+########################################
+# GitHub OIDC (Sprint 4 deploy pipeline)
+########################################
+
+variable "github_repository" {
+  description = "GitHub repository allowed to assume the CI/CD deploy role, as \"owner/repo\". Sole scope of the OIDC trust condition in modules/github-oidc."
+  type        = string
+  default     = "Mhdomer/secure-cloud-pdms"
+}
+
+variable "github_oidc_environment" {
+  description = "GitHub Environment name that must be declared on the calling workflow job (deploy.yml's terraform-apply job) for its OIDC token to be trusted."
+  type        = string
+  default     = "production"
+}
+
+variable "terraform_state_bucket" {
+  description = "S3 bucket holding Terraform remote state. Must match backend.tf's `bucket`."
+  type        = string
+  default     = "pdms-terraform-state-730077843716"
+}
+
+variable "terraform_state_key" {
+  description = "S3 object key for the state file. Must match backend.tf's `key`."
+  type        = string
+  default     = "prod/terraform.tfstate"
+}
+
+variable "terraform_lock_table" {
+  description = "DynamoDB table used for state locking. Must match backend.tf's `dynamodb_table`."
+  type        = string
+  default     = "pdms-terraform-locks"
+}

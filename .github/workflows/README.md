@@ -38,9 +38,9 @@ No manual deployment is ever allowed. Every pull request against `main` runs sta
 
 These are GitHub repo settings and secrets, not files — none of them are committed:
 
-- **GitHub Environment** named `production` with a required-reviewer protection rule, referenced by `deploy.yml`'s `environment: production`.
+- **GitHub Environment** named `production` with a required-reviewer protection rule, referenced by `deploy.yml`'s `environment: production`. (Environment created; required-reviewer rule not yet added — see `docs/psm2/sprints/sprint-4-summary.md`.)
 - **Secrets**: `SONAR_TOKEN`, `SONAR_HOST_URL`, `AWS_DEPLOY_ROLE_ARN` (OIDC role ARN — no long-lived AWS access keys are ever stored), `TF_KMS_KEY_ADMINISTRATOR_ARNS`, `TF_ACM_CERTIFICATE_ARN`, `TF_EC2_AMI_ID` (map 1:1 to the no-default variables in `infrastructure/terraform/variables.tf`, supplied as `TF_VAR_*` instead of a committed `terraform.tfvars`).
-- **AWS IAM**: an OIDC identity provider trusting `token.actions.githubusercontent.com`, and a role scoped to this repository that `AWS_DEPLOY_ROLE_ARN` points at, with least-privilege permissions to run `terraform apply` against this project's resources. Provisioning that role is a bootstrap step outside this pipeline's own Terraform (the pipeline cannot grant itself the permissions it needs to run).
+- **AWS IAM**: an OIDC identity provider trusting `token.actions.githubusercontent.com`, and a role scoped to this exact repository + the `production` GitHub Environment, with least-privilege permissions to run `terraform apply` against this project's resources. Now defined as Terraform (`infrastructure/terraform/modules/github-oidc`) rather than needing manual console provisioning — but the pipeline still cannot grant itself the permissions it needs to run, so the first `terraform apply` that creates this module's resources must be run manually with the operator's own AWS credentials (see that module's header comment). `AWS_DEPLOY_ROLE_ARN` is that apply's `github_deploy_role_arn` output.
 
 ## Deliberately out of scope for Sprint 4
 
