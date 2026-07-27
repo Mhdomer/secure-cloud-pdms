@@ -69,8 +69,8 @@ scripts/
 | Sprint 2 | Terraform: VPC, subnets, SGs, NACLs, RDS, KMS | Complete |
 | Sprint 3a | Backend: Node.js/Express API, JWT auth, two-layer RBAC (middleware + PostgreSQL RLS) | Complete |
 | Sprint 3b | Frontend: React app, RBAC-aware UI, English/Arabic RTL localization | Complete |
-| Sprint 3c | UI visual overhaul (screen-by-screen, see `docs/psm2/sprint-3c-ui-overhaul.md`) + patient self-registration/self-booking (see `docs/psm2/self-registration-design.md`) | In progress — self-registration implemented; UI overhaul: Doctor Dashboard done, other screens pending |
-| Sprint 4 | DevSecOps: GitHub Actions pipeline + CloudWatch + CloudTrail | Not started |
+| Sprint 3c | UI visual overhaul (screen-by-screen, see `docs/psm2/sprint-3c-ui-overhaul.md`) + patient self-registration/self-booking (see `docs/psm2/self-registration-design.md`) | **Complete** — all 17 screens done + major feature additions (glassmorphism, billing engine, clinical tools, queue system); i18n gate passed 2026-07-26 (1,305 keys across 11 namespaces, 0 diffs, tsc 0 errors) |
+| Sprint 4 | DevSecOps: GitHub Actions pipeline + CloudWatch + CloudTrail | **In progress** |
 | Sprint 5 | Security evaluation: scans, RTO test, Security Hub, UAT | Not started |
 
 Each sprint has a security gate that must pass before the next sprint starts.
@@ -124,7 +124,7 @@ RBAC enforced at two layers: JWT middleware (application) + PostgreSQL row-level
 
 - VPC CIDR: 10.0.0.0/16, 6 subnets across 2 AZs
 - RDS: never publicly accessible, KMS-encrypted, automated backups on
-- ALB: only internet-facing entry point, HTTPS only
+- ALB: only internet-facing entry point, HTTPS only (temporarily overridden to HTTP-only via `enable_https = false` — no domain/ACM cert registered yet, pending presentation budget / stakeholder go-no-go; see `infrastructure/terraform/variables.tf`'s `enable_https` comment and `docs/psm2/sprints/sprint-4-summary.md`. Must flip back to `true` before this system ever holds real patient data.)
 - EC2: private subnet, no direct internet access (outbound via NAT Gateway)
 - CloudTrail: all API calls logged, 90-day retention
 - RTO target: ≤ 15 minutes (full Terraform redeployment from wipe)
@@ -215,3 +215,4 @@ Apply font family switch as part of the same language toggle that sets dir="rtl"
 - QA audit fixes applied 2026-07-24 (invoice_payments ledger, payment locking, cancel/void workflow, per-file changes + live verification): `docs/psm2/qa-fixes-2026-07-24.md`
 - Feature additions 2026-07-24 (rooms feature removed, visit status transition trigger, patient appointment reschedule UC-21b): `docs/psm2/feature-additions-2026-07-24.md`
 - Forgot-password flow (patient self-service, phone OTP) added 2026-07-25 — design rationale: `docs/superpowers/specs/2026-07-24-forgot-password-design.md`; report delta: `docs/psm2/report-delta.md` DELTA-047; UI tracker: `docs/psm2/sprint-3c-ui-overhaul.md` Screen 18
+- Sprint 4 DevSecOps pipeline + GitHub OIDC deploy role + temporary HTTP-only `enable_https` override (2026-07-26): `docs/psm2/sprints/sprint-4-summary.md`
