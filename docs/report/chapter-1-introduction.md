@@ -3,6 +3,7 @@ tags: [fyp, psm1, chapter-1, introduction]
 phase: 1
 status: complete
 created: 2026-04-25
+updated: 2026-07-28
 related: [[FYP/PSM 1 SECRH/docs/PHASES]], [[chapter-2-literature-review]]
 
 
@@ -10,102 +11,95 @@ related: [[FYP/PSM 1 SECRH/docs/PHASES]], [[chapter-2-literature-review]]
 
 ## INTRODUCTION
 
-
-
 ### 1.1 Introduction
 
-The rapid growth of digital health systems has fundamentally changed how patient data is collected, stored, and accessed across healthcare facilities worldwide. As clinics and hospitals transition from paper-based workflows to electronic health records, the underlying infrastructure responsible for protecting sensitive patient information has become a critical concern. Healthcare data is among the most valuable and targeted categories of information, with breaches carrying severe consequences for patient safety, regulatory compliance, and institutional trust.
+The rapid adoption of digital technologies has transformed the entire process of collecting and storing information in the clinic. Transitioning from paper processes to the use of EHRs in clinics and hospitals which made healthcare information management infrastructure crucial since sensitive patient data must be protected. Information security and protection of secret patient information has always been an area of concern, especially in cases of breaches where patient privacy and security is put at risk.
 
-Despite the urgent need for secure digital infrastructure, many small and medium-sized healthcare providers continue to operate on traditional on-premise server environments. These systems, while functional, were not designed to meet the evolving threat landscape of modern cybersecurity. They rely on manual configuration, reactive security patching, and flat network architectures that offer little isolation between system components — conditions that have repeatedly proven catastrophic when exploited by malicious actors.
+While the importance of adopting a secure infrastructure becomes obvious with the growth in the number of cybersecurity threats, there are still many small clinics and hospitals which rely on the legacy on-premises server solution and ignore the growing risks linked with the lack of enough cybersecurity measures. The traditional server infrastructure does not allow implementing any additional measures to prevent attacks or limit their impact on the system, thus increasing the risks Significantly. This project aims at designing and implementing a cloud-based solution that would be able to effectively protect patients' confidential information from malicious attacks and unauthorized access. The proposed cloud-based system will feature a three-tier architecture and be deployed into isolated network subnets using Virtual Private Cloud (VPC) and Infrastructure as Code (IaC) solutions such as Terraform. The DevSecOps pipeline will enable developers to scan every piece of code before deployment.
 
-This project addresses these vulnerabilities by designing and deploying a Secure Cloud-Based Patient Data Management System (PDMS) on Amazon Web Services (AWS). The system adopts a three-tier architecture, separating the presentation, application, and data layers across isolated network subnets within a Virtual Private Cloud (VPC). Infrastructure as Code (IaC) using Terraform enables automated, reproducible deployments, while a DevSecOps pipeline enforces security scanning at every stage of development before any code reaches the production environment.
-
-The case study guiding this project is Alamin Clinic, a private healthcare provider in Saudi Arabia, whose on-premise infrastructure was compromised by a ransomware attack. This real-world incident provides the concrete requirements and constraints that shape the system design, making the project directly applicable to a genuine operational problem rather than a theoretical exercise.
+A practical example of the need for this system is seen at the case of the Alamin Clinic which suffered a cyberattack and became a victim of ransomware. Thus, the selected organization will provide requirements for the system design and implementation to solve the identified problem.
 
 ---
 
-### 1.2 Problem Background
+### 1.2 Problem Statement
 
-Alamin Clinic currently operates its patient data management system on a single on-premise physical server. This server hosts the web frontend, application backend, and patient database simultaneously, with no network segmentation between layers. The infrastructure is maintained manually: IT staff configure the server by hand, developers transfer code to the production environment via FTP client or USB drive, and security measures such as firewalls and antivirus software are updated reactively, often with significant delays between the release of a patch and its application.
+At present, the management of the patient data management system at the Alamin Clinic relies on an on-premises physical server that provides services of the web frontend, application backend, and patient database in a single network without any segmentation of layers of the architecture. In other words, all of these elements of infrastructure are manually configured, deployed, and managed; for example, the code for applications is deployed to a production environment through FTP or USB drive while updates for antivirus programs and firewalls are applied on a manual basis with significant delays.
 
-This flat, manual architecture proved critically vulnerable when the clinic suffered a ransomware attack. Attackers were able to penetrate the system, traverse the network without restriction, and encrypt the entire patient database — rendering all records inaccessible and halting clinical operations. The absence of network isolation meant that a single point of compromise was sufficient to affect every component of the system simultaneously. The absence of automated backups and a tested recovery process extended the outage significantly.
+However, such an approach revealed its flaws when the clinic was hacked and its patients' data was affected by the ransomware threat. The hackers gained access to the system, Found its way into the network and encrypted the entire database. Due to the lack of network segmentation and isolation, all the components of the system became vulnerable and unusable until the data is restored manually. The lack of automation and regular backups increased downtime and made it impossible to restore data at time.
 
-This incident reflects a well-documented pattern across the healthcare sector. Argaw et al. (2019) found that cyberattacks against hospitals frequently exploit outdated infrastructure, inadequate network segmentation, and the absence of systematic patch management. Al-Issa et al. (2019) further identified that healthcare cloud migration, when approached without a security-first design mindset, introduces its own risks — particularly around access control and data exposure. These studies confirm that the problem at Alamin Clinic is not isolated but representative of a systemic gap in how small healthcare providers approach information security.
+It appears that the problem described above align with a wider problem that affects small healthcare organizations. Argaw et al. (2019) noted that cyberattacks in hospitals take advantage of old infrastructure, poor network segregation, and inadequate patching policies. Moreover, as Al-Issa et al. (2019) reported, cloud computing technologies used in the healthcare industry have some specific problems related to access management and Unprotected date, among others.
 
-The proposed solution addresses this gap by migrating the clinic's patient data management system to a cloud environment that is architected with security built in from the ground up. Rather than adding security controls as an afterthought, the system applies the principle of security by design: every architectural decision — from subnet isolation to IAM policy structure to the CI/CD pipeline configuration — is made with the security posture of the system as the primary constraint.
+In summary, the problems described above reveal one major gap typical for small scale organizations that is a lack of proper information security measures implemented since the beginning. To address the issue, the proposed solution will be based on cloud computing and ensure security from the very beginning through Compliance with the security-by-design principle.
 
 ---
 
 ### 1.3 Project Aim
 
-The aim of this project is to design and deploy a secure cloud-based Patient Data Management System for Alamin Clinic using a three-tier architecture on AWS, incorporating Infrastructure as Code and a DevSecOps pipeline to ensure automated, reproducible, and security-validated deployments.
+The aim of this project is to design and deploy a secure cloud-based Patient Data Management System for Alamin Clinic using a three-tier architecture on AWS, Integrating Infrastructure as Code and a DevSecOps pipeline to ensure automated, reproducible, and security-validated deployments.
 
 ---
 
 ### 1.4 Project Objectives
 
-The objectives of this project are:
+The objectives of the project are:
 
 (a) To investigate core concepts including cloud computing security, three-tier architecture, network segmentation, Identity and Access Management, and secure system design practices within the context of healthcare applications.
 
-(b) To design a secure Cloud-Based Patient Data Management System based on a three-tier architecture on AWS, covering Virtual Private Cloud networking, access control through IAM and Role-Based Access Control (RBAC), and a DevSecOps CI/CD pipeline with integrated security scanning.
+(b) To develop a secure Cloud-Based Patient Data Management System based on a three-tier architecture on AWS, covering Virtual Private Cloud networking, access control through IAM and Role-Based Access Control (RBAC), and a DevSecOps CI/CD pipeline with integrated security scanning.
 
-(c) To test the developed system through operational testing — comprising automated vulnerability scanning (Trivy, SonarQube, Checkov), Recovery Time Objective (RTO) stress testing simulating a ransomware wipe-and-redeploy scenario, and HIPAA compliance posture assessment via AWS Security Hub — and User Acceptance Testing (UAT) conducted with representative users from each of the three defined roles (Doctor, Admin, Patient).
+(c) To evaluate the performance of the system using automated vulnerability assessment tools such as Trivy, SonarQube, and Checkov. The performance evaluation includes RTO testing via a ransomware recovery simulation test and a HIPPA compliance test using AWS Security Hub. Lastly, User Acceptance Testing (UAT) will be carried out using Doctors, Admins, and Patients.
 
 ---
 
 ### 1.5 Project Scope
 
-This project focuses on the design and deployment of a Secure Patient Data Management System for use by doctors, administrative staff, and patients at Alamin Clinic. The system will be deployed on AWS as a functional prototype, with security evaluation evidence provided through scan reports, CloudWatch logs, and recovery time test results.
+This system addresses the development of a secure patient data management system that is designed to serve doctors, administration staff, and patients of the Alamin clinic. This system will be developed as a functional prototype on AWS, and security monitoring will be done using the results of vulnerability scans, CloudWatch, and recovery time tests.
 
-#### In-Scope
+#### 1.5.1 In-Scope
 
-The following areas are within the scope of this project:
+The project will be run within the following scopes:
 
-(a) Core patient record management functionality, including Patient Registration, Medical Records Management, Appointment Scheduling, and User Authentication with Role Management (Doctor, Admin, Patient).
+1. Core patient record management functionality, including Patient Registration, Medical Records Management, Appointment Scheduling, and User Authentication with Role Management (Doctor, Admin, Patient).
 
-(b) Design of a Virtual Private Cloud (VPC) with public subnets for internet-facing components and private subnets for the application and database layers.
+2. Design of an AWS Virtual Private Cloud (VPC) with public subnets and private subnets for each respective layer
 
-(c) Three-tier architecture comprising a React frontend layer, a Node.js/Express backend layer on EC2, and a PostgreSQL database layer on Amazon RDS.
+3. A 3 tier architecture that includes a React frontend layer hosted in S3, a Node.js/Express backend layer on EC2 instance, and a PostgreSQL database layer on Amazon RDS.
 
-(d) AWS services including VPC, EC2, RDS, Application Load Balancer (ALB), NAT Gateway, and Internet Gateway.
+4. AWS services include but not limited to VPC, EC2, RDS, App Load Balancer (ALB), NAT Gateway, and Internet Gateway.
 
-(e) Network security controls including Security Groups and Network Access Control Lists (NACLs).
+5. Security and Network Groups Access Control Lists (NACLs).
 
-(f) Identity and Access Management (IAM) with least-privilege policies and Role-Based Access Control (RBAC) enforced across all three user roles.
+6. Identity and Access Management (IAM) with least-privilege policies and Role-Based Access Control (RBAC) applied across all three user roles.
 
-(g) Data encryption at rest using AES-256 through AWS Key Management Service (KMS) and encryption in transit using TLS/HTTPS.
+7. Data encryption at rest using AES-256 through AWS Key Management Service (KMS) and encryption in transit using TLS/HTTPS.
 
-(h) A DevSecOps CI/CD pipeline built on GitHub Actions with Docker containerisation and Terraform IaC, incorporating automated security scanning using Trivy (container images), SonarQube (static code analysis), and Checkov (IaC misconfiguration scanning).
+8. A DevSecOps CI/CD pipeline built on GitHub Actions with Docker containerization and Terraform IaC, incorporating automated security scanning using Trivy (container images), SonarQube (static code analysis), and Checkov (IaC misconfiguration scanning).
 
-(i) Monitoring and audit logging using Amazon CloudWatch and AWS CloudTrail, with defined alerting thresholds and log retention policies.
+9. Monitoring and audit logging using Amazon CloudWatch and AWS CloudTrail.
 
-(j) HIPAA compliance posture assessment using AWS Security Hub.
+10. HIPAA compliance posture assessment using AWS Security Hub.
 
-#### Data and Subjects
+#### 1.5.2 Data and Subjects
 
-The system will be evaluated using a pilot dataset of simulated patient records generated for testing purposes. User Acceptance Testing will be conducted with a minimum of three representative participants, one per user role (Doctor, Admin, Patient). No real patient data will be used during development or testing.
+The system will be evaluated using a pilot dataset of simulated patient records generated for testing purposes. User Acceptance Testing will be conducted with a minimum of three representative participants, one per user role (Doctor, Admin, Patient). No real patient data will be used during development or testing only dummy data to test system functionality.
 
-#### Out-of-Scope
+#### 1.5.3 Out-of-Scope
 
 To maintain focus on the security architecture and infrastructure, the following modules are explicitly excluded from this project:
 
-- Hospital billing and insurance claim management
-- Pharmacy inventory and dispensing management
-- Emergency Room (ER) management
-- Obstetrics and Gynaecology (O&G) clinical modules
+(i) hospital billing and insurance claim management; (ii) pharmacy inventory and dispensing management; (iii) Emergency Room (ER) management; and (iv) specialized Obstetrics and Gynaecology (O&G) clinical modules.
 
 ---
 
 ### 1.6 Project Importance
 
-The importance of this project operates on three levels: clinical, technical, and academic.
+The importance of the project comes out in several aspects: clinical, technical, and academic.
 
-At the clinical level, patient data is among the most sensitive categories of personal information. A breach or loss of availability — as occurred at Alamin Clinic — directly impacts patient care, erodes trust between patients and providers, and can have lasting reputational and legal consequences. Designing a system that ensures continuous availability, confidentiality, and integrity of patient records is therefore not merely a technical exercise but a matter of patient safety.
+First of all, when it comes to clinical issues, one should understand that patient information is considered to be one of the most sensitive types of personal data. An information leak or loss of availability caused by a ransomware attack like in Alamin Clinic's case may have serious consequences, both for patients and doctors, as well as reputational and legal ramifications. Therefore, the development of a system that will be characterized by high availability, security, and integrity of patient data cannot be regarded as a technical task.
 
-At the technical level, the project demonstrates how Infrastructure as Code and DevSecOps principles can transform a vulnerable, manually maintained system into a self-healing, security-validated infrastructure. By encoding the entire environment in Terraform, the system can be fully redeployed from a clean state within minutes — a capability that directly addresses the recovery problem exposed by the ransomware attack. The integration of automated security scanning into the deployment pipeline ensures that vulnerabilities are identified and blocked before they can reach production, shifting security left in the development lifecycle.
+Secondly, one needs to consider the technical part of the project. Infrastructure as Code and DevSecOps approaches allowed for the conversion of an outdated and manual environment into a self healing infrastructure with the use of code and security validation. The whole infrastructure is coded using the Terraform language, and this gives us the opportunity to redeploy it from a clean state in minutes. Furthermore, a security scan conducted prior to deployment ensures that any threats are discovered and prevented from moving forward.
 
-At the academic level, this project contributes a practical, case-study-grounded application of cloud security principles that bridges the gap between theoretical security frameworks and their real-world implementation. The use of HIPAA as a compliance benchmark and AWS Security Hub as the measurement tool provides a structured, industry-recognised evaluation framework that goes beyond conventional academic testing methodologies.
+Finally, on the academic aspect, the project allows for a practical application of theoretical concepts in terms of cloud security, using HIPAA as the compliance standard and AWS Security Hub as an evaluation tool. This hands-on implementation directly bridges the gap between theoretical security principles and real-world infrastructure deployment within a secure multi-tier architecture
 
 ---
 
@@ -113,7 +107,7 @@ At the academic level, this project contributes a practical, case-study-grounded
 
 The key stakeholders for this project are the individuals and groups whose operational needs, security concerns, and data are directly addressed by the proposed system.
 
-**Al Amin Polyclinic (Primary Stakeholder)** is the real-world case study organisation whose operational challenges and ransomware incident motivate the system design. The clinic's management, administrative staff, doctors, and patients constitute the primary user base of the proposed system. Their requirements — gathered through structured interviews conducted with clinic management and nursing staff, and formally confirmed through written correspondence — directly shape the functional and security requirements defined in Chapter 3. The clinic's Head Manager, Ibrahim Shaheel Al Quad, provided written confirmation of these requirements (see Appendix C).
+**Al Amin Clinic (Primary Stakeholder)** is the real-world case study organisation whose operational challenges and ransomware incident motivate the system design. The clinic's management, administrative staff, doctors, and patients constitute the primary user base of the proposed system. Their requirements gathered through structured interviews conducted with clinic management and nursing staff, and formally confirmed through written correspondence directly shape the functional and security requirements defined in Chapter 3. The clinic's Head Manager, Ibrahim Shaheel Al Quad, provided written confirmation of these requirements (see Appendix C).
 
 **Doctors** are the clinical users of the system. They require secure, role-restricted access to medical records and appointments for patients assigned to their care. Their primary concern is the availability and integrity of patient records during and after clinical consultations.
 
@@ -121,25 +115,21 @@ The key stakeholders for this project are the individuals and groups whose opera
 
 **Patients** are the end users of the patient-facing portal. They require read-only access to their own medical records and appointments, with no visibility into other patients' data or any administrative information.
 
-**Universiti Teknologi Malaysia — Faculty of Computing (Academic Stakeholder)** supervises the project through the PSM1/PSM2 Final Year Project framework. The project supervisor, Dr. Johan Mohamad Sharif, provides academic guidance and ensures that the system design meets the requirements of both the university's academic evaluation criteria and the real-world operational context of the clinic.
-
 ---
 
-### 1.8 Report Organisation
+### 1.8 Report Organization
 
-This report is organised as follows:
+This report is organized as follows:
 
-**Chapter 1 — Introduction** presents the background to the project, the problem statement at Alamin Clinic, the project aim and objectives, scope, and the importance of the study.
+Chapter 1: Introduction presents the background to the project, the problem statement at Alamin Clinic, the project aim and objectives, scope, and the importance of the study.
 
-**Chapter 2 — Literature Review** examines the background literature relevant to the project. It presents an analysis of the current system at Alamin Clinic, a comparison of existing healthcare management systems, and a review of the technologies and methods employed in the proposed solution, including cloud security frameworks, three-tier architecture, Infrastructure as Code, and DevSecOps practices.
+Chapter 2: Literature Review presents the complete literature analysis relevant to the system. technologies, frameworks, security practices, encryption mechanisms, Infrastructure as Code, and DevSecOps practices. This chapter discusses the strengths and weaknesses of existing systems and identifies the research gaps that the proposed solution attempts to fill.
 
-**Chapter 3 — System Development Methodology** describes the development approach adopted for this project. It justifies the choice of methodology, outlines its phases as applied to this system, describes the technologies used, and presents the system requirements analysis.
+Chapter 3 discusses the technique employed throughout the project. It explains the development methodology, tools, techniques, and the overall project workflow that guides the design and execution of the PDMS.
 
-**Chapter 4 — Requirement Analysis and Design** presents the detailed functional and non-functional requirements of the system, followed by the complete system design including the network architecture, database schema, IAM policy structure, and system interface design.
+Chapter 4 is about the system requirements and the proposed solution design. This includes functional and non-functional specifications, followed by system design architecture, database schema, security policies and system design interface.
 
-**Chapter 5 — Implementation and Testing** documents the implementation of the system, including the infrastructure provisioning, application code, and DevSecOps pipeline configuration. It presents the results of security scanning, black-box and white-box testing, and the Recovery Time Objective stress test.
-
-**Chapter 6 — Conclusion** summarises the achievement of the project objectives, reflects on the limitations of the current implementation, and proposes directions for future improvement.
+Chapter 5: Conclusion summarizes the achievement of the project objectives, reflects on the limitations of the current implementation, and proposes directions for future improvement.
 
 ---
 
