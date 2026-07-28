@@ -3,6 +3,24 @@
 Every time a design decision, role, UI element, use case, or rule changes during PSM2
 implementation, it gets logged here with the exact report section that needs to be edited.
 
+**2026-07-28 — All 47 entries (DELTA-001 through DELTA-047, plus the four dated
+corrections) have been merged into `docs/report/`.** New/updated sections:
+Chapter 2 §2.2 (clinic name/location correction), Chapter 3 §3.5.1/3.5.2 (pointers
+to new FR/NFR tables), Chapter 4 §4.7 (new — role model update, schema extensions,
+API design, new UI screens, design decisions log), Chapter 5 §5.4 (new — Future
+Work), Appendix D (Tables D.3/D.4), Appendix E ("Schema Extensions" subsection),
+Appendix G (Table G.3a). Two claims in this file did not match the actual shipped
+code once checked against `schema.sql`/`apply-feature-additions.js` and were
+corrected in the report rather than repeated: the Room & Equipment Allocation
+feature (DELTA-037) was removed on 2026-07-24 and no longer exists, and the
+"clinical templates" feature (DELTA-039) ships as a hardcoded in-memory list,
+not the editable database table originally described. See Appendix E for detail.
+Each entry's Status field below is left as originally recorded (implementation
+status) with a "Report updated" note appended — this file remains the backlog
+for the *next* round of implementation changes still to be written up.
+
+
+
 **Format per entry:**
 - **What changed** — short description
 - **Category** — Role | UI | Functionality | Security | DB Schema | API | Use Case
@@ -21,7 +39,7 @@ implementation, it gets logged here with the exact report section that needs to 
 |---|---|
 | **Category** | Use Case / Functionality / Security / DB Schema |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — SMS provider is stubbed (logs the OTP instead of sending it), needs a real provider before production use |
+| **Status** | Implemented — SMS provider is stubbed (logs the OTP instead of sending it), needs a real provider before production use — Report updated 2026-07-28. |
 
 **What changed:**
 PSM1's submitted report has patient registration as Admin-only (UC-06) and patients
@@ -58,7 +76,7 @@ six implementation decisions: `docs/psm2/self-registration-design.md`.
 |---|---|
 | **Category** | Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 Every patient account's `users.username` is now their `national_id` (trimmed, same
@@ -85,7 +103,7 @@ username, mapped from the `users_username_key` unique-constraint violation.
 |---|---|
 | **Category** | API / UI / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 New `GET /doctors` endpoint (superadmin/admin/doctor) returns the active-doctor
@@ -112,7 +130,7 @@ doctor by name; a doctor's UUID is never typed or displayed anywhere in the UI.
 |---|---|
 | **Category** | UI / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 `PatientLookupPage` split by role: Admin now gets a debounced, live search box
@@ -143,7 +161,7 @@ browsing without a known ID.
 |---|---|
 | **Category** | DB Schema / Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 Two-layer identity model chosen — no MRN. UUID is the DB primary key (internal only,
@@ -172,7 +190,7 @@ Registration: staff enters national ID first → system checks for an existing r
 |---|---|
 | **Category** | DB Schema / Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 `patients` table now has: `blood_type`, `allergies` (text), `emergency_contact_name`,
@@ -195,7 +213,7 @@ Registration: staff enters national ID first → system checks for an existing r
 |---|---|
 | **Category** | DB Schema / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 `medical_records` was flat (diagnosis + prescription + notes). Added proper SOAP fields:
@@ -219,7 +237,7 @@ Existing `diagnosis` column kept as a short summary line.
 |---|---|
 | **Category** | DB Schema / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 `appointments.status` CHECK now includes `'confirmed'` (was missing despite UI showing it).
@@ -240,7 +258,7 @@ Added: `duration_minutes`, `cancelled_by` (FK to users), `cancellation_note`.
 |---|---|
 | **Category** | DB Schema / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 New table `doctor_availability` defines each doctor's weekly working schedule
@@ -268,7 +286,7 @@ Saudi work week defaults: Sunday–Thursday (days 0–4).
 |---|---|
 | **Category** | Role / Security / Functionality |
 | **Sprint** | Sprint 3 |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 The system originally had 3 roles (Doctor, Admin, Patient). A 4th role `superadmin` was added because admin (reception staff) should not be able to create or deactivate user accounts — that is a security violation. Superadmin exclusively manages system accounts.
@@ -293,7 +311,7 @@ The system originally had 3 roles (Doctor, Admin, Patient). A 4th role `superadm
 |---|---|
 | **Category** | Role / UI |
 | **Sprint** | Sprint 3 |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 The `admin` role database value stays `'admin'` but the display label everywhere in the UI is now **"Staff"** (English) / **"موظف"** (Arabic). This better reflects the role — reception/registration counter staff, not a system administrator.
@@ -314,7 +332,7 @@ The `admin` role database value stays `'admin'` but the display label everywhere
 |---|---|
 | **Category** | UI / Functionality |
 | **Sprint** | Sprint 3 |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 A public marketing homepage was added at the root route `/`. Unauthenticated users see this page instead of being redirected to `/login`. Authenticated users are still redirected to their dashboard. The page covers: clinic branding, services overview, trust statistics, how-it-works flow, contact info.
@@ -335,7 +353,7 @@ A public marketing homepage was added at the root route `/`. Unauthenticated use
 |---|---|
 | **Category** | Security / Functionality / Use Case |
 | **Sprint** | Sprint 3 |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 In the original design it was not explicitly stated who creates user accounts. Implementation revealed that Admin (Staff) was incorrectly able to create Doctor and Admin accounts — a privilege escalation risk. The rule is now enforced at both the API layer (route requires `superadmin` role) and the frontend (User Management page is only in the Superadmin nav).
@@ -362,7 +380,7 @@ In the original design it was not explicitly stated who creates user accounts. I
 |---|---|
 | **Category** | Functionality / UI / Security / DB Schema / API |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — backend smoke-tested via curl, frontend verified live in-browser (both AR/EN) |
+| **Status** | Implemented — backend smoke-tested via curl, frontend verified live in-browser (both AR/EN) — Report updated 2026-07-28. |
 
 **What changed:**
 DELTA-011 (this same file) had already moved the patient's *username* to their
@@ -409,7 +427,7 @@ would have silently gotten 404s reading the `patients` table. Widened to
 |---|---|
 | **Category** | UI / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — real clinic photography used throughout (hero, services, doctors avatars remain initials-only); see DELTA-015 for a second expansion pass |
+| **Status** | Implemented — real clinic photography used throughout (hero, services, doctors avatars remain initials-only); see DELTA-015 for a second expansion pass — Report updated 2026-07-28. |
 
 **What changed:**
 The PSM1 report described a basic public landing page (mentioned in DELTA-003). What is
@@ -450,7 +468,7 @@ actual scale (15+ physicians, 30+ years, 50,000+ patients, 8 specialties).
 |---|---|
 | **Category** | UI / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 Real clinic photography (branch exterior + pharmacy storefront) surfaced signage reading
@@ -486,7 +504,7 @@ signage (not fabricated):
 |---|---|
 | **Category** | UI / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 DELTA-014/015 had grown the landing page into one long scroll (12 sections). User
@@ -539,7 +557,7 @@ always have a legible anchor to open from. Logo swapped to the real clinic logo 
 |---|---|
 | **Category** | UI / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — verified live via Puppeteer (search → select → schedule, in Arabic) |
+| **Status** | Implemented — verified live via Puppeteer (search → select → schedule, in Arabic) — Report updated 2026-07-28. |
 
 **What changed:**
 DELTA-012/013 gave the app a doctor picker (`DoctorSelect`) and an admin-facing
@@ -575,7 +593,7 @@ Sprint 3c UI pass never actually implemented.
 |---|---|
 | **Category** | UI / Functionality / DB Schema / Security |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — live smoke test caught and fixed a real DB permission bug (below) |
+| **Status** | Implemented — live smoke test caught and fixed a real DB permission bug (below) — Report updated 2026-07-28. |
 
 **What changed:**
 DELTA-009 added the `doctor_availability` table and its full backend API
@@ -620,7 +638,7 @@ and re-applying it to the local dev DB.
 |---|---|
 | **Category** | Functionality / UI / Security / DB Schema / API |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — backend smoke-tested via curl (with an RLS bug caught and fixed), frontend verified live in-browser in AR and EN |
+| **Status** | Implemented — backend smoke-tested via curl (with an RLS bug caught and fixed), frontend verified live in-browser in AR and EN — Report updated 2026-07-28. |
 
 **What changed:**
 Patient Profile's Invoices and Lab Results tabs (added earlier this sprint,
@@ -681,7 +699,7 @@ the staff-facing ones minus the upload form.
 |---|---|
 | **Category** | UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — verified live in-browser, both languages, desktop + mobile |
+| **Status** | Implemented — verified live in-browser, both languages, desktop + mobile — Report updated 2026-07-28. |
 
 **What changed:**
 Four visual additions to the public site built in DELTA-016's 4-route structure:
@@ -733,7 +751,7 @@ goes through `useTranslation()` as normal.
 |---|---|
 | **Category** | UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — verified live in-browser, both languages, desktop + mobile |
+| **Status** | Implemented — verified live in-browser, both languages, desktop + mobile — Report updated 2026-07-28. |
 
 **What changed:**
 All three role dashboards (`DoctorDashboard.tsx`, `AdminDashboard.tsx`,
@@ -850,7 +868,7 @@ scoped out by the user before work began):
 |---|---|
 | **Category** | UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — verified live across dashboards and a non-dashboard screen (Appointments), both languages |
+| **Status** | Implemented — verified live across dashboards and a non-dashboard screen (Appointments), both languages — Report updated 2026-07-28. |
 
 **What changed:**
 Comparing the finished dashboards against the Canva reference mockups and
@@ -946,7 +964,7 @@ references, not just Staff's):
 |---|---|
 | **Category** | DB Schema / Functionality / API / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — code complete; DB migration run + `psql` spot-check still owed (no local Postgres available in this session) |
+| **Status** | Implemented — code complete; DB migration run + `psql` spot-check still owed (no local Postgres available in this session) — Report updated 2026-07-28. |
 
 **What changed:**
 The clinic's real paper/invoice workflow identifies a patient by a short
@@ -1002,7 +1020,7 @@ term (EN/AR). New `patients.fileNo` i18n key ("File No." / "رقم الملف").
 |---|---|
 | **Category** | DB Schema / Functionality / UI / Security |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 New `clinic_services` table (`code_no`, `name_en`, `name_ar`, `category`, `price`,
@@ -1032,7 +1050,7 @@ Settings for something they need to reference constantly mid-shift.
 |---|---|
 | **Category** | DB Schema / Functionality / UI / Security / Use Case |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 New `visits` table gives the clinic a same-day walk-in queue independent of the
@@ -1072,7 +1090,7 @@ collected, rather than via any manual staff action.
 |---|---|
 | **Category** | DB Schema / Functionality / UI / Security / API / Use Case |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — backend syntax-checked and dev-server smoke-tested; full in-browser click-through not yet performed (no test credentials available in the implementing session) |
+| **Status** | Implemented — backend syntax-checked and dev-server smoke-tested; full in-browser click-through not yet performed (no test credentials available in the implementing session) — Report updated 2026-07-28. |
 
 **What changed:**
 New `visit_invoices`/`invoice_items` tables complete the walk-in flow started by
@@ -1118,7 +1136,7 @@ document actually prints.
 |---|---|
 | **Category** | Functionality / UI / Security / API |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — backend verified by calling the controller directly with simulated sessions (admin/treating-doctor/unrelated-doctor/owning-patient/other-patient), frontend verified live in-browser as admin |
+| **Status** | Implemented — backend verified by calling the controller directly with simulated sessions (admin/treating-doctor/unrelated-doctor/owning-patient/other-patient), frontend verified live in-browser as admin — Report updated 2026-07-28. |
 
 **What changed:**
 User-reported bug: staff generated a bill and collected payment through the
@@ -1190,7 +1208,7 @@ correct behavior, just easy to misdiagnose as a bug in a hurry.
 |---|---|
 | **Category** | Security / DB Schema |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — schema.sql patched, local DB updated, pattern documented in `docs/psm2/rls-policy-guidelines.md` |
+| **Status** | Implemented — schema.sql patched, local DB updated, pattern documented in `docs/psm2/rls-policy-guidelines.md` — Report updated 2026-07-28. |
 
 **What changed:**
 The RLS policies added in DELTA-026/027 for `visits`, `visit_invoices`,
@@ -1229,7 +1247,7 @@ policy authors copy the guarded version instead of a bare `::uuid` cast.
 |---|---|
 | **Category** | UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — verified live across all four dashboards and Appointments page, both languages |
+| **Status** | Implemented — verified live across all four dashboards and Appointments page, both languages — Report updated 2026-07-28. |
 
 **What changed:**
 All four role dashboards (`DoctorDashboard`, `AdminDashboard`,
@@ -1290,7 +1308,7 @@ zero rows for any date filter until this was corrected.
 |---|---|
 | **Category** | DB Schema / Security |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — schema.sql updated, apply-rls.js migration script added |
+| **Status** | Implemented — schema.sql updated, apply-rls.js migration script added — Report updated 2026-07-28. |
 
 **What changed:**
 Added composite indexes targeting the most common multi-column query
@@ -1329,7 +1347,7 @@ policy changes to an existing live database without re-running the full
 |---|---|
 | **Category** | API / Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — wired live to SuperAdminDashboard KPI bar |
+| **Status** | Implemented — wired live to SuperAdminDashboard KPI bar — Report updated 2026-07-28. |
 
 **What changed:**
 New `GET /users/system-health` endpoint (superadmin only) returns a live
@@ -1361,7 +1379,7 @@ showed hardcoded zeros.
 |---|---|
 | **Category** | Functionality / UI / Security |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — backend verified, BillingHistoryPage verified live as admin |
+| **Status** | Implemented — backend verified, BillingHistoryPage verified live as admin — Report updated 2026-07-28. |
 
 **What changed:**
 Two related billing additions built on the `paid_by` column introduced
@@ -1405,7 +1423,7 @@ query filters.
 |---|---|
 | **Category** | API / Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — SMS delivery uses existing `smsProvider.js` stub (logs instead of sending until a live Twilio key is configured); fire-and-forget, returns HTTP 202 immediately |
+| **Status** | Implemented — SMS delivery uses existing `smsProvider.js` stub (logs instead of sending until a live Twilio key is configured); fire-and-forget, returns HTTP 202 immediately — Report updated 2026-07-28. |
 
 **What changed:**
 New `POST /appointments/:id/send-reminder` endpoint (admin +
@@ -1437,7 +1455,7 @@ appointments in `AdminDashboard`'s schedule table.
 |---|---|
 | **Category** | DB Schema / Security / Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 Three related additions to the clinical records layer:
@@ -1481,7 +1499,7 @@ Vitals Highlight Bar (DELTA-030).
 |---|---|
 | **Category** | Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 Three independent frontend additions shipped together:
@@ -1528,7 +1546,7 @@ collected.
 |---|---|
 | **Category** | Functionality / UI / DB Schema / API |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — six distinct features in one commit |
+| **Status** | Implemented — six distinct features in one commit — Report updated 2026-07-28. |
 
 **What changed:**
 Six operational and clinical features added in a single implementation
@@ -1618,7 +1636,7 @@ replace the previous "spinning circle" or blank-white loading states.
 |---|---|
 | **Category** | Functionality / UI / API |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 A large pass adding financial reporting infrastructure and four
@@ -1703,7 +1721,7 @@ sections for each field) instead of the previous raw textarea dump.
 |---|---|
 | **Category** | Functionality / UI / API |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — backend endpoint verified, frontend wired and verified in-browser |
+| **Status** | Implemented — backend endpoint verified, frontend wired and verified in-browser — Report updated 2026-07-28. |
 
 **What changed:**
 **SOAP Clinical Templates** — a backend-managed library of pre-written
@@ -1756,7 +1774,7 @@ information (position counts and current number — no patient names).
 |---|---|
 | **Category** | UI / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — verified live in-browser, real-time sync confirmed across two browser tabs |
+| **Status** | Implemented — verified live in-browser, real-time sync confirmed across two browser tabs — Report updated 2026-07-28. |
 
 **What changed:**
 `ConsultationPage.tsx` was completely rebuilt from a single-scroll page
@@ -1864,7 +1882,7 @@ The SMS appointment reminder endpoint is `POST /api/appointments/:appointmentId/
 |---|---|
 | **Category** | Functionality / DB Schema / API / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — `sick_leaves` table live, backend endpoint active, `SickLeaveModal.tsx` wired to ConsultationPage Tab 2 |
+| **Status** | Implemented — `sick_leaves` table live, backend endpoint active, `SickLeaveModal.tsx` wired to ConsultationPage Tab 2 — Report updated 2026-07-28. |
 
 **What changed:**
 New `sick_leaves` table and a dedicated backend module implementing a Ministry
@@ -1907,7 +1925,7 @@ as a "Sick Leave" action button in ConsultationPage Tab 2
 |---|---|
 | **Category** | Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — `LabResultsViewerModal.tsx` wired to ConsultationPage and PatientProfilePage |
+| **Status** | Implemented — `LabResultsViewerModal.tsx` wired to ConsultationPage and PatientProfilePage — Report updated 2026-07-28. |
 
 **What changed:**
 A new `LabResultsViewerModal.tsx` component implements a multi-panel diagnostic
@@ -1946,7 +1964,7 @@ reference ranges, rather than requiring the reader to open the raw PDF.
 |---|---|
 | **Category** | Functionality / DB Schema / API / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — `doctor_schedules` table live, `DoctorSchedulePicker.tsx` wired to appointment booking flow |
+| **Status** | Implemented — `doctor_schedules` table live, `DoctorSchedulePicker.tsx` wired to appointment booking flow — Report updated 2026-07-28. |
 
 **What changed:**
 A new `doctor_schedules` table and booking grid provide a visual time-slot
@@ -1987,7 +2005,7 @@ in `CreateAppointmentDialog`.
 |---|---|
 | **Category** | Functionality / UI / DB Schema |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — `MedicalRecord.findById` and `medicalRecordsController.js` updated; `MedicalRecordsTab.tsx` and `RecordDetailPage.tsx` display doctor name badge |
+| **Status** | Implemented — `MedicalRecord.findById` and `medicalRecordsController.js` updated; `MedicalRecordsTab.tsx` and `RecordDetailPage.tsx` display doctor name badge — Report updated 2026-07-28. |
 
 **What changed:**
 `MedicalRecord.findById` (and the listing queries it feeds) now executes a
@@ -2025,7 +2043,7 @@ in every record regardless of which clinic the record originated at.
 |---|---|
 | **Category** | Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — all i18n files and UI references updated |
+| **Status** | Implemented — all i18n files and UI references updated — Report updated 2026-07-28. |
 
 **What changed:**
 Three localization/content corrections applied across all i18n files and
@@ -2067,7 +2085,7 @@ Instagram (`@alaminclinic`), Twitter/X (`@alaminclinic`).
 |---|---|
 | **Category** | DB Schema / Functionality |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented |
+| **Status** | Implemented — Report updated 2026-07-28. |
 
 **What changed:**
 Two schema additions that support the Wasfaty E-Rx and notification systems:
@@ -2110,7 +2128,7 @@ notification rows when:
 |---|---|
 | **Category** | Security / API / Functionality / UI |
 | **Sprint** | Sprint 3c |
-| **Status** | Implemented — verified live end-to-end (happy path, non-enumeration, rate limiting, unlock-on-reset) |
+| **Status** | Implemented — verified live end-to-end (happy path, non-enumeration, rate limiting, unlock-on-reset) — Report updated 2026-07-28. |
 
 **What changed:**
 Patients who forget their password can now reset it themselves via phone
@@ -2194,4 +2212,4 @@ locked via 3 failed logins, then a successful reset flow confirmed both
 
 ---
 
-*Last updated: Sprint 3c — DELTA-047 (2026-07-25)*
+*Last updated: Sprint 3c — DELTA-047 (2026-07-25); report sync completed 2026-07-28 (all 47 entries merged into `docs/report/`).*
