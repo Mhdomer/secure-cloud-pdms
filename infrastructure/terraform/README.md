@@ -1,6 +1,6 @@
 # Terraform Configuration
 
-**Status: PSM 2 Sprint 4 — VPC, subnets, security groups, NACLs, RDS, KMS, ALB, EC2, CloudTrail, CloudWatch monitoring, GitHub OIDC deploy role implemented**
+**Status: PSM 2 Sprint 4 complete — all 110 resources live-verified via a real `terraform apply` on 2026-07-28 (AWS account 730077843716), zero drift; torn down afterward to stop free-tier cost accrual, redeployable on demand. See `docs/psm2/sprints/sprint-4-summary.md`'s "live deployment" entry for the bugs found and fixed along the way, and for what's still genuinely open (app deployment to EC2, HTTPS/domain).**
 
 ## Module Structure
 

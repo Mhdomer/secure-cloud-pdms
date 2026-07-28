@@ -36,13 +36,27 @@ No manual deployment is ever allowed. Every pull request against `main` runs sta
 
 ## Required repository configuration (out-of-band, not in this directory)
 
-These are GitHub repo settings and secrets, not files — none of them are committed:
+These are GitHub repo settings and secrets, not files — none of them are committed. **All fully
+configured as of 2026-07-28** — see `docs/psm2/sprints/sprint-4-summary.md`'s "live deployment" entry
+for how/when each one was set:
 
-- **GitHub Environment** named `production` with a required-reviewer protection rule, referenced by `deploy.yml`'s `environment: production`. (Environment created; required-reviewer rule not yet added — see `docs/psm2/sprints/sprint-4-summary.md`.)
-- **Secrets**: `SONAR_TOKEN`, `SONAR_HOST_URL`, `AWS_DEPLOY_ROLE_ARN` (OIDC role ARN — no long-lived AWS access keys are ever stored), `TF_KMS_KEY_ADMINISTRATOR_ARNS`, `TF_ACM_CERTIFICATE_ARN`, `TF_EC2_AMI_ID` (map 1:1 to the no-default variables in `infrastructure/terraform/variables.tf`, supplied as `TF_VAR_*` instead of a committed `terraform.tfvars`).
-- **AWS IAM**: an OIDC identity provider trusting `token.actions.githubusercontent.com`, and a role scoped to this exact repository + the `production` GitHub Environment, with least-privilege permissions to run `terraform apply` against this project's resources. Now defined as Terraform (`infrastructure/terraform/modules/github-oidc`) rather than needing manual console provisioning — but the pipeline still cannot grant itself the permissions it needs to run, so the first `terraform apply` that creates this module's resources must be run manually with the operator's own AWS credentials (see that module's header comment). `AWS_DEPLOY_ROLE_ARN` is that apply's `github_deploy_role_arn` output.
+- **GitHub Environment** named `production`, with a required-reviewer protection rule (you —
+  `Mhdomer`), referenced by `deploy.yml`'s `environment: production`. Set via `gh api`, not the web UI.
+- **Secrets, all 5 set**: `SONAR_TOKEN`, `SONAR_HOST_URL`, `AWS_DEPLOY_ROLE_ARN`
+  (`arn:aws:iam::730077843716:role/pdms-prod-deploy-role` — OIDC role ARN, no long-lived AWS access
+  keys are ever stored), `TF_KMS_KEY_ADMINISTRATOR_ARNS`, `TF_EC2_AMI_ID` (map 1:1 to `infrastructure/terraform/variables.tf`'s no-default variables, supplied as `TF_VAR_*` instead of a
+  committed `terraform.tfvars`). `TF_ACM_CERTIFICATE_ARN` is deliberately **not** set —
+  `acm_certificate_arn` now defaults to `""` and `enable_https` defaults to `false` (no domain
+  registered yet; see `infrastructure/terraform/variables.tf`'s `enable_https` comment), so it isn't
+  needed until that changes.
+- **AWS IAM**: the OIDC identity provider + deploy role (`infrastructure/terraform/modules/github-oidc`)
+  were bootstrapped via a real, manual `terraform apply` against AWS account `730077843716` on
+  2026-07-28 — the deploy role exists (name is deterministic:
+  `${project_name}-${environment}-deploy-role`, currently `pdms-prod-deploy-role`) even though the rest
+  of that same apply's infrastructure was torn down afterward to stop cost accrual. Re-running
+  `terraform apply` recreates everything identically, deploy role included.
 
 ## Deliberately out of scope for Sprint 4
 
-- **Container registry (ECR) and automated EC2 rollout.** `container-scan` builds and Trivy-scans the backend image but never pushes it anywhere — chapter-3/chapter-5's Sprint 4 scope is the CI/CD pipeline plus CloudWatch and CloudTrail, not container registry provisioning. Publishing the scanned image and rolling it out to the EC2 Auto Scaling Group (via SSM `RunShellScript` — port 22 is never open) is a documented follow-up, not implemented here.
-- **Live pipeline verification.** The scan/apply steps above are written to run for real once the repository secrets and OIDC role exist, but they have not been executed against a live GitHub Actions runner or a real AWS account from this environment (no AWS credentials, no Terraform CLI, no live SonarQube server available here). `checkov` and `trivy` were run locally against the current source as the Sprint 4 security gate instead — see `docs/psm2/sprints/sprint-4-summary.md`.
+- **Container registry (ECR) and automated EC2 rollout.** `container-scan` builds and Trivy-scans the backend image but never pushes it anywhere — chapter-3/chapter-5's Sprint 4 scope is the CI/CD pipeline plus CloudWatch and CloudTrail, not container registry provisioning. Publishing the scanned image and rolling it out to the EC2 Auto Scaling Group (via SSM `RunShellScript` — port 22 is never open) is a documented follow-up, not implemented here. Confirmed live: hitting the ALB DNS name returns a 503, since nothing is deployed to the instances yet.
+- **Triggering `deploy.yml` through an actual GitHub Actions run.** The underlying `terraform init/validate/plan/apply` sequence this job runs has now been verified for real (see `docs/psm2/sprints/sprint-4-summary.md`) — run manually, locally, with the same AWS account and Terraform config this workflow uses. What hasn't been exercised yet is the workflow *file* itself actually firing on a real push to `main` (OIDC token exchange from within an Actions runner, the `production` environment's approval gate stopping the job, etc.) — that still needs a real push to confirm end-to-end, since no GitHub Actions runner was available to trigger from this environment.

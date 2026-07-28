@@ -70,7 +70,7 @@ scripts/
 | Sprint 3a | Backend: Node.js/Express API, JWT auth, two-layer RBAC (middleware + PostgreSQL RLS) | Complete |
 | Sprint 3b | Frontend: React app, RBAC-aware UI, English/Arabic RTL localization | Complete |
 | Sprint 3c | UI visual overhaul (screen-by-screen, see `docs/psm2/sprint-3c-ui-overhaul.md`) + patient self-registration/self-booking (see `docs/psm2/self-registration-design.md`) | **Complete** — all 17 screens done + major feature additions (glassmorphism, billing engine, clinical tools, queue system); i18n gate passed 2026-07-26 (1,305 keys across 11 namespaces, 0 diffs, tsc 0 errors) |
-| Sprint 4 | DevSecOps: GitHub Actions pipeline + CloudWatch + CloudTrail | **In progress** |
+| Sprint 4 | DevSecOps: GitHub Actions pipeline + CloudWatch + CloudTrail | **Complete** — full pipeline (OIDC deploy role, security-scan/ci/deploy workflows, all 5 GitHub secrets, `production` environment required-reviewer rule) live-verified end-to-end via a real `terraform apply` on 2026-07-28 (110/110 resources, 0 drift); infra torn down afterward to stop free-tier cost, redeployable on demand — see `docs/psm2/sprints/sprint-4-summary.md`. Not covered by this sprint: an app actually running on the EC2 instances (ECR/SSM rollout, tracked separately) and HTTPS (`enable_https` deliberately `false` pending a domain) |
 | Sprint 5 | Security evaluation: scans, RTO test, Security Hub, UAT | Not started |
 
 Each sprint has a security gate that must pass before the next sprint starts.

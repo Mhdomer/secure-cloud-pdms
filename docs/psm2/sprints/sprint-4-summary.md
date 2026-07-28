@@ -273,3 +273,118 @@ verified by checkov (both variable states) and by hand-tracing the conditional r
 **Carried-forward reminder**: flip `enable_https` to `true` and supply a real `acm_certificate_arn`
 before this system ever holds real patient data — this is a demo/no-budget accommodation, not a revised
 security posture.
+
+---
+
+## Follow-up (2026-07-28): live deployment — bootstrap, real bugs found, verified end-to-end, then torn down
+
+**Where this picks up**: everything above was written and checkov-verified but never applied — no AWS
+credentials, no Terraform CLI, no live account available in that session. This entry covers the actual
+bootstrap `terraform apply` (across two Claude Code sessions), the real bugs it surfaced, full live
+verification, and a deliberate teardown afterward.
+
+### Bootstrap
+
+- AWS account `730077843716` (`ap-southeast-1`), IAM user `nonlouy` (member of an `AdministratorAccess`
+  group — used only for this one-time bootstrap; day-to-day CI/CD uses the OIDC deploy role, never this
+  user).
+- Terraform CLI installed via `winget install Hashicorp.Terraform` (v1.15.8). If a fresh shell can't find
+  `terraform` on PATH, the binary is at
+  `C:\Users\md3om\AppData\Local\Microsoft\WinGet\Packages\Hashicorp.Terraform_Microsoft.Winget.Source_8wekyb3d8bbwe\terraform.exe`
+  — PATH was updated but not every already-running shell picks that up.
+- `infrastructure/terraform/terraform.tfvars` created locally (git-ignored, confirmed via
+  `git check-ignore`) with the two real values needed beyond the file's own defaults:
+  `kms_key_administrator_arns = ["arn:aws:iam::730077843716:user/nonlouy"]`,
+  `ec2_ami_id = "ami-02121f8a41380fb02"` (latest AL2023, `ap-southeast-1`, resolved via
+  `aws ssm get-parameters` / `aws ec2 describe-images` at the time). This file is **not** in git and
+  will need recreating (same two values, or fresh ones if the AMI/account changed) if it's missing —
+  see `terraform.tfvars.example`.
+
+### Real bugs found via actual `terraform apply` (checkov had already passed on all of these — static
+analysis doesn't catch cross-service AWS API validation quirks)
+
+Each one below is its own commit on `main`, in the order hit:
+
+1. **`90634ee`** — S3 bucket name `pdms-terraform-state` was already taken by an unrelated AWS account
+   (S3 bucket names are globally unique). Renamed to `pdms-terraform-state-730077843716` everywhere it
+   appeared (`backend.tf`, both `github-oidc` variable defaults, `infrastructure/README.md`,
+   `sprint-2-summary.md`).
+2. **`89ef569`** — `aquasecurity/trivy-action@0.28.0` needed a `v` prefix (already covered above), plus
+   (found later, same commit) AWS rejects em-dashes in `aws_wafv2_web_acl.description` and
+   `aws_security_group`/security-group-rule `description` fields specifically — "Character sets beyond
+   ASCII are not supported." Five spots fixed; every other description field in the codebase (KMS,
+   CloudWatch alarms, Terraform variable docs) tolerates UTF-8 fine and was left alone.
+3. **`bc9cb61`** — RDS `CreateDBInstance` failed twice: `FreeTierRestrictionError` on the module's
+   7-day `backup_retention_period` default (this AWS account is Free Tier eligible), and
+   `InvalidParameterCombination: Cannot find version 16.4 for postgres` (AWS had deprecated that minor
+   version — only 16.9–16.14 were creatable in `ap-southeast-1` as of this date). Added a root-level
+   `db_backup_retention_period` override (default 1, same "module stays secure-by-default, root opts
+   out with a documented reason" pattern as `enable_https`) and bumped the pinned engine version to
+   16.14.
+4. **`67eecd8`** — the ASG's `wait_for_capacity_timeout` (default 10 minutes, since
+   `health_check_type = "ELB"`) hung on every single apply, because no application is deployed to the
+   instances yet (the launch template only bootstraps Docker) — the ALB target-group health check had
+   nothing to ever pass. Set to `0` so this reflects reality instead of guaranteeing a 10-minute stall
+   before failing anyway.
+5. **`1ca4e50`** — the biggest one. A plain "grant the service + `kms:CallerAccount`" KMS statement
+   (this project's existing pattern, still correct for RDS/S3/SSM/EC2) was **not** sufficient for
+   CloudWatch Logs, SNS, or CloudTrail — each needed its own `EncryptionContext`-scoped statement,
+   found one service at a time by testing live against the actual deployed key (push a candidate
+   policy via `aws kms put-key-policy`, retest the exact failing call via CLI, iterate — much faster
+   than a full `terraform apply` cycle per guess). CloudWatch Logs needed
+   `kms:EncryptionContext:aws:logs:arn`; SNS needed `kms:EncryptionContext:aws:sns:topicArn` scoped to
+   the exact topic; CloudTrail needed the three statements AWS's own
+   [KMS-key-policy-for-CloudTrail doc](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/create-kms-key-policy-for-cloudtrail.html)
+   lists as the actual minimum. Separately, CloudTrail's own SNS delivery-notification association
+   (`sns_topic_name` on `aws_cloudtrail.main`) turned out to be incompatible specifically with
+   `enable_log_file_validation`, even against a KMS policy verified correct — isolated by removing one
+   variable at a time (S3 alone: fine; +CloudWatch Logs: fine; +log-file-validation: broke again).
+   Dropped that one association rather than the validation feature; CLAUDE.md's actual requirement
+   ("all API calls logged, 90-day retention") never depended on it. Also fixed the SNS topic policy,
+   which had only ever granted `cloudtrail.amazonaws.com` — the monitoring alarms (the topic's real
+   purpose) would have silently failed to publish the first time one fired.
+
+### Result
+
+All 110 resources applied successfully; `terraform plan` showed zero drift. All 5 GitHub secrets set
+(`AWS_DEPLOY_ROLE_ARN` from `terraform output github_deploy_role_arn` — the deploy role name is
+deterministic, `pdms-prod-deploy-role`, so this value stays valid across future applies as long as
+project/environment names don't change). The `production` GitHub environment's required-reviewer rule
+was also set — from the terminal, not the web UI, via
+`gh api --method PUT repos/Mhdomer/secure-cloud-pdms/environments/production -f 'reviewers[][type]=User' -F 'reviewers[][id]=<numeric-id>'`
+(numeric ID from `gh api user --jq .id`, not the username). That closes out every item that was
+previously listed as "still open" in this document.
+
+Live-verified but expected and not a bug: hitting the ALB DNS name returns a 503, since no application
+is deployed to the EC2 instances yet (see bug #4 above) — publishing the backend image to ECR and
+rolling it out via SSM remains a real, separate, not-yet-built piece of work, same as documented earlier
+in this file under "Deliberately out of scope."
+
+### Teardown
+
+Torn down the same day via `terraform destroy` to stop cost accrual against the account's free-tier
+credit — this was always the plan (verify live, then tear down until actually needed). Both RDS
+(`deletion_protection`) and the ALB (`enable_deletion_protection`) have protection enabled in the
+Terraform config, which blocks `terraform destroy` outright; disabled both directly via AWS CLI first
+(`aws rds modify-db-instance --no-deletion-protection`,
+`aws elbv2 modify-load-balancer-attributes ... deletion_protection.enabled=false`) rather than changing
+the .tf source, since the *desired* state is still "protected" — re-applying will turn protection back
+on automatically, which is correct.
+
+**To bring it back**: `terraform apply -var-file="terraform.tfvars"` from `infrastructure/terraform/`
+with valid AWS credentials — the whole path above is proven to work end-to-end now, so a fresh apply
+should go straight through without hitting any of the five bugs again (all fixed in source). Confirm
+`terraform.tfvars` still exists locally first (git-ignored, see the Bootstrap section above for its
+contents if it needs recreating). **Before trusting this section**, verify actual AWS state
+(`aws cloudtrail describe-trails`, `aws rds describe-db-instances`, etc.) rather than assuming — this is
+a point-in-time record of what was done on 2026-07-28, not a live status dashboard.
+
+### Still genuinely open (not done today, not a regression — same items as before)
+
+- No application deployed to the EC2 instances (ECR + SSM rollout — flagged since the original Sprint 4
+  pass, still not built).
+- No domain/ACM cert — `enable_https` stays `false` (see the HTTP-only override entry above).
+- Sprint 5 (security evaluation: Security Hub, RTO drill, UAT) has not started.
+- The report-delta backlog (`docs/psm2/report-delta.md`) is unrelated to Sprint 4 but is the largest
+  remaining piece of work overall — see that file for the full list of PSM1 report sections that are
+  now out of date against the implementation.
