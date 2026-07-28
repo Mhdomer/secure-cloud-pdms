@@ -169,9 +169,10 @@ resource "aws_cloudwatch_log_group" "trail" {
 }
 
 ########################################
-# SNS topic — CloudTrail delivery notifications (Sprint 4 wires the actual
-# CloudWatch alarm subscriptions for failed logins / 5xx / RDS CPU; this
-# topic also receives CloudTrail's own log-delivery notifications).
+# SNS topic — CloudWatch alarm notifications (Sprint 4 wires the actual
+# subscriptions for failed logins / 5xx / RDS CPU; see modules/monitoring).
+# NOT used for CloudTrail's own log-delivery notifications — see
+# aws_cloudtrail.main's comment below for why that association was dropped.
 ########################################
 
 resource "aws_sns_topic" "trail" {
@@ -182,19 +183,28 @@ resource "aws_sns_topic" "trail" {
 }
 
 data "aws_iam_policy_document" "trail_sns" {
+  # CloudTrail is NOT granted Publish here — aws_cloudtrail.main deliberately
+  # does not set sns_topic_name (see that resource's comment). This topic's
+  # actual publishers are the CloudWatch alarms in modules/monitoring
+  # (failed-login, ALB 5xx-rate, RDS CPU). A custom SNS access policy like
+  # this one replaces SNS's default account-owner-open policy, so
+  # cloudwatch.amazonaws.com needs an explicit grant even though it's a
+  # same-account publisher — scoped via aws:SourceAccount since CloudWatch
+  # alarms, unlike CloudTrail, don't have a single resource ARN to condition
+  # on (there are three separate alarms, all in this account).
   statement {
-    sid    = "AllowCloudTrailPublish"
+    sid    = "AllowCloudWatchAlarmsPublish"
     effect = "Allow"
     principals {
       type        = "Service"
-      identifiers = ["cloudtrail.amazonaws.com"]
+      identifiers = ["cloudwatch.amazonaws.com"]
     }
     actions   = ["SNS:Publish"]
     resources = [aws_sns_topic.trail.arn]
     condition {
       test     = "StringEquals"
-      variable = "aws:SourceArn"
-      values   = ["arn:${data.aws_partition.current.partition}:cloudtrail:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:trail/${local.trail_name}"]
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
     }
   }
 }
@@ -239,6 +249,22 @@ resource "aws_iam_role_policy" "trail_to_cloudwatch" {
 }
 
 resource "aws_cloudtrail" "main" {
+  # sns_topic_name is deliberately NOT set. CloudTrail's own delivery
+  # notifications to a customer-managed-KMS-encrypted SNS topic proved
+  # incompatible with enable_log_file_validation (digest files) in practice:
+  # CreateTrail failed with InsufficientSnsTopicPolicyException even against
+  # a KMS key policy verified correct per AWS's own documentation
+  # (https://docs.aws.amazon.com/sns/latest/dg/sns-enable-encryption-for-topic.html),
+  # and empirically isolated (one variable removed at a time, live against
+  # this exact account/key/topic) to the combination of log-file validation
+  # + an SNS-associated trail — S3 delivery, CloudWatch Logs delivery, and
+  # log-file validation all work fine independently. The core requirement
+  # (all API calls logged, 90-day retention, CLAUDE.md) doesn't depend on
+  # CloudTrail's own SNS delivery notifications — the same topic still fully
+  # serves its Sprint 4 purpose (failed-login/5xx/RDS-CPU alarm
+  # notifications, see modules/monitoring and this file's
+  # aws_iam_policy_document.trail_sns) since alarm publishers were never
+  # part of the broken interaction.
   name                          = local.trail_name
   s3_bucket_name                 = aws_s3_bucket.trail.id
   is_multi_region_trail          = true
@@ -248,8 +274,6 @@ resource "aws_cloudtrail" "main" {
 
   cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.trail.arn}:*"
   cloud_watch_logs_role_arn  = aws_iam_role.trail_to_cloudwatch.arn
-
-  sns_topic_name = aws_sns_topic.trail.name
 
   event_selector {
     read_write_type           = "All"

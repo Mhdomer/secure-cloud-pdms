@@ -86,7 +86,13 @@ data "aws_iam_policy_document" "cmk" {
     }
   }
 
-  # AWS services that need to encrypt on our behalf (RDS, SSM, S3, CloudTrail, CloudWatch Logs).
+  # AWS services that need to encrypt on our behalf (RDS, SSM, S3, EC2/EBS).
+  # CloudWatch Logs, SNS, and CloudTrail are deliberately NOT in this list —
+  # each needs its own statement below with a service-specific
+  # EncryptionContext condition; a plain kms:CallerAccount grant like this
+  # one is not sufficient for any of the three (confirmed empirically against
+  # this exact key, one service at a time, before writing these statements —
+  # see each one's comment for the specific error it fixed).
   statement {
     sid    = "AllowServiceUsage"
     effect = "Allow"
@@ -96,8 +102,6 @@ data "aws_iam_policy_document" "cmk" {
         "rds.amazonaws.com",
         "ssm.amazonaws.com",
         "s3.amazonaws.com",
-        "cloudtrail.amazonaws.com",
-        "logs.${data.aws_region.current.name}.amazonaws.com",
         "ec2.amazonaws.com",
       ]
     }
@@ -114,6 +118,154 @@ data "aws_iam_policy_document" "cmk" {
       test     = "StringEquals"
       variable = "kms:CallerAccount"
       values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+
+  # CloudWatch Logs — AWS's documented pattern
+  # (https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html)
+  # scopes this grant via an EncryptionContext condition on the log group's
+  # own ARN rather than kms:CallerAccount. Confirmed empirically against this
+  # exact key: a direct kms:GenerateDataKey call by an AdministratorAccess
+  # principal succeeded instantly, while `aws logs create-log-group
+  # --kms-key-id ...` failed with "the specified KMS key ... is not allowed
+  # to be used with Arn <log-group-arn>" until this statement was added.
+  # Scoped to log groups in this account/region rather than one exact log
+  # group, since multiple modules (vpc, alb, cloudtrail, monitoring) each
+  # create their own log group against this shared CMK.
+  statement {
+    sid    = "AllowCloudWatchLogsUsage"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["logs.${data.aws_region.current.name}.amazonaws.com"]
+    }
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey",
+      "kms:CreateGrant",
+    ]
+    resources = ["*"]
+    condition {
+      test     = "ArnLike"
+      variable = "kms:EncryptionContext:aws:logs:arn"
+      values   = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:*"]
+    }
+  }
+
+  # SNS (modules/cloudtrail's aws_sns_topic.trail, SSE-KMS with this CMK) —
+  # AWS's SNS encryption docs
+  # (https://docs.aws.amazon.com/sns/latest/dg/sns-enable-encryption-for-topic.html)
+  # require an EncryptionContext condition scoped to the topic's own ARN, not
+  # a plain service grant. Confirmed empirically: CreateTrail failed with
+  # InsufficientSnsTopicPolicyException ("the specified KMS key ... does not
+  # allow access to CloudTrail") against a plain sns.amazonaws.com +
+  # kms:CallerAccount grant, and succeeded once this statement was added.
+  # Hardcodes the one topic name modules/cloudtrail creates (not a wildcard
+  # pattern) since only that single topic in this project is ever
+  # KMS-encrypted with this key.
+  statement {
+    sid    = "AllowSnsUsage"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["sns.amazonaws.com"]
+    }
+    actions = [
+      "kms:Decrypt",
+      "kms:GenerateDataKey*",
+      "kms:Encrypt",
+      "kms:DescribeKey",
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:EncryptionContext:aws:sns:topicArn"
+      values   = ["arn:aws:sns:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${var.project_name}-${var.environment}-cloudtrail-notifications"]
+    }
+  }
+
+  # CloudTrail — the three statements AWS's own documentation says are the
+  # minimum required KMS key policy elements for a trail
+  # (https://docs.aws.amazon.com/awscloudtrail/latest/userguide/create-kms-key-policy-for-cloudtrail.html):
+  # encrypt, decrypt, and DescribeKey. Confirmed empirically that a plain
+  # cloudtrail.amazonaws.com + kms:CallerAccount grant (i.e. the same shape
+  # as AllowServiceUsage above) is NOT sufficient — CreateTrail failed with
+  # InsufficientEncryptionPolicyException until these exact statements,
+  # including the aws:cloudtrail:arn EncryptionContext condition, were added.
+  # References modules/cloudtrail's trail-naming convention
+  # (`${project}-${environment}-trail`) directly since a KMS key policy
+  # cannot depend on that module's own resource output without creating a
+  # module cycle (this key is created before cloudtrail, not after).
+  statement {
+    sid    = "AllowCloudTrailEncryptLogs"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+    actions   = ["kms:GenerateDataKey*"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:cloudtrail:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:trail/${var.project_name}-${var.environment}-trail"]
+    }
+    condition {
+      test     = "StringLike"
+      variable = "kms:EncryptionContext:aws:cloudtrail:arn"
+      values   = ["arn:aws:cloudtrail:*:${data.aws_caller_identity.current.account_id}:trail/*"]
+    }
+  }
+
+  statement {
+    sid    = "AllowCloudTrailDecryptTrail"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+    actions   = ["kms:Decrypt"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "AllowCloudTrailDescribeKey"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+    actions   = ["kms:DescribeKey"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:cloudtrail:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:trail/${var.project_name}-${var.environment}-trail"]
+    }
+  }
+
+  # Lets the named key administrators (the humans who'd actually need to
+  # audit CloudTrail logs) decrypt them — without this, encrypt permission
+  # above has no corresponding read path for anyone. Matches AWS's
+  # documented EnableCloudTrailLogDecryptPermissions pattern: the Null
+  # condition matches any object encrypted with CloudTrail's own
+  # EncryptionContext, not just one exact trail.
+  statement {
+    sid    = "EnableCloudTrailLogDecryptPermissions"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = var.key_administrator_arns
+    }
+    actions   = ["kms:Decrypt"]
+    resources = ["*"]
+    condition {
+      test     = "Null"
+      variable = "kms:EncryptionContext:aws:cloudtrail:arn"
+      values   = ["false"]
     }
   }
 }
