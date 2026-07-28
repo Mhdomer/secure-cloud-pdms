@@ -168,6 +168,20 @@ resource "aws_autoscaling_group" "app" {
   health_check_type          = "ELB"
   health_check_grace_period = 60
 
+  # TEMPORARY: no application is deployed to these instances yet — the
+  # launch template's user_data only bootstraps Docker, it doesn't pull/run
+  # the backend image (publishing to ECR + rolling out via SSM is a
+  # documented Sprint 4 follow-up, not yet built; see
+  # .github/workflows/README.md's "Deliberately out of scope" section).
+  # With health_check_type = "ELB" and no application listening on
+  # var.app_port, the ALB target group health check can never pass, so
+  # Terraform's default 10-minute capacity wait would time out on every
+  # single apply. Skipping that wait here reflects the actual current state
+  # honestly (instances launch but aren't yet serving traffic) rather than
+  # papering over it with a longer timeout that would fail anyway. Remove
+  # this once the app is actually deployed to the ASG.
+  wait_for_capacity_timeout = "0"
+
   min_size         = var.min_size
   max_size         = var.max_size
   desired_capacity = var.desired_capacity
