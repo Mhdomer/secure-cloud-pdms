@@ -76,6 +76,7 @@ module "rds" {
   multi_az                   = var.db_multi_az
   deletion_protection        = var.db_deletion_protection
   skip_final_snapshot        = var.db_skip_final_snapshot
+  backup_retention_period    = var.db_backup_retention_period
   ssm_parameter_prefix       = local.ssm_db_prefix
   tags                        = local.common_tags
 }

@@ -57,8 +57,9 @@ variable "db_allocated_storage" {
 }
 
 variable "db_engine_version" {
-  type    = string
-  default = "16.4"
+  description = "PostgreSQL engine version. AWS periodically deprecates old minor versions from being creatable on new instances (16.4 was removed - only 16.9-16.14 are available in ap-southeast-1 as of 2026-07-28); re-check `aws rds describe-db-engine-versions --engine postgres` if this ever fails with InvalidParameterCombination. auto_minor_version_upgrade is already true, so this only pins the initial create version."
+  type        = string
+  default     = "16.14"
 }
 
 variable "db_multi_az" {
@@ -75,6 +76,23 @@ variable "db_deletion_protection" {
 variable "db_skip_final_snapshot" {
   type    = bool
   default = false
+}
+
+# TEMPORARY PROJECT-LEVEL OVERRIDE — the AWS account this is currently
+# deployed under is Free Tier eligible, and RDS rejects CreateDBInstance
+# with FreeTierRestrictionError ("backup retention period exceeds the
+# maximum available to free tier customers") at the module's own default of
+# 7 days. 1 day is the RDS API's own documented default when unspecified
+# (USER_WorkingWithAutomatedBackups.BackupRetention.html), so it's a safe
+# floor that still keeps automated backups on (0 would disable them
+# entirely, contradicting CLAUDE.md's "automated backups on" design
+# decision). Raise this back to modules/rds/variables.tf's default (7, still
+# secure-by-default at the module level) once this project moves off a
+# Free Tier account — see the account-swap plan in
+# docs/psm2/sprints/sprint-4-summary.md.
+variable "db_backup_retention_period" {
+  type    = number
+  default = 1
 }
 
 ########################################
