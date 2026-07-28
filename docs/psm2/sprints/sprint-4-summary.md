@@ -371,6 +371,23 @@ Terraform config, which blocks `terraform destroy` outright; disabled both direc
 the .tf source, since the *desired* state is still "protected" — re-applying will turn protection back
 on automatically, which is correct.
 
+`terraform destroy` still failed once even after that — `BucketNotEmpty` on both
+`pdms-prod-cloudtrail-logs` and `pdms-prod-alb-access-logs`. Neither `aws_s3_bucket` resource sets
+`force_destroy` (deliberately — an audit-log bucket silently allowing itself to be emptied on
+`terraform destroy` isn't a property to want), and both have versioning enabled, so a normal
+empty-bucket check doesn't apply once real objects (CloudTrail logs, ALB access logs) had actually
+been written during the live-verification window. Emptied both manually
+(`aws s3api list-object-versions` → `aws s3api delete-objects` with the resulting version list) before
+re-running `terraform destroy`, which then completed cleanly. **If this project is ever torn down
+again after real traffic/logging has accumulated, expect this same step** — it's not a one-off
+oversight, it's inherent to versioned buckets with no `force_destroy`.
+
+Independently verified after the final `destroy complete` (not just trusting Terraform's own exit
+code): `aws ec2 describe-vpcs` / `describe-nat-gateways` / `describe-instances`,
+`aws rds describe-db-instances`, `aws elbv2 describe-load-balancers`, and `aws s3api list-buckets` all
+confirmed nothing matching this project remains anywhere in `ap-southeast-1`. Zero cost accrual as of
+2026-07-28.
+
 **To bring it back**: `terraform apply -var-file="terraform.tfvars"` from `infrastructure/terraform/`
 with valid AWS credentials — the whole path above is proven to work end-to-end now, so a fresh apply
 should go straight through without hitting any of the five bugs again (all fixed in source). Confirm
