@@ -273,7 +273,7 @@ resource "aws_wafv2_web_acl" "alb" {
   # See the CKV2_AWS_76 checkov:skip on aws_lb.main below — that is the
   # resource Checkov's Log4j check actually targets.
   name        = "${var.project_name}-${var.environment}-alb-waf"
-  description = "WAF for the internet-facing ALB — blocks common web exploits and SQL injection before traffic reaches the app tier"
+  description = "WAF for the internet-facing ALB - blocks common web exploits and SQL injection before traffic reaches the app tier"
   scope       = "REGIONAL"
 
   default_action {

@@ -33,6 +33,7 @@ DEV_CREDENTIALS.md
 *.tfstate.backup
 *.tfvars
 .terraform.lock.hcl
+tfplan*
 
 # IDE
 .vscode/settings.json

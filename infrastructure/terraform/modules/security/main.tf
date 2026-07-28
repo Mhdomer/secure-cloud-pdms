@@ -12,7 +12,7 @@ resource "aws_security_group" "alb" {
   # SG ID is not resolved by Checkov's single-run graph check, producing a
   # false "unattached" positive.
   name        = "${var.project_name}-${var.environment}-alb-sg"
-  description = "ALB security group — HTTPS/HTTP from internet, forwards to app tier only"
+  description = "ALB security group - HTTPS/HTTP from internet, forwards to app tier only"
   vpc_id      = var.vpc_id
 
   tags = merge(var.tags, {
@@ -25,7 +25,7 @@ resource "aws_security_group" "ec2" {
   # modules/ec2 (aws_launch_template.app.network_interfaces.security_groups).
   # Same cross-module graph-resolution limitation as aws_security_group.alb.
   name        = "${var.project_name}-${var.environment}-ec2-sg"
-  description = "EC2 application-tier security group — accepts only from ALB, talks only to RDS and outbound HTTPS"
+  description = "EC2 application-tier security group - accepts only from ALB, talks only to RDS and outbound HTTPS"
   vpc_id      = var.vpc_id
 
   tags = merge(var.tags, {
@@ -38,7 +38,7 @@ resource "aws_security_group" "rds" {
   # (aws_db_instance.main.vpc_security_group_ids). Same cross-module
   # graph-resolution limitation as aws_security_group.alb above.
   name        = "${var.project_name}-${var.environment}-rds-sg"
-  description = "RDS security group — accepts only from EC2 application tier, no outbound permitted"
+  description = "RDS security group - accepts only from EC2 application tier, no outbound permitted"
   vpc_id      = var.vpc_id
 
   tags = merge(var.tags, {
@@ -71,7 +71,7 @@ resource "aws_vpc_security_group_ingress_rule" "alb_http_redirect" {
   # either way; see enable_https's description for the actual security
   # trade-off being made.
   security_group_id = aws_security_group.alb.id
-  description        = "HTTP from internet — 443 redirect when enable_https=true, direct app forward when enable_https=false (see infrastructure/terraform/variables.tf)"
+  description        = "HTTP from internet - 443 redirect when enable_https=true, direct app forward when enable_https=false (see infrastructure/terraform/variables.tf)"
   cidr_ipv4          = "0.0.0.0/0"
   ip_protocol        = "tcp"
   from_port          = 80
@@ -111,7 +111,7 @@ resource "aws_vpc_security_group_egress_rule" "ec2_to_rds" {
 
 resource "aws_vpc_security_group_egress_rule" "ec2_https_outbound" {
   security_group_id = aws_security_group.ec2.id
-  description        = "Outbound HTTPS via NAT Gateway — AWS API (SSM, CloudWatch) and package endpoints only"
+  description        = "Outbound HTTPS via NAT Gateway - AWS API (SSM, CloudWatch) and package endpoints only"
   cidr_ipv4          = "0.0.0.0/0"
   ip_protocol        = "tcp"
   from_port          = 443
