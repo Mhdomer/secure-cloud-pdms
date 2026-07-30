@@ -118,6 +118,20 @@ resource "aws_iam_role_policy" "manage_project_resources" {
         # this is the intersection of two independently-scoped policies.
       },
       {
+        # checkov:skip=CKV_AWS_355: kms:ListAliases has no resource-level
+        # ARN in the AWS API — it lists every alias in the account/region,
+        # there is nothing to scope it to. Terraform's aws_kms_alias refresh
+        # calls this; AccessDenied confirmed live even with
+        # ManageProjectKmsKey above already granting kms:* on the CMK
+        # itself, since this specific action targets the alias-listing
+        # endpoint, not the key.
+        # checkov:skip=CKV_AWS_356: same false positive as CKV_AWS_355.
+        Sid      = "ListProjectKmsAliases"
+        Effect   = "Allow"
+        Action   = ["kms:ListAliases"]
+        Resource = "*"
+      },
+      {
         Sid    = "ManageProjectS3Buckets"
         Effect = "Allow"
         Action = ["s3:*"]
@@ -140,6 +154,24 @@ resource "aws_iam_role_policy" "manage_project_resources" {
           "arn:aws:rds:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:subgrp:${var.project_name}-${var.environment}-*",
           "arn:aws:rds:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:pg:${var.project_name}-${var.environment}-*",
         ]
+      },
+      {
+        # checkov:skip=CKV_AWS_355: rds:DescribeDBInstances AccessDenied
+        # against arn:...:db:* live, despite pdms-prod-* already granted by
+        # ManageProjectRds above — this specific Describe action doesn't
+        # honor resource-level scoping in practice, same category as
+        # DescribeProjectLogGroups/DescribeSsmParameterMetadata elsewhere in
+        # this file. Found the same way: the first terraform-apply against a
+        # fully-populated state (refresh calls this for every tracked
+        # aws_db_instance) is what exercises this API path at all — Sprint
+        # 4's original apply and this project's own manual bootstrap apply
+        # both created resources fresh rather than refreshing existing ones
+        # under this exact role.
+        # checkov:skip=CKV_AWS_356: same false positive as CKV_AWS_355.
+        Sid      = "DescribeProjectRdsInstances"
+        Effect   = "Allow"
+        Action   = ["rds:DescribeDBInstances"]
+        Resource = "*"
       },
       {
         Sid    = "ManageProjectLogs"
@@ -381,6 +413,22 @@ resource "aws_iam_role_policy" "manage_project_iam" {
         # `terraform apply`; every trust policy in this stack is set once
         # at create time. And see local.other_project_role_names above for
         # why this is an explicit list, not this role's own name-prefix.
+      },
+      {
+        # Unlike the Describe/List-style gaps found elsewhere in this file,
+        # iam:GetOpenIDConnectProvider genuinely does support resource-level
+        # scoping — it reads one specific, known provider by ARN, not a
+        # bulk listing. Scoped accordingly, not Resource: "*". Terraform's
+        # own aws_iam_openid_connect_provider refresh calls this; AccessDenied
+        # confirmed live even though this role created the provider itself
+        # (creation permission was never the same thing as read-back
+        # permission — the guardrail policy below also deliberately denies
+        # ever modifying this provider, by design, so this stays a narrow,
+        # read-only addition).
+        Sid      = "ReadGithubOidcProvider"
+        Effect   = "Allow"
+        Action   = ["iam:GetOpenIDConnectProvider"]
+        Resource = aws_iam_openid_connect_provider.github.arn
       },
       {
         Sid      = "PassOtherProjectRolesToTheirOwningService"
