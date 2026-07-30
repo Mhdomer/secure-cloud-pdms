@@ -128,8 +128,9 @@ variable "app_port" {
 }
 
 variable "health_check_path" {
-  type    = string
-  default = "/api/health"
+  description = "ALB target group health check path. Must match a real unauthenticated route in src/backend/src/app.js — currently only app.get('/health', ...) at root (app.js:26), no /api prefix. There is no /api/health route anywhere in src/backend/src/routes/; the previous default here would have 404'd forever and kept the ASG unhealthy indefinitely."
+  type        = string
+  default     = "/health"
 }
 
 ########################################
