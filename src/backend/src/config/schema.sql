@@ -6,10 +6,58 @@
 -- with a role that is NOT the table owner and does NOT have BYPASSRLS.
 -- The `postgres`/master RDS user used to run this script is a superuser
 -- and always bypasses RLS. Create a dedicated least-privilege role for the
--- Express app (see "APPLICATION ROLE" section at the bottom of this file)
+-- Express app (see "APPLICATION ROLE" section right below, before the tables)
 -- and configure DB_USER in .env / SSM to that role, never the master user.
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ── APPLICATION ROLE — least-privilege connection role for the Express app ──
+-- Created here, before any table/GRANT statement below, deliberately: this
+-- file GRANTs to pdms_app as each table is created (e.g. "GRANT ... ON
+-- departments TO pdms_app" right after CREATE TABLE departments), so the
+-- role must already exist by the time execution reaches the first of those
+-- — it cannot be created lazily near the end of the file the way an
+-- otherwise-unrelated bootstrap step could be. Running this file straight
+-- through with psql's per-statement error-continue behavior never surfaced
+-- this: each individual GRANT failure was silently skipped, table creation
+-- and the later app-role creation still succeeded, and nobody noticed the
+-- role was actually missing every grant issued before it existed — until
+-- this file was run as a single batched multi-statement query (Node's
+-- `pg` driver, one implicit transaction, first error aborts and rolls back
+-- everything), which fails hard immediately instead of limping through.
+--
+-- The Express app must NEVER connect as the master/superuser: superusers
+-- and table owners bypass RLS entirely regardless of the policies defined
+-- throughout this file, which silently defeats the whole two-layer
+-- authorization model.
+--
+-- Local dev: run this file as the postgres superuser (as the header
+-- comment instructs), then point DB_USER/DB_PASSWORD in .env at pdms_app
+-- instead of postgres, so RLS is actually exercised during local testing.
+--
+-- Production: the RDS master user is never used by the running app either
+-- — Terraform/SSM provisions this same role with a generated secret, so
+-- this block never runs against a production database.
+--
+-- No literal password is written here (a fixed string in this file would be
+-- permanent in git history the moment it's committed, and a known password
+-- for a role that bypasses every RLS policy is a standing risk regardless).
+-- On a fresh database, this generates a random password and prints it once
+-- via RAISE NOTICE — copy it into DB_PASSWORD in your local .env. Re-running
+-- this file against a database that already has the role is a no-op, same
+-- as before; it does not rotate an existing role's password.
+DO $$
+DECLARE
+  generated_password TEXT;
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pdms_app') THEN
+    generated_password := encode(gen_random_bytes(24), 'base64');
+    EXECUTE format('CREATE ROLE pdms_app LOGIN PASSWORD %L', generated_password);
+    RAISE NOTICE 'Created pdms_app with a generated password: %', generated_password;
+    RAISE NOTICE 'Copy it into DB_USER=pdms_app / DB_PASSWORD=<above> in src/backend/.env — it is not stored anywhere else.';
+  END IF;
+END
+$$;
 
 -- ── users ──────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
@@ -602,40 +650,9 @@ CREATE POLICY patient_select_released_lab_results ON lab_results
 -- and upserts the row directly; the plaintext password is never persisted
 -- or logged, and never appears in this repository.
 
--- ── APPLICATION ROLE — least-privilege connection role for the Express app ──
--- The Express app must NEVER connect as the master/superuser: superusers
--- and table owners bypass RLS entirely regardless of the policies above,
--- which silently defeats the whole two-layer authorization model. This
--- block creates a dedicated low-privilege role and is safe to re-run.
---
--- Local dev: run this file as the postgres superuser (as the header
--- comment instructs), then point DB_USER/DB_PASSWORD in .env at pdms_app
--- instead of postgres, so RLS is actually exercised during local testing.
---
--- Production: the RDS master user is never used by the running app either
--- — Terraform/SSM provisions this same role with a generated secret, so
--- this block never runs against a production database.
---
--- No literal password is written here (a fixed string in this file would be
--- permanent in git history the moment it's committed, and a known password
--- for a role that bypasses every RLS policy is a standing risk regardless).
--- On a fresh database, this generates a random password and prints it once
--- via RAISE NOTICE — copy it into DB_PASSWORD in your local .env. Re-running
--- this file against a database that already has the role is a no-op, same
--- as before; it does not rotate an existing role's password.
-DO $$
-DECLARE
-  generated_password TEXT;
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pdms_app') THEN
-    generated_password := encode(gen_random_bytes(24), 'base64');
-    EXECUTE format('CREATE ROLE pdms_app LOGIN PASSWORD %L', generated_password);
-    RAISE NOTICE 'Created pdms_app with a generated password: %', generated_password;
-    RAISE NOTICE 'Copy it into DB_USER=pdms_app / DB_PASSWORD=<above> in src/backend/.env — it is not stored anywhere else.';
-  END IF;
-END
-$$;
-
+-- pdms_app itself is created near the top of this file, right after
+-- CREATE EXTENSION — see the comment there for why it has to happen before
+-- any of the per-table GRANTs above, not here.
 GRANT USAGE ON SCHEMA public TO pdms_app;
 GRANT SELECT, INSERT, UPDATE ON users, doctors, patients, medical_records, appointments, otp_verifications TO pdms_app;
 -- doctor_availability gets its own DELETE grant — DoctorAvailability.remove()
