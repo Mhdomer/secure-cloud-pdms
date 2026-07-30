@@ -34,3 +34,12 @@ output "github_deploy_role_arn" {
   description = "ARN to store as the AWS_DEPLOY_ROLE_ARN GitHub Actions secret (see .github/workflows/deploy.yml)."
   value       = module.github_oidc.deploy_role_arn
 }
+
+output "ecr_repository_url" {
+  description = "Push backend images here: docker push <this>:<tag>"
+  value       = module.ecr.repository_url
+}
+
+output "ecr_repository_arn" {
+  value = module.ecr.repository_arn
+}
