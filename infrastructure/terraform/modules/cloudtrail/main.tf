@@ -249,6 +249,12 @@ resource "aws_iam_role_policy" "trail_to_cloudwatch" {
 }
 
 resource "aws_cloudtrail" "main" {
+  # checkov:skip=CKV_AWS_252: no SNS topic is associated with this trail —
+  # see the sns_topic_name explanation immediately below. This is the
+  # documented root cause, not an oversight; this skip comment was itself
+  # missing until a live GitHub Actions run (2026-07-30, iac-scan job) first
+  # actually enforced soft_fail: false against it — checkov had never been
+  # run through the real pipeline before that point, only locally.
   # sns_topic_name is deliberately NOT set. CloudTrail's own delivery
   # notifications to a customer-managed-KMS-encrypted SNS topic proved
   # incompatible with enable_log_file_validation (digest files) in practice:
