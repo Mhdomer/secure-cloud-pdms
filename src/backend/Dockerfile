@@ -44,6 +44,13 @@ COPY src ./src
 # pdms user below could not read.
 ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/rds-global-bundle.pem
 
+# src/middleware/upload.js creates this directory at require-time
+# (fs.mkdirSync), and routes.js requires it during startup route
+# registration — not lazily. Every COPY above lands root-owned since none
+# use --chown, so without this the non-root pdms user below gets EACCES
+# before the process ever binds to a port.
+RUN mkdir -p /app/uploads && chown -R pdms:pdms /app/uploads
+
 USER pdms
 
 EXPOSE 5000
