@@ -159,6 +159,23 @@ resource "aws_iam_role_policy" "manage_project_resources" {
         ]
       },
       {
+        # checkov:skip=CKV_AWS_355: logs:DescribeLogGroups has no usable
+        # resource-level scoping in practice — confirmed live, not assumed:
+        # a resource-scoped ManageProjectLogs statement (above) was not
+        # sufficient. Terraform's own aws_cloudwatch_log_group read/refresh
+        # path calls this API, and it failed AccessDenied against every one
+        # of this project's own log groups despite the scoped grant already
+        # covering them by ARN, found via the first real terraform-apply to
+        # reach this far (2026-07-30).
+        # checkov:skip=CKV_AWS_356: same false positive as CKV_AWS_355 — the
+        # access boundary for this role is the OIDC trust condition, not a
+        # resource-ARN restriction this specific Describe API doesn't honor.
+        Sid      = "DescribeProjectLogGroups"
+        Effect   = "Allow"
+        Action   = ["logs:DescribeLogGroups"]
+        Resource = "*"
+      },
+      {
         Sid      = "ManageProjectSns"
         Effect   = "Allow"
         Action   = ["sns:*"]
@@ -249,6 +266,26 @@ resource "aws_iam_role_policy" "manage_project_resources" {
         # never surfaced) and this plan's new /pdms/prod/app/* parameters.
       },
       {
+        # checkov:skip=CKV_AWS_355: ssm:DescribeParameters has no
+        # resource-level ARN in the AWS API (confirmed live: it AccessDenied
+        # against arn:...:parameter/pdms/prod/db/* despite that exact path
+        # being granted in ManageProjectSsmParameters above — the action
+        # genuinely does not support resource scoping, this isn't a pattern
+        # bug). Terraform's own aws_ssm_parameter read path calls this to
+        # populate description/tier/allowed_pattern/key_id, which
+        # GetParameter's response doesn't include. Found via the first real
+        # terraform-apply to reach this far (2026-07-30) — flagged as an
+        # unverified risk in the Sprint 5 prep summary before this exact
+        # failure happened.
+        # checkov:skip=CKV_AWS_356: same false positive as CKV_AWS_355 — the
+        # access boundary for this role is the OIDC trust condition, not a
+        # resource-ARN restriction this specific Describe API doesn't offer.
+        Sid      = "DescribeSsmParameterMetadata"
+        Effect   = "Allow"
+        Action   = ["ssm:DescribeParameters"]
+        Resource = "*"
+      },
+      {
         # checkov:skip=CKV_AWS_355: wafv2:Create*/Update* actions have no
         # resource-level ARN (same category of AWS API gap as
         # ManageProjectComputeNetworking above — Create actions can't be
@@ -289,6 +326,13 @@ locals {
     "${var.project_name}-${var.environment}-ec2-role",               # modules/ec2
     "${var.project_name}-${var.environment}-rds-monitoring-role",    # modules/rds
     "${var.project_name}-${var.environment}-cloudtrail-cwlogs-role", # modules/cloudtrail
+    "${var.project_name}-${var.environment}-vpc-flow-logs-role",     # modules/vpc
+    # vpc-flow-logs-role was missing from this list entirely — the deploy
+    # role could create it (iam:CreateRole isn't scoped by this list) but
+    # never read it back afterward, so every apply after the first would
+    # AccessDeny on iam:GetRole. Same root cause class as
+    # DescribeSsmParameterMetadata/DescribeProjectLogGroups above: found via
+    # the first real terraform-apply to reach this far (2026-07-30).
   ]
   other_project_role_arns = [
     for name in local.other_project_role_names :
