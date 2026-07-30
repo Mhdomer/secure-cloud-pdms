@@ -94,16 +94,14 @@ general service-usage statement, without fabricating a precision the module grap
 Not fixed here — genuinely require a live account to resolve, consistent with this project's
 existing "verify empirically, don't assume" pattern from Sprint 4's own live-deployment bug list:
 
-1. **ECR's KMS encryption** is assumed sufficient via the existing generic `AllowServiceUsage`
-   statement (`ecr.amazonaws.com` is not one of the three services — CloudWatch Logs, SNS,
-   CloudTrail — that needed a dedicated `EncryptionContext` statement last time). Unverified until
-   the first real `docker push`. If it fails with a KMS access-denied-style error, add a dedicated
-   `AllowEcrUsage` statement to `modules/kms/main.tf` the same way the other three were added.
-2. **The `ssm:resourceTag/Name` condition** on the deploy role's tag-scoped `ssm:SendCommand`
-   statement is unverified against a live `ssm:SendCommand` call until the first real rollout. (The
-   statement has since been split in two — an unconditioned one for the `AWS-RunShellScript`
-   document, a tag-conditioned one for the instances — per AWS's documented Run Command tag pattern;
-   the condition itself is still unproven against a live call.)
+1. ~~**ECR's KMS encryption** is assumed sufficient via the existing generic `AllowServiceUsage`
+   statement...~~ **Resolved 2026-07-30**: confirmed sufficient by a real `docker push`/`docker pull`
+   cycle during live deployment (see "Live deployment and troubleshooting" below) — no dedicated
+   `AllowEcrUsage` statement was needed.
+2. ~~**The `ssm:resourceTag/Name` condition** on the deploy role's tag-scoped `ssm:SendCommand`
+   statement is unverified...~~ **Resolved 2026-07-30**: confirmed working by a real
+   `Publish Backend Image & Roll Out` run that successfully targeted and rolled out to both
+   tag-matched instances.
 3. **`/health` does not prove the database is reachable.** `src/backend/src/app.js:26`'s `/health`
    route returns 200 from the Node process alone — it never touches PostgreSQL. So `deploy.sh`'s
    health-check-before-swap cannot catch a DB connectivity failure: a container with an unusable
@@ -283,11 +281,88 @@ pure read-only verification against the live account with no code diff attached,
 nothing for a reviewer to review. It's the reason this doc has no corresponding "implementer report"
 for Task 6.
 
-**Not yet live-verified**: this plan deliberately never ran `terraform apply`, `terraform destroy`,
-or an actual GitHub Actions run against `deploy.yml` — all three require explicit sign-off before
-spending AWS budget or provisioning real resources, per this task's own constraints. Static checks
-(`checkov`, `terraform validate`, and a real read-only `terraform plan`) all passed; a live apply is
-the next step, pending that sign-off.
+**Live-verified 2026-07-30** (see "Live deployment and troubleshooting" below for the full account):
+a real `terraform apply` provisioned all 110 resources, the full `deploy.yml` pipeline ran
+end-to-end through `Publish Backend Image & Roll Out` and `Build & Publish Frontend`, and the live
+site was confirmed working — both ALB targets `healthy`, CloudFront root returns 200, and a real
+`/api/*` request round-trips through CloudFront → ALB → EC2 → Express and back with a correct
+application-level response. Getting there surfaced five additional bugs beyond anything static
+checks could catch — none were guessed at; each was root-caused from live evidence before being
+fixed. `terraform destroy` remains a deliberate, separate decision (cost control) — see that section.
+
+## Live deployment and troubleshooting (2026-07-30)
+
+With sign-off given to spend real AWS budget, a real `terraform apply` and a real `deploy.yml` run
+were executed for the first time. This surfaced a chain of bugs invisible to `checkov`,
+`terraform validate`, and read-only `terraform plan` — each was root-caused from live evidence
+(console output, SSM command output, `terraform apply` error text) before being fixed, per this
+project's systematic-debugging discipline. In arrival order:
+
+1. **Deploy-role IAM refresh-time gaps.** The deploy role's *first-ever* full `terraform` state
+   refresh (every prior apply in this project's history ran under the operator's own credentials)
+   exercised a set of read-only Describe/List/Get calls that had never been exercised under that
+   role before. AWS API scoping quirk: many Describe/List/Get actions don't accept resource-level
+   ARNs even when their paired write actions do, so each of these needed its own `Resource: "*"`
+   statement in `modules/github-oidc/main.tf`, added one live-discovered error at a time:
+   `ssm:DescribeParameters`, `logs:DescribeLogGroups`, `iam:GetRole`/etc. on
+   `pdms-prod-vpc-flow-logs-role` (missing from `local.other_project_role_names`'s explicit
+   allow-list), `iam:GetOpenIDConnectProvider` (scoped to the provider's own ARN),
+   `kms:ListAliases`, `rds:DescribeDBInstances`, `cloudtrail:DescribeTrails`, and finally the deploy
+   role needing to read its **own** identity (`ReadOwnRoleForRefresh` — deliberately narrow,
+   read-only, and does not reopen the self-escalation path `local.other_project_role_arns`
+   structurally excludes).
+2. **Two live-apply errors.** CloudFront Function `Comment` exceeded AWS's real (undocumented in
+   the Terraform provider docs) length limit — fixed by shortening it, but the fix was first applied
+   directly against AWS and not committed, causing the *same* error to resurface as an `UpdateFunction`
+   failure on the next apply; caught via `git show HEAD:...` vs the working tree and fixed by
+   committing the already-correct file. Separately, a stale, unencrypted VPC flow-logs CloudWatch log
+   group (leftover from an earlier incomplete teardown) collided with `ResourceAlreadyExistsException`
+   — deleted after explicit confirmation.
+3. **The real root cause of every EC2 launch failure (`Client.InvalidKMSKey.InvalidState`) for the
+   entire ~2+ hour life of the first live deployment**: the Auto Scaling service-linked role
+   (`AWSServiceRoleForAutoScaling`) needs its own explicit statements in the KMS key policy to encrypt
+   EBS volumes with a customer-managed key — its default permissions, which are hardcoded and not
+   extensible via IAM identity policy, do not include this. Fixed per AWS's own documented key-policy
+   requirements for Auto Scaling + EBS encryption: two statements added to `modules/kms/main.tf`
+   (`AllowAutoScalingServiceLinkedRoleUseOfKey`, `AllowAutoScalingServiceLinkedRoleGrantCreation`).
+4. **Instances reached `Healthy`/`InService` at the ASG level but never registered with SSM, and
+   failed ALB health checks.** Every networking layer checked out (NAT gateway available, route
+   table correct, security groups and NACLs correct, VPC DNS enabled), and cloud-init's own console
+   output showed a clean, error-free finish — ruling out a boot failure. Root cause, confirmed against
+   AWS's own AL2023 package-comparison docs and directly against the pinned AMI via
+   `aws ec2 describe-images`: `terraform.tfvars`'s `ec2_ami_id` is the AL2023 **Minimal** edition
+   (`al2023-ami-minimal-*`), which does not ship `amazon-ssm-agent` — unlike the standard AL2023 AMI.
+   SSH is never opened by design (`modules/security/main.tf`), so SSM Session Manager is this
+   project's only remote-access path; without the agent, instances are both unmanageable and
+   undiagnosable. Fixed by adding an explicit `dnf install -y amazon-ssm-agent` +
+   `systemctl enable --now` to `user_data.sh.tpl`, keeping the Minimal AMI's smaller attack surface
+   rather than switching to the standard edition.
+5. **Once SSM access was restored, the actual backend crash was finally visible.** `deploy.sh`'s own
+   health-check-before-swap logic cleans up a failed candidate container immediately, which had been
+   destroying the evidence on every prior attempt. Reproduced manually via SSM (running the same
+   `docker run` deploy.sh uses, without its auto-cleanup) to capture the crash before it was wiped:
+   `Error: EACCES: permission denied, mkdir '/app/uploads'` from `src/middleware/upload.js:9`'s
+   require-time `fs.mkdirSync`. Root cause: `src/backend/Dockerfile`'s runtime-stage `COPY`
+   instructions never used `--chown`, so `/app` stayed root-owned after `USER pdms` switched the
+   process to a non-root user — a latent bug since the non-root-user hardening was added, never
+   exercised until this was the first real `docker run` against production traffic. Fixed with
+   `RUN mkdir -p /app/uploads && chown -R pdms:pdms /app/uploads` before the `USER pdms` line —
+   scoped to just the one directory the app writes to, not a blanket `chown -R /app`. Verified
+   locally (image build + `docker run` + healthcheck + `/health` returning 200) before pushing.
+
+**End state**: both EC2 instances registered with SSM and `healthy` in the ALB target group; the
+full `deploy.yml` pipeline (security gate → `terraform apply` → `Publish Backend Image & Roll Out` →
+`Build & Publish Frontend`) completed successfully; the live CloudFront URL serves the frontend
+(200) and correctly proxies `/api/*` to a working backend (verified with a real `/api/auth/login`
+call returning a proper 422 validation error, not an infrastructure-level error).
+
+**New files touched by this phase** (beyond the "Files changed" list below, which reflects the
+original 9-task plan): `infrastructure/terraform/modules/ec2/templates/user_data.sh.tpl` (SSM agent
+install), `infrastructure/terraform/modules/kms/main.tf` (Auto Scaling service-linked-role
+statements), `infrastructure/terraform/modules/github-oidc/main.tf` (the refresh-time IAM gaps
+above), `src/backend/Dockerfile` (uploads directory ownership).
+
+---
 
 ## Files changed
 
