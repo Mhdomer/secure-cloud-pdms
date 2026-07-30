@@ -119,6 +119,23 @@ module "alb" {
 }
 
 ########################################
+# Frontend — S3 + CloudFront (Sprint 4 follow-up: was documented in
+# CLAUDE.md's tech stack but never built). Also the single HTTPS origin
+# for /api/* — see modules/frontend/main.tf's header comment.
+########################################
+
+module "frontend" {
+  source = "./modules/frontend"
+
+  project_name           = var.project_name
+  environment            = var.environment
+  kms_key_arn            = module.kms.key_arn
+  alb_origin_domain_name = module.alb.alb_dns_name
+  enable_https           = var.enable_https
+  tags                   = local.common_tags
+}
+
+########################################
 # EC2 — private app-subnet only, ASG behind the ALB, SSM-only access
 ########################################
 

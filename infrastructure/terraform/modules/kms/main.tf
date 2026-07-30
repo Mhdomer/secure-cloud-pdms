@@ -268,6 +268,40 @@ data "aws_iam_policy_document" "cmk" {
       values   = ["false"]
     }
   }
+
+  # CloudFront (modules/frontend's OAC-fronted, SSE-KMS-encrypted S3
+  # bucket) — scoped via aws:SourceAccount (this account), not an exact
+  # distribution ARN. The CloudTrail statements above scope to an exact
+  # trail ARN because trail names are human-chosen and deterministic ahead
+  # of creation; CloudFront distribution IDs are AWS-generated at creation
+  # time, so there is no equivalent string to precompute here without
+  # creating a kms -> frontend -> kms module cycle (frontend's bucket
+  # depends on this key; this key cannot also depend on frontend's
+  # not-yet-created distribution ID). Account-scoping is narrower than the
+  # general AllowServiceUsage statement above (still requires the request
+  # to originate from a CloudFront distribution in this exact account)
+  # without fabricating a precision the module dependency graph can't
+  # actually back up. See
+  # docs/superpowers/specs/2026-07-30-post-sprint4-deploy-and-frontend-hosting-design.md
+  # Decision 3.
+  statement {
+    sid    = "AllowCloudFrontUsage"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+    actions = [
+      "kms:Decrypt",
+      "kms:DescribeKey",
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
 }
 
 data "aws_region" "current" {}

@@ -43,3 +43,21 @@ output "ecr_repository_url" {
 output "ecr_repository_arn" {
   value = module.ecr.repository_arn
 }
+
+output "cloudfront_distribution_id" {
+  description = "For cache invalidation: aws cloudfront create-invalidation --distribution-id <this>"
+  value       = module.frontend.distribution_id
+}
+
+output "cloudfront_distribution_arn" {
+  value = module.frontend.distribution_arn
+}
+
+output "cloudfront_domain_name" {
+  description = "The live HTTPS URL for the whole application (frontend + /api/* proxy to the ALB)."
+  value       = module.frontend.distribution_domain_name
+}
+
+output "frontend_bucket_name" {
+  value = module.frontend.bucket_name
+}
