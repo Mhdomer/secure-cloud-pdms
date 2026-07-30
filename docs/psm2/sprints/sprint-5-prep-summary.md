@@ -71,9 +71,15 @@ follow-up during spec review, not present in the original draft) and `publish-fr
 
 `modules/frontend`: private, KMS-encrypted, versioned S3 bucket; CloudFront with Origin Access
 Control (not a public bucket policy — confirmed via the AWS CloudFront skill that OAC, unlike the
-legacy OAI, supports SSE-KMS origins); SPA routing via `custom_error_response` (403 and 404, both →
-`index.html` at 200 — an OAC-fronted private bucket returns 403 for a missing key, not 404); the
-managed `SecurityHeadersPolicy` on the default behavior.
+legacy OAI, supports SSE-KMS origins); SPA routing via a CloudFront Function on the default behavior
+(extension-less URIs rewritten to `/index.html`); the managed `SecurityHeadersPolicy` on the default
+behavior.
+
+SPA routing was originally implemented with a `custom_error_response` pair (403 and 404 → 200
+`/index.html`) and replaced during the final whole-branch review: `custom_error_response` belongs to
+the distribution config as a whole, not to one behavior, so it also fired on the `/api/*` → ALB
+origin and rewrote every backend 403 (RBAC denial) and 404 into a 200 with an HTML body. A
+`function_association` is per-behavior and therefore cannot reach `/api/*` at all.
 
 **KMS**: the CloudFront service-principal grant in `modules/kms` is scoped via `aws:SourceAccount`
 (this account), not an exact distribution ARN — CloudFront distribution IDs are AWS-generated at
@@ -83,7 +89,7 @@ general service-usage statement, without fabricating a precision the module grap
 
 ---
 
-## Two items flagged during spec review, carried forward as still-open
+## Items flagged during spec review, carried forward as still-open
 
 Not fixed here — genuinely require a live account to resolve, consistent with this project's
 existing "verify empirically, don't assume" pattern from Sprint 4's own live-deployment bug list:
@@ -93,27 +99,39 @@ existing "verify empirically, don't assume" pattern from Sprint 4's own live-dep
    CloudTrail — that needed a dedicated `EncryptionContext` statement last time). Unverified until
    the first real `docker push`. If it fails with a KMS access-denied-style error, add a dedicated
    `AllowEcrUsage` statement to `modules/kms/main.tf` the same way the other three were added.
-2. **The `ssm:resourceTag/Name` condition** on the deploy role's `TriggerBackendRollout` statement
-   is unverified against a live `ssm:SendCommand` call until the first real rollout.
+2. **The `ssm:resourceTag/Name` condition** on the deploy role's tag-scoped `ssm:SendCommand`
+   statement is unverified against a live `ssm:SendCommand` call until the first real rollout. (The
+   statement has since been split in two — an unconditioned one for the `AWS-RunShellScript`
+   document, a tag-conditioned one for the instances — per AWS's documented Run Command tag pattern;
+   the condition itself is still unproven against a live call.)
+3. **`/health` does not prove the database is reachable.** `src/backend/src/app.js:26`'s `/health`
+   route returns 200 from the Node process alone — it never touches PostgreSQL. So `deploy.sh`'s
+   health-check-before-swap cannot catch a DB connectivity failure: a container with an unusable
+   database connection still passes the check and gets swapped in, and the deploy reports success
+   while every real API request 500s. This matters more now than it did, because this plan is what
+   turns on `DB_SSL=true` for the first time (local dev runs `DB_SSL=false`, so the TLS path had
+   never been exercised) — the RDS CA bundle now baked into the image
+   (`src/backend/Dockerfile` + `src/backend/src/config/database.js`) is itself unverified against a
+   live RDS endpoint. The real fix is a deeper readiness route (`/health/ready` doing a `SELECT 1`)
+   wired to the ALB target group's `health_check_path`; that is out of this plan's scope to build,
+   and is flagged here as still open the same way the WAF and CloudFront-access-logging gaps are.
 
 ---
 
-## Two Minor findings, deferred (not fixed) during task review
+## Two Minor findings deferred during task review — both since fixed
 
-Both real, both disclosed during execution, neither blocking:
+Both were disclosed during execution and closed in the final whole-branch review fix wave:
 
-1. `modules/ec2/main.tf`'s `aws_autoscaling_group.app` `wait_for_capacity_timeout` comment is now
-   stale — it still says the instance's `user_data` "only bootstraps Docker," which was true before
-   Task 4 but no longer is (it now also pulls and runs the backend image). Functionally harmless:
-   `image_tag` starts at `"none"` until the first real CI deploy writes a real tag, so the
-   `timeout = 0` setting the comment is attached to is still the correct value — only the comment's
-   explanation of *why* is out of date. Misleading to a future reader; candidate for a follow-up
-   one-line fix.
-2. `deploy.yml`'s rollout-wait loop silently reports success if `aws ec2 describe-instances` returns
-   zero running instances matching the target tag — the `for` loop body simply never executes and
-   the step exits 0, rather than failing loudly on "found nothing to wait for." Inherited from the
-   plan's own design, not an implementer deviation; worth hardening before this workflow is trusted
-   unattended.
+1. `modules/ec2/main.tf`'s `aws_autoscaling_group.app` `wait_for_capacity_timeout` comment was stale
+   — it still said the instance's `user_data` "only bootstraps Docker," which stopped being true at
+   Task 4 (it now also pulls and runs the backend image). Comment rewritten to describe the actual
+   current reason `"0"` is still correct (`image_tag` starts at `"none"`, so nothing ever starts and
+   nothing can pass the ELB health check yet). The same review also raised
+   `health_check_grace_period` from 60s to 600s — 60s was set when boot did nothing, and would now
+   terminate instances mid-boot once a real image tag exists.
+2. `deploy.yml`'s rollout-wait loop silently reported success if `aws ec2 describe-instances`
+   returned zero running instances matching the target tag — the `for` loop body simply never
+   executed and the step exited 0. It now fails explicitly on an empty instance list.
 
 ---
 

@@ -19,6 +19,18 @@ COPY --from=build /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
 
+# Amazon RDS regional CA bundle. Node's own bundled trust store does not
+# include RDS's CA (rds-ca-rsa2048-g1 chains to a private AWS root), so
+# src/config/database.js's ssl.rejectUnauthorized = true would reject
+# every connection without this. Only read when DB_SSL=true — i.e. in the
+# deployed container (modules/ec2/templates/deploy.sh.tpl sets it); local
+# dev runs with DB_SSL=false and never touches this file.
+# ADD with a URL needs no curl/wget installed in the image. --chmod=644 is
+# required, not cosmetic: a URL-sourced ADD lands as root-owned mode 600
+# (Dockerfile reference, "Adding files from a URL"), which the non-root
+# pdms user below could not read.
+ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/rds-global-bundle.pem
+
 USER pdms
 
 EXPOSE 5000

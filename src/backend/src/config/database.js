@@ -1,7 +1,16 @@
 'use strict';
 
+const fs = require('fs');
 const { Pool } = require('pg');
 const logger = require('./logger');
+
+// Amazon RDS's regional CA (rds-ca-rsa2048-g1) chains to a private AWS
+// root that is NOT in Node's bundled trust store, so rejectUnauthorized:
+// true alone would fail every connection. src/backend/Dockerfile fetches
+// the global bundle to this path at image build time. Read lazily and only
+// when DB_SSL=true, so local dev (DB_SSL=false, no bundle on disk) is
+// unaffected.
+const RDS_CA_BUNDLE_PATH = '/app/rds-global-bundle.pem';
 
 const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'];
 for (const key of requiredEnvVars) {
@@ -20,7 +29,13 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   // rds.force_ssl = 1 is enforced server-side (Chapter 4 §4.3.8.5); the
   // client must also request SSL or the connection is rejected outright.
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : false,
+  ssl:
+    process.env.DB_SSL === 'true'
+      ? {
+        rejectUnauthorized: true,
+        ca: fs.readFileSync(RDS_CA_BUNDLE_PATH).toString(),
+      }
+      : false,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
