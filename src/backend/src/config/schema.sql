@@ -306,7 +306,6 @@ CREATE INDEX IF NOT EXISTS idx_patient_invoices_category ON patient_invoices(cat
 -- Scale-proofing indexes for dashboard queries and patient vitals lookups
 CREATE INDEX IF NOT EXISTS idx_medical_records_patient_latest ON medical_records (patient_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_appointments_scheduled_at ON appointments (scheduled_at);
-CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_doctors_is_active ON doctors (is_active);
 
 -- ── lab_results ──────────────────────────────────────────────────────────────
@@ -389,7 +388,32 @@ CREATE INDEX IF NOT EXISTS idx_medical_records_patient_id  ON medical_records(pa
 CREATE INDEX IF NOT EXISTS idx_appointments_doctor_slot    ON appointments(doctor_id, scheduled_at) WHERE status = 'scheduled';
 CREATE INDEX IF NOT EXISTS idx_appointments_patient_id     ON appointments(patient_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_user_id           ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp         ON audit_log(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_availability_doctor          ON doctor_availability(doctor_id);
+
+-- ── visits (CREATE TABLE only — see the "visits" section further down for
+-- its indexes, grant, and later column additions) ───────────────────────
+-- Walk-in patient encounters. NOT the same as appointments (which are
+-- pre-booked slots for dentistry/dermatology). This is the first-come
+-- first-served flow for general medicine, pediatrics, lab, etc. Moved here,
+-- ahead of its own full section below, because several RLS policies in the
+-- section immediately following this one subquery visits(patient_id,
+-- doctor_id) — the table has to exist before those policies are defined,
+-- and its FKs (patients, doctors, users) are all already available by this
+-- point in the file.
+CREATE TABLE IF NOT EXISTS visits (
+  visit_id      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id    UUID        NOT NULL REFERENCES patients(patient_id)  ON DELETE RESTRICT,
+  doctor_id     UUID        NOT NULL REFERENCES doctors(doctor_id)    ON DELETE RESTRICT,
+  queue_no      INTEGER     NOT NULL,
+  clinic        VARCHAR(50),
+  status        VARCHAR(20) NOT NULL DEFAULT 'waiting'
+                  CHECK (status IN ('waiting','in_progress','completed','billed')),
+  notes         TEXT,
+  checked_in_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at  TIMESTAMPTZ,
+  created_by    UUID        REFERENCES users(user_id) ON DELETE SET NULL
+);
 
 -- ── Row-Level Security ───────────────────────────────────────────────────
 -- Session variables set per request by src/config/database.js#withTransaction:
@@ -830,23 +854,11 @@ ALTER TABLE clinic_services DROP CONSTRAINT IF EXISTS clinic_services_category_f
 ALTER TABLE clinic_services ADD CONSTRAINT clinic_services_category_fkey
   FOREIGN KEY (category) REFERENCES departments(key);
 
--- ── visits ────────────────────────────────────────────────────────────────
--- Walk-in patient encounters. NOT the same as appointments (which are
--- pre-booked slots for dentistry/dermatology). This is the first-come
--- first-served flow for general medicine, pediatrics, lab, etc.
-CREATE TABLE IF NOT EXISTS visits (
-  visit_id      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  patient_id    UUID        NOT NULL REFERENCES patients(patient_id)  ON DELETE RESTRICT,
-  doctor_id     UUID        NOT NULL REFERENCES doctors(doctor_id)    ON DELETE RESTRICT,
-  queue_no      INTEGER     NOT NULL,
-  clinic        VARCHAR(50),
-  status        VARCHAR(20) NOT NULL DEFAULT 'waiting'
-                  CHECK (status IN ('waiting','in_progress','completed','billed')),
-  notes         TEXT,
-  checked_in_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at  TIMESTAMPTZ,
-  created_by    UUID        REFERENCES users(user_id) ON DELETE SET NULL
-);
+-- visits' CREATE TABLE itself now lives earlier in this file, right before
+-- the "Row-Level Security" section — several RLS policies there subquery
+-- visits (patient_id, doctor_id), so the table has to exist before those
+-- policies are defined. Its indexes, grant, and later column additions stay
+-- here since none of those are needed for the RLS policies to compile.
 
 CREATE INDEX IF NOT EXISTS idx_visits_patient ON visits(patient_id);
 CREATE INDEX IF NOT EXISTS idx_visits_doctor  ON visits(doctor_id);
