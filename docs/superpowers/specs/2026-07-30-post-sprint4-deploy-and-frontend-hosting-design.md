@@ -291,3 +291,22 @@ credentials needed for `validate`; `plan` needs credentials but not apply-level 
 Anything that actually provisions or tears down real AWS resources (a live `terraform apply`, live
 `terraform destroy`, an actual GitHub Actions run against `deploy.yml`) requires explicit sign-off
 first, per this task's own constraints.
+
+## Two items carried into the implementation plan (approved with these noted, not blockers)
+
+1. **The ECR KMS assumption ("plain `AllowServiceUsage` grant is sufficient, ECR isn't one of the
+   three services that needed an EncryptionContext statement") is an inference, not something
+   verified against a live account.** Given this exact project's track record — CloudWatch Logs,
+   SNS, and CloudTrail all independently turned out to need service-specific KMS statements nobody
+   predicted before testing live (Sprint 4's live-deployment pass) — treat this as unverified until
+   the first live apply actually exercises a `docker push` to the new repo. If it fails with an
+   access-denied-style KMS error, add a dedicated `AllowEcrUsage` statement to `modules/kms/main.tf`
+   the same way the three earlier ones were added: find the exact error, consult ECR's own KMS
+   documentation, add the minimal statement that fixes it, document why in the same comment style.
+2. **The CI-side polling loop for `aws ssm get-command-invocation` (in `publish-backend-image`)
+   needs an explicit timeout**, not specified in this doc. Without one, a hung `deploy.sh` on the
+   instance side means an unbounded poll — a GitHub Actions job stuck burning CI minutes instead of
+   failing loudly, which is inconsistent with every other gate in this pipeline (Sonar, Trivy,
+   Checkov, `terraform apply` all fail fast, none hang indefinitely). The implementation plan must
+   pick a concrete bound (a `timeout-minutes` on the step, and/or a bounded retry-count in the
+   polling loop itself) and fail the job on expiry.
