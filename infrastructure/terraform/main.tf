@@ -68,6 +68,7 @@ module "security" {
   environment  = var.environment
   vpc_id       = module.vpc.vpc_id
   app_port     = var.app_port
+  enable_https = var.enable_https
   tags         = local.common_tags
 }
 

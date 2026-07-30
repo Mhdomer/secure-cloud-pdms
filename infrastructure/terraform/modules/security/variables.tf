@@ -22,6 +22,11 @@ variable "db_port" {
   default     = 5432
 }
 
+variable "enable_https" {
+  description = "Mirrors the project-level enable_https override (infrastructure/terraform/variables.tf) — gates the alb-sg :443 ingress rule, since modules/alb's aws_lb_listener.https only exists when this is true and nothing listens on 443 otherwise. This module only consumes the decision, it never sets its own independent default."
+  type        = bool
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

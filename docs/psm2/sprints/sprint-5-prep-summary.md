@@ -115,6 +115,18 @@ existing "verify empirically, don't assume" pattern from Sprint 4's own live-dep
    live RDS endpoint. The real fix is a deeper readiness route (`/health/ready` doing a `SELECT 1`)
    wired to the ALB target group's `health_check_path`; that is out of this plan's scope to build,
    and is flagged here as still open the same way the WAF and CloudFront-access-logging gaps are.
+4. **The SPA-routing CloudFront Function keys off "does the URI contain a dot".**
+   `modules/frontend`'s `aws_cloudfront_function.spa_fallback` rewrites any request whose URI has no
+   `.` in it to `/index.html`, which is the standard heuristic for separating client-side routes from
+   static asset requests. It has one edge: a client-side route with a literal dot in a path segment
+   (something shaped like `/patients/j.doe`) would be read as a file request and served from S3,
+   which returns 403 for a missing key instead of falling through to `index.html`. No route in
+   `src/frontend` has that shape today, and that holds structurally rather than by luck: the only five
+   path parameters in the whole route table are `:doctorId` / `:patientId` / `:recordId` / `:visitId`,
+   all `UUID PRIMARY KEY DEFAULT gen_random_uuid()` columns in `schema.sql`, and `:slug`, which
+   `departmentsController.slugify()` builds with `.replace(/[^a-z0-9]+/g, '_')` — a dot cannot survive
+   either one. So this is a latent constraint on future routing, not a live bug. Worth remembering if a
+   route ever starts taking a filename, email address, or version string as a path segment.
 
 ---
 

@@ -60,17 +60,29 @@ resource "aws_security_group" "rds" {
 # src/backend/src/utils/corsValidator.js deliberately allows, for
 # non-browser clients).
 #
-# DEPLOYMENT PREREQUISITE: the CloudFront managed prefix list has a
-# "weight" of 55 — it counts as 55 rules against the security group's
-# rules quota, whose AWS default is 60 per security group ("AWS-managed
-# prefix list weight", Amazon VPC User Guide). The two ingress rules below
-# therefore count as 110 and need a Service Quotas increase on
-# "Inbound or outbound rules per security group" before this module can
-# apply. AWS's documented alternative, if that increase is not granted, is
-# to open only one of the two ports and pin the CloudFront origin protocol
-# policy to match (modules/frontend's custom_origin_config already follows
-# var.enable_https, so exactly one of these two ports is ever actually used
-# at a time).
+# BEFORE YOU FLIP enable_https TO true, REQUEST A QUOTA INCREASE FIRST.
+# The CloudFront managed prefix list has a "weight" of 55: each rule that
+# references it counts as 55 rules against the security group's rules
+# quota, whose AWS default is 60 per security group ("AWS-managed prefix
+# list weight", Amazon VPC User Guide).
+#
+#   enable_https = false (today): only the :80 rule exists — the :443 rule
+#   below is gated off by count, because modules/alb's
+#   aws_lb_listener.https doesn't exist either and nothing listens on 443.
+#   Weight 55 of 60. No quota action needed.
+#
+#   enable_https = true: both rules exist at once. Weight 110 of 60, and
+#   `terraform apply` fails with a rules-per-security-group limit error.
+#   Request a Service Quotas increase on "Inbound or outbound rules per
+#   security group" to at least 110 in ap-southeast-1 and wait for it to be
+#   granted BEFORE applying that flip — same class of pre-apply prerequisite
+#   as having a real issued ACM certificate (see
+#   infrastructure/terraform/variables.tf's enable_https comment).
+#
+# Port 80's rule is deliberately NOT gated: it is always active, either as
+# the redirect-to-443 listener (aws_lb_listener.http_redirect when
+# enable_https = true) or as the direct app-forward listener
+# (aws_lb_listener.http_forward when enable_https = false).
 ########################################
 
 data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
@@ -78,6 +90,11 @@ data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "alb_https" {
+  # Only exists when there is an HTTPS listener to reach — see the
+  # prefix-list weight note above for why this gating is load-bearing and
+  # not just tidiness.
+  count = var.enable_https ? 1 : 0
+
   security_group_id = aws_security_group.alb.id
   description       = "HTTPS from CloudFront origin-facing servers only (AWS managed prefix list) - not the open internet"
   prefix_list_id    = data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id
