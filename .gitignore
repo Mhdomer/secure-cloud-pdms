@@ -39,6 +39,9 @@ tfplan*
 .vscode/settings.json
 .idea/
 
+# Superpowers subagent-driven-development scratch (ledgers, briefs, reports)
+.superpowers/
+
 # Local reference files — keep off remote
 docs/references/Final Report Ammar yasser.pdf
 docs/references/mindcraft refrence files/
