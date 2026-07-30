@@ -130,6 +130,102 @@ existing "verify empirically, don't assume" pattern from Sprint 4's own live-dep
 
 ---
 
+## Final whole-branch review — found and fixed 3 Critical, 4 Important cross-task defects
+
+Every one of the 9 tasks above was individually implemented and reviewed clean against its own diff.
+A final whole-branch review (reading the entire ~94KB diff at once, on the most capable available
+model) then caught defects that only exist as an interaction *between* two tasks' work — invisible to
+any single task's own review because neither half of the problem was in that task's diff. All were
+fixed in one consolidated pass and independently re-verified (re-run `terraform validate`/`fmt`/
+`checkov`, not just re-reading the fix):
+
+- **CloudFront's `custom_error_response` is distribution-wide, not per-behavior** (see "Frontend
+  hosting" above) — silently rewrote every backend 403/404 into a 200. Fixed with a CloudFront
+  Function scoped to only the default (S3) behavior.
+- **The CI deploy role had runtime IAM (ECR push, CloudFront invalidate, SSM read/write) but no
+  *management* IAM** — nothing let `terraform apply` actually create the ECR repository, the
+  CloudFront distribution, or the new SSM parameters. `terraform-apply` would have AccessDenied on
+  its first real run. Fixed by adding `ManageProjectEcr`/`ManageProjectCloudFront`/
+  `ManageProjectSsmParameters` statements to the deploy role (`modules/github-oidc/main.tf`) — the
+  same pattern already used for KMS/S3/RDS/Logs/SNS/CloudTrail in that file. This also incidentally
+  closed a pre-existing gap: the deploy role never had SSM management permission for `modules/rds`'s
+  own `/pdms/prod/db/*` parameters either (Sprint 4's live apply used operator credentials, so this
+  never surfaced).
+- **`health_check_grace_period = 60` was set when instance boot did nothing** (see the "Two Minor
+  findings" section below) — now that boot pulls and runs a real container, 60s isn't enough time and
+  the ASG would terminate instances mid-boot forever. Raised to 600.
+- **`ssm:SendCommand`'s tag condition was on the wrong resource** — a single IAM statement listed both
+  the `AWS-RunShellScript` document and the tagged EC2 instances under one tag-based condition; AWS's
+  own documentation for this exact pattern requires two separate statements (the document
+  unconditioned, the instances tag-conditioned), because the document itself carries no tag and fails
+  the same condition. Split into two statements.
+- **`DB_SSL=true` is turned on for the first time by this plan** (local dev always runs
+  `DB_SSL=false`), and Node's default trust store does not include RDS's regional CA — every DB
+  connection from the deployed container would likely have failed TLS verification. Fixed by bundling
+  RDS's global CA bundle into the Docker image and passing it as the `ca` option.
+- **The ALB was still fully open to the internet on both ports**, bypassing CloudFront (and its
+  future-facing WAF-consolidation potential) entirely, undermining the "one HTTPS origin" premise this
+  whole plan is built on. Restricted to CloudFront's AWS-managed origin-facing IP prefix list. (This
+  surfaced its own follow-up: that prefix list has a documented AWS "weight" of 55 against a
+  security group's default 60-rule quota, so putting it on both the :80 and :443 rules
+  simultaneously — 110 — would itself have failed apply. Resolved by gating the :443 rule on
+  `var.enable_https`, since nothing listens on 443 while it's `false`; a Service Quotas increase to
+  ≥110 becomes a real prerequisite whenever `enable_https` is flipped to `true`, alongside its other
+  already-documented prerequisites in `infrastructure/terraform/variables.tf`.)
+- **Unquoted bash array expansion** (`deploy.sh.tpl`) — `modules/rds`'s generated master password's
+  character set includes glob metacharacters (`*?[]`), and an unquoted `${ENV_ARGS[@]}` is subject to
+  pathname expansion. Quoted.
+
+Plus 8 Minor fixes bundled into the same pass: a guard against re-running a failed `publish-backend-image`
+job into ECR's `IMMUTABLE`-tag conflict, a corrected (less overclaiming) comment on what Trivy actually
+scanned versus what gets pushed, documentation of why three separate GitHub `production` environment
+approvals are expected per merge (not a broken pipeline), removing two more hardcoded literals from
+`deploy.yml` in favor of Terraform outputs, reordering the frontend's S3 sync so a browser is never
+served a stale `index.html` referencing already-deleted chunks, a `flock` guard against concurrent
+`deploy.sh` invocations, explicit failure handling on `deploy.sh`'s six SSM parameter reads, and fixing
+the zero-instances silent-success case described below.
+
+**Residual Minor findings from the re-review of this fix wave** (checked, judged non-blocking, not
+further looped on — consistent with this plan's "don't chase every finding to zero, adjudicate and
+move on" discipline):
+- `ssm:DescribeParameters` has no resource-level ARN in the AWS API; the new ARN-scoped
+  `ManageProjectSsmParameters` statement may not actually grant it, and Terraform's own
+  `aws_ssm_parameter` read path calls `DescribeParameters` to populate several attributes — so
+  `terraform apply` could still AccessDeny on this specific call despite the fix above. Unverifiable
+  without a live apply; if it happens, the fix is a fourth statement granting `ssm:DescribeParameters`
+  on `Resource: "*"` (same documented API-limitation shape as this file's other wildcard statements).
+- The ALB-lockdown fix narrows the bypass but doesn't fully close it: CloudFront's managed
+  origin-facing prefix list is shared by every AWS customer's CloudFront distributions, so the
+  residual risk becomes "someone else's CloudFront distribution fronts your ALB DNS name" rather than
+  a full close. AWS's documented complete fix is a secret custom origin header validated at the ALB
+  (or moving to VPC origins) — a real hardening step, out of this plan's scope.
+- The new `flock` guard around `deploy.sh` (preventing the boot-time and CI-triggered invocations from
+  racing) has a narrow window where a CI-triggered run can report success while the boot-time run
+  (which read `image_tag` slightly earlier) is what actually won the lock — a "green pipeline, one
+  instance quietly still on the previous tag" outcome. The no-lock alternative (two invocations racing
+  on the same container name) was strictly worse; this is a known, accepted trade rather than a full
+  fix.
+- The `docker manifest inspect` re-run guard assumes the GitHub Actions runner's Docker CLI has
+  experimental commands enabled; if not, the guard silently falls through to the old push behavior
+  (safe direction — the push still happens — just without the intended re-run protection).
+
+### Blocking gap found during this review, NOT fixed here — out of this plan's scope
+
+**The CI deploy role has zero `wafv2:*` IAM permission anywhere, but `modules/alb` (untouched by any
+of this plan's 9 tasks or its fix wave) creates `aws_wafv2_web_acl.alb`, its association, and its
+logging configuration.** This is the *exact same failure class* the deploy-role IAM fix above just
+closed for ECR/CloudFront/SSM — `terraform apply` under the deploy role will AccessDeny on these three
+WAF resources on the next real run. It surfaced only as a byproduct of this review's rigor; `modules/alb`
+was never in scope for any task in this plan, so it wasn't fixed here rather than being silently
+patched outside the plan's stated boundaries. **Needs its own small IAM fix (add a `wafv2:*`
+statement to the deploy role, scoped to the WAF ACL's resources, following the same pattern as the ECR/
+CloudFront/SSM statements above) before the next live `terraform apply` is attempted.** A related,
+smaller issue: the WAF's CloudWatch log group is named `aws-waf-logs-pdms-prod` (AWS mandates that
+literal prefix), but the existing `ManageProjectLogs` statement is scoped to `log-group:/pdms/prod*` —
+never matches, same root cause.
+
+---
+
 ## Two Minor findings deferred during task review — both since fixed
 
 Both were disclosed during execution and closed in the final whole-branch review fix wave:
@@ -150,14 +246,31 @@ Both were disclosed during execution and closed in the final whole-branch review
 ## Security gate
 
 ```
-checkov -d infrastructure/terraform --framework terraform
+checkov -d infrastructure/terraform --framework terraform (after Tasks 1-9)
   → Passed checks: 404, Failed checks: 1, Skipped checks: 45
 
-terraform plan (Task 6, full stack, against the live account) → 0 errors, 125 to add / 0 to change / 0 to destroy
+checkov -d infrastructure/terraform --framework terraform (after the final-review fix wave)
+  → Passed checks: 399, Failed checks: 1, Skipped checks: 45
+
+terraform plan (Task 6, full stack, against the live account, before the fix wave) → 0 errors, 125 to add / 0 to change / 0 to destroy
 ```
 
-The single failed check is `CKV_AWS_252` on `module.cloudtrail.aws_cloudtrail.main` — pre-existing,
-predating this plan's first task, and unrelated to any of this plan's work.
+The passed-check count drops from 404 to 399 solely because the ALB's `:443` security-group ingress
+rule now only exists when `enable_https = true` (see the SG-quota fix above) — with `enable_https`
+at its current default of `false`, that rule (and the 5 checks that used to run against it) simply
+doesn't exist to check. Verified directly: temporarily forcing the rule's `count` back to `1` during
+review reproduced exactly 404/1/45 again.
+
+The single failed check, in both runs, is `CKV_AWS_252` on `module.cloudtrail.aws_cloudtrail.main` —
+pre-existing, predating this plan's first task, and unrelated to any of this plan's work.
+
+**`terraform plan` was re-run against the fixed code** (same read-only, no-sign-off-needed basis as
+Task 6) and still shows **0 errors, 125 to add / 0 to change / 0 to destroy** — the same total as
+before the fix wave, which checks out arithmetically: the fix wave added one resource
+(`aws_cloudfront_function.spa_fallback`) and removed one from the current plan (the ALB's `:443`
+security-group rule, now `count = 0` while `enable_https = false`), a net wash. New outputs
+`ec2_instance_tag_name` (`"pdms-prod-app"`) and `ssm_app_parameter_prefix` (`"/pdms/prod/app"`) —
+added by the fix wave's M4 — both resolve correctly.
 
 **Task 6 note**: unlike Tasks 1–5, 7, and 8, Task 6 (the full-stack `terraform plan` above) was run
 directly by the controller rather than through the usual implementer/reviewer subagent loop — it's
@@ -177,9 +290,14 @@ the next step, pending that sign-off.
   `infrastructure/terraform/modules/ec2/templates/`
 - Modified: `infrastructure/terraform/modules/ec2/{main,variables}.tf`,
   `infrastructure/terraform/modules/github-oidc/{main,variables}.tf`,
-  `infrastructure/terraform/modules/kms/main.tf`, `infrastructure/terraform/{main,variables,outputs}.tf`
+  `infrastructure/terraform/modules/kms/main.tf`,
+  `infrastructure/terraform/modules/security/{main,variables}.tf` (final-review fix wave —
+  CloudFront prefix-list ingress lockdown),
+  `infrastructure/terraform/{main,variables,outputs}.tf`
 - Modified: `.github/workflows/deploy.yml`, `.github/workflows/security-scan.yml` (comment only)
 - Modified: `.github/workflows/README.md`, `infrastructure/terraform/README.md`, `CLAUDE.md`
+- Modified (final-review fix wave, application code — see I2 above): `src/backend/Dockerfile`,
+  `src/backend/src/config/database.js`
 
 ---
 
