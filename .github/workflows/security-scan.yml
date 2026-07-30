@@ -81,7 +81,18 @@ jobs:
           tags: pdms-backend:${{ github.sha }}
 
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@v0.28.0
+        # v0.28.0 pinned aquasecurity/setup-trivy@v0.2.1 internally, a tag
+        # that no longer exists in that repo (confirmed via the GitHub API —
+        # only v0.2.6+ remain, apparently removed in an upstream
+        # supply-chain-hardening pass). That made every real run of this
+        # step fail at trivy-action's own "Install Trivy" composite step,
+        # before Trivy itself ever ran — first surfaced 2026-07-30 by the
+        # first actual GitHub Actions run of this pipeline (checkov and
+        # local checks can't catch a dead upstream action pin). v0.32.0+
+        # pins its setup-trivy dependency by commit hash instead of a tag,
+        # specifically to make this class of failure impossible going
+        # forward; v0.36.0 was the latest available at the time of this fix.
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: pdms-backend:${{ github.sha }}
           format: table
