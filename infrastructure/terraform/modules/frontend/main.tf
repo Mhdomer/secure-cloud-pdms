@@ -20,11 +20,17 @@ resource "aws_s3_bucket" "frontend" {
   # checkov:skip=CKV_AWS_18: Bucket is private (block_public_acls/policy
   # below) and readable only by the CloudFront service principal via OAC
   # (see aws_s3_bucket_policy.frontend's AllowCloudFrontServicePrincipalReadOnly
-  # statement) — every request is already a CloudFront-origin read, so S3
-  # server-access-logging here would just duplicate what CloudFront's own
-  # request path already sees, not add new visibility. CloudTrail's
-  # management-events trail covers configuration-level access to the
-  # bucket itself.
+  # statement). Skipped as a low-value target for this FYP pilot, not
+  # because some other layer already provides equivalent visibility —
+  # this bucket holds only public, non-sensitive static build artifacts
+  # (the compiled React app; no PHI, no credentials, no per-user data), so
+  # request-level object-read logging has little security value here.
+  # This is a genuine observability gap, not a duplicate: CloudFront
+  # access logging on this same distribution is also skipped (see
+  # CKV_AWS_86 below, for unrelated cost/ACL reasons), and CloudTrail's
+  # management-events trail only covers bucket-level control-plane calls
+  # (e.g. PutBucketPolicy, CreateBucket) — it does not capture
+  # object-level GetObject reads either way.
   # checkov:skip=CKV_AWS_144: Cross-region replication is out of scope for
   # this single-region (ap-southeast-1) pilot deployment (Table 3.5, <=50
   # concurrent users) — same rationale as modules/alb/main.tf and
