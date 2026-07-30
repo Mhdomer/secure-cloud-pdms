@@ -198,7 +198,11 @@ resource "aws_cloudfront_function" "spa_fallback" {
   name    = "${var.project_name}-${var.environment}-spa-fallback"
   runtime = "cloudfront-js-2.0"
   publish = true
-  comment = "Rewrites any request with no file extension to /index.html for client-side routing (react-router). Attached only to the default (S3/frontend) behavior — never /api/*, since function_association is per-behavior, unlike the custom_error_response this replaces (which was distribution-wide and silently rewrote every backend 403/404 into a 200)."
+  # CloudFront's own Comment field caps at 128 chars (confirmed live —
+  # the original, more detailed wording here failed CreateFunction with
+  # "InvalidArgument: The parameter Comment is too big"). Full rationale
+  # lives in the header comment above instead, which has no such limit.
+  comment = "SPA fallback: rewrites extension-less URIs to /index.html. Default (S3) behavior only, never /api/*."
   code    = <<-JS
     function handler(event) {
       var uri = event.request.uri;
