@@ -78,9 +78,9 @@ resource "aws_iam_role_policy" "terraform_backend" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "TerraformStateObject"
-        Effect = "Allow"
-        Action = ["s3:GetObject", "s3:PutObject"]
+        Sid      = "TerraformStateObject"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject"]
         Resource = "arn:aws:s3:::${var.terraform_state_bucket}/${var.terraform_state_key}"
       },
       {
@@ -90,9 +90,9 @@ resource "aws_iam_role_policy" "terraform_backend" {
         Resource = "arn:aws:s3:::${var.terraform_state_bucket}"
       },
       {
-        Sid    = "TerraformStateLock"
-        Effect = "Allow"
-        Action = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
+        Sid      = "TerraformStateLock"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
         Resource = "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${var.terraform_lock_table}"
       },
     ]
@@ -148,6 +148,14 @@ resource "aws_iam_role_policy" "manage_project_resources" {
         Resource = [
           "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/${var.project_name}/${var.environment}*",
           "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/${var.project_name}/${var.environment}*:*",
+          # modules/alb's WAF log group must start with AWS's mandated
+          # "aws-waf-logs-" prefix, so it can never match the
+          # /${project}/${environment}* pattern above no matter how that
+          # wildcard is placed — a genuinely different naming scheme, not
+          # an oversight in the pattern itself. Same discovery pass as
+          # ManageProjectWaf below.
+          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:aws-waf-logs-${var.project_name}-${var.environment}*",
+          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:aws-waf-logs-${var.project_name}-${var.environment}*:*",
         ]
       },
       {
@@ -240,6 +248,28 @@ resource "aws_iam_role_policy" "manage_project_resources" {
         # live apply used operator credentials, not this role, so the gap
         # never surfaced) and this plan's new /pdms/prod/app/* parameters.
       },
+      {
+        # checkov:skip=CKV_AWS_355: wafv2:Create*/Update* actions have no
+        # resource-level ARN (same category of AWS API gap as
+        # ManageProjectComputeNetworking above — Create actions can't be
+        # scoped to the ARN of a resource that doesn't exist yet).
+        # checkov:skip=CKV_AWS_356: same false positive as CKV_AWS_355 — the
+        # access boundary for this role is the OIDC trust condition, not a
+        # resource-ARN restriction these specific Create/Update APIs don't
+        # offer.
+        Sid      = "ManageProjectWaf"
+        Effect   = "Allow"
+        Action   = ["wafv2:*"]
+        Resource = "*"
+        # modules/alb creates aws_wafv2_web_acl.alb, its association to the
+        # ALB, and its CloudWatch logging configuration — none of which this
+        # role had any permission for until this statement. Predates this
+        # plan's own 9 tasks (modules/alb was never touched by any of them);
+        # found live via the first real terraform-apply attempt reaching
+        # this far (2026-07-30) after every other gate finally passed,
+        # exactly the class of gap ManageProjectEcr/CloudFront/SsmParameters
+        # above already closed for ECR/CloudFront/SSM.
+      },
     ]
   })
 }
@@ -256,8 +286,8 @@ locals {
   # exact other roles this stack creates closes that path structurally:
   # the deploy role is never a member of the set it's permitted to manage.
   other_project_role_names = [
-    "${var.project_name}-${var.environment}-ec2-role",              # modules/ec2
-    "${var.project_name}-${var.environment}-rds-monitoring-role",   # modules/rds
+    "${var.project_name}-${var.environment}-ec2-role",               # modules/ec2
+    "${var.project_name}-${var.environment}-rds-monitoring-role",    # modules/rds
     "${var.project_name}-${var.environment}-cloudtrail-cwlogs-role", # modules/cloudtrail
   ]
   other_project_role_arns = [
