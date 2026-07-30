@@ -762,7 +762,7 @@ CLOUDFRONT_ORIGIN="${cloudfront_origin}"
 
 log() { echo "[deploy.sh] $*"; }
 
-IMAGE_TAG=$(aws ssm get-parameter --region "$AWS_REGION" --name "$SSM_APP_PREFIX/image_tag" --query 'Parameter.Value' --output text)
+IMAGE_TAG=$(aws ssm get-parameter --region "$AWS_REGION" --name "$SSM_APP_PREFIX/image_tag" --with-decryption --query 'Parameter.Value' --output text)
 
 if [ "$IMAGE_TAG" = "none" ] || [ -z "$IMAGE_TAG" ]; then
   log "No image deployed yet (image_tag=none) — nothing to do."
@@ -916,10 +916,21 @@ resource "aws_ssm_parameter" "jwt_secret" {
 }
 
 resource "aws_ssm_parameter" "image_tag" {
-  name  = "${var.ssm_app_parameter_prefix}/image_tag"
-  type  = "String"
-  value = "none"
-  tags  = var.tags
+  # SecureString, not plain String, even though a git-sha tag isn't a
+  # secret — matches modules/rds's own established convention (host/port/
+  # dbname are SecureString there too, none of them individually secret
+  # either). Found during Task 4's implementation: checkov's CKV2_AWS_34
+  # flags plain-String SSM parameters as unencrypted, and the honest fix is
+  # consistency with the precedent already set elsewhere in this repo, not
+  # a skip comment. Both consuming IAM roles already have the KMS
+  # permissions this requires for other reasons (EC2's existing
+  # DecryptSsmSecureStringsWithProjectCmk statement; the deploy role's
+  # existing ManageProjectKmsKey statement) — this costs no new IAM.
+  name   = "${var.ssm_app_parameter_prefix}/image_tag"
+  type   = "SecureString"
+  key_id = var.kms_key_arn
+  value  = "none"
+  tags   = var.tags
 
   lifecycle {
     ignore_changes = [value]
@@ -929,10 +940,11 @@ resource "aws_ssm_parameter" "image_tag" {
 # Read only by .github/workflows/deploy.yml (manual-rollback lever) — the
 # EC2 role below is deliberately not granted read access to this one.
 resource "aws_ssm_parameter" "previous_image_tag" {
-  name  = "${var.ssm_app_parameter_prefix}/previous_image_tag"
-  type  = "String"
-  value = "none"
-  tags  = var.tags
+  name   = "${var.ssm_app_parameter_prefix}/previous_image_tag"
+  type   = "SecureString"
+  key_id = var.kms_key_arn
+  value  = "none"
+  tags   = var.tags
 
   lifecycle {
     ignore_changes = [value]
@@ -1355,6 +1367,7 @@ In `.github/workflows/deploy.yml`, append after the closing of the existing `ter
         id: tf
         run: |
           echo "ecr_repository_url=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
+          echo "kms_key_arn=$(terraform output -raw kms_key_arn)" >> "$GITHUB_OUTPUT"
 
       - name: Log in to ECR
         run: |
@@ -1371,12 +1384,17 @@ In `.github/workflows/deploy.yml`, append after the closing of the existing `ter
         run: docker push "${{ steps.tf.outputs.ecr_repository_url }}:${{ github.sha }}"
 
       - name: Record previous tag and set new tag
+        # Both parameters are SecureString (Task 4 switched from plain String
+        # for consistency with modules/rds's own precedent — see that task's
+        # fix-round note) — every read/write needs --with-decryption /
+        # --key-id accordingly, not the plain form.
         env:
           SSM_APP_PREFIX: /pdms/prod/app
+          KMS_KEY_ARN: ${{ steps.tf.outputs.kms_key_arn }}
         run: |
-          CURRENT_TAG=$(aws ssm get-parameter --name "$SSM_APP_PREFIX/image_tag" --query 'Parameter.Value' --output text)
-          aws ssm put-parameter --name "$SSM_APP_PREFIX/previous_image_tag" --value "$CURRENT_TAG" --type String --overwrite
-          aws ssm put-parameter --name "$SSM_APP_PREFIX/image_tag" --value "${{ github.sha }}" --type String --overwrite
+          CURRENT_TAG=$(aws ssm get-parameter --name "$SSM_APP_PREFIX/image_tag" --with-decryption --query 'Parameter.Value' --output text)
+          aws ssm put-parameter --name "$SSM_APP_PREFIX/previous_image_tag" --value "$CURRENT_TAG" --type SecureString --key-id "$KMS_KEY_ARN" --overwrite
+          aws ssm put-parameter --name "$SSM_APP_PREFIX/image_tag" --value "${{ github.sha }}" --type SecureString --key-id "$KMS_KEY_ARN" --overwrite
 
       - name: Trigger rollout via SSM
         id: rollout
