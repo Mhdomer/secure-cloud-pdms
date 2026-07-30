@@ -220,6 +220,22 @@ resource "aws_iam_role_policy" "manage_project_resources" {
         Resource = "arn:aws:cloudtrail:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:trail/${var.project_name}-${var.environment}-*"
       },
       {
+        # checkov:skip=CKV_AWS_355: cloudtrail:DescribeTrails has no
+        # resource-level ARN in the AWS API — it's a describe-by-filter
+        # call, not a get-by-ARN one. AccessDenied confirmed live against
+        # this exact trail despite ManageProjectCloudTrail above already
+        # granting cloudtrail:* scoped to its ARN — same category of gap as
+        # DescribeProjectLogGroups/DescribeProjectRdsInstances elsewhere in
+        # this file. Found the same way: refreshing a fully-populated state
+        # is the first thing that ever exercises this specific API path
+        # under this role.
+        # checkov:skip=CKV_AWS_356: same false positive as CKV_AWS_355.
+        Sid      = "DescribeProjectCloudTrail"
+        Effect   = "Allow"
+        Action   = ["cloudtrail:DescribeTrails"]
+        Resource = "*"
+      },
+      {
         # checkov:skip=CKV_AWS_355: EC2/VPC (subnets, route tables, NAT/IGW,
         # NACLs, security groups, launch templates), Auto Scaling, and ELBv2
         # control-plane APIs overwhelmingly do not support resource-level
@@ -429,6 +445,30 @@ resource "aws_iam_role_policy" "manage_project_iam" {
         Effect   = "Allow"
         Action   = ["iam:GetOpenIDConnectProvider"]
         Resource = aws_iam_openid_connect_provider.github.arn
+      },
+      {
+        # This role's own aws_iam_role.deploy is itself a Terraform-managed
+        # resource, and refreshing it requires reading it back — AccessDenied
+        # confirmed live, since local.other_project_role_arns deliberately
+        # EXCLUDES this role's own ARN (see that local's comment: the whole
+        # point is that this role has no Allow-granted path to manage
+        # itself). This statement does not reopen that path: it grants only
+        # read actions (no Put/Attach/Update/Delete of any kind), scoped
+        # only to this exact role's own ARN, so it adds a way to read the
+        # role's current state without adding any way to change it — the
+        # actual self-escalation protections (ManageOtherProjectIamRoles
+        # excluding self, deny_self_trust_escalation's explicit Deny) are
+        # both completely unaffected by this.
+        Sid    = "ReadOwnRoleForRefresh"
+        Effect = "Allow"
+        Action = [
+          "iam:GetRole",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:ListAttachedRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+        ]
+        Resource = aws_iam_role.deploy.arn
       },
       {
         Sid      = "PassOtherProjectRolesToTheirOwningService"
