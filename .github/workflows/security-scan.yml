@@ -36,7 +36,14 @@ jobs:
           fetch-depth: 0 # SonarQube needs full git history for new-code/blame analysis
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v4
+        # v4 is EOL and flagged by GitHub as containing a known security
+        # vulnerability (confirmed via a live run, 2026-07-30 — GitHub's own
+        # runner annotation: "no longer supported and contains a security
+        # vulnerability... update to sonarsource/sonarqube-scan-action@v6").
+        # v8.2.1 was the latest available at the time of this fix; its
+        # action.yml interface (env-var driven, same sonar-project.properties
+        # convention) is unchanged from v4 for how this workflow uses it.
+        uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
