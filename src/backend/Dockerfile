@@ -13,7 +13,20 @@ WORKDIR /app
 
 # Non-root, non-login user — the container never runs as root, limiting
 # blast radius if the Node process is ever compromised (Chapter 4 §4.3.8.4).
-RUN addgroup -S pdms && adduser -S pdms -G pdms
+#
+# Also removes npm/npx, which are never invoked in this stage (CMD below
+# calls `node` directly, never `npm start`). This isn't just cleanup:
+# node:20-alpine's bundled npm ships its own copy of node-tar (currently
+# 6.2.1, at /usr/local/lib/node_modules/npm/node_modules/tar — confirmed by
+# pulling the actual image), which is where CVE-2026-59873 (CRITICAL)
+# showed up in a live Trivy scan on 2026-07-30. It's not in
+# package-lock.json anywhere — npm's internal tooling has nothing to do
+# with this application's own dependency tree — so removing npm/npx here
+# eliminates the CVE from the image at its actual source, instead of
+# suppressing a finding that isn't really about anything this container
+# runs.
+RUN addgroup -S pdms && adduser -S pdms -G pdms \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 COPY --from=build /app/node_modules ./node_modules
 COPY package.json ./
