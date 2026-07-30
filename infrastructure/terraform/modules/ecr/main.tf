@@ -1,8 +1,13 @@
 ########################################
-# ECR — backend container image repository. IMMUTABLE tags so the exact
-# image Trivy-scanned in CI (security-scan.yml's container-scan job) is the
-# exact image that ever gets pulled to an EC2 instance; a tag can never be
-# silently repointed after the fact. KMS-encrypted with the project CMK via
+# ECR — backend container image repository. IMMUTABLE tags so whatever is
+# pushed under a given tag is the only thing that tag ever resolves to — it
+# can never be silently repointed after the fact. Note what this does and
+# does not guarantee: security-scan.yml's container-scan job and deploy.yml's
+# publish-backend-image job each run their own `docker build`, so the image
+# pushed here is built from the same source and Dockerfile that were just
+# scanned, but is not bit-for-bit the same artifact Trivy inspected (the
+# node:20-alpine base layer could be re-pulled between the two builds).
+# KMS-encrypted with the project CMK via
 # the existing generic AllowServiceUsage statement in modules/kms —
 # ecr.amazonaws.com is not one of the three services (CloudWatch Logs, SNS,
 # CloudTrail) that turned out to need a dedicated EncryptionContext

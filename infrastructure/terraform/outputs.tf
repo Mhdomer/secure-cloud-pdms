@@ -25,6 +25,16 @@ output "ssm_db_credentials_path" {
   value       = local.ssm_db_prefix
 }
 
+output "ssm_app_parameter_prefix" {
+  description = "SSM Parameter Store path prefix for app runtime config (image_tag, previous_image_tag, jwt_secret). Read by .github/workflows/deploy.yml so the path is never hardcoded there."
+  value       = local.ssm_app_prefix
+}
+
+output "ec2_instance_tag_name" {
+  description = "The Name tag every ASG instance carries. Read by .github/workflows/deploy.yml as the ssm send-command / describe-instances target, so the tag is never hardcoded there."
+  value       = "${var.project_name}-${var.environment}-app"
+}
+
 output "monitoring_dashboard_name" {
   description = "CloudWatch dashboard name — failed logins, ALB 5xx rate, RDS CPU, CloudTrail volume."
   value       = module.monitoring.dashboard_name

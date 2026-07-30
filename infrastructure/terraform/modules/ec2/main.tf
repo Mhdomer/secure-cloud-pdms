@@ -260,24 +260,39 @@ resource "aws_launch_template" "app" {
 }
 
 resource "aws_autoscaling_group" "app" {
-  name                      = "${var.project_name}-${var.environment}-app-asg"
-  vpc_zone_identifier       = var.app_subnet_ids
-  target_group_arns         = [var.target_group_arn]
-  health_check_type         = "ELB"
-  health_check_grace_period = 60
+  name                = "${var.project_name}-${var.environment}-app-asg"
+  vpc_zone_identifier = var.app_subnet_ids
+  target_group_arns   = [var.target_group_arn]
+  health_check_type   = "ELB"
 
-  # TEMPORARY: no application is deployed to these instances yet — the
-  # launch template's user_data only bootstraps Docker, it doesn't pull/run
-  # the backend image (publishing to ECR + rolling out via SSM is a
-  # documented Sprint 4 follow-up, not yet built; see
-  # .github/workflows/README.md's "Deliberately out of scope" section).
-  # With health_check_type = "ELB" and no application listening on
-  # var.app_port, the ALB target group health check can never pass, so
-  # Terraform's default 10-minute capacity wait would time out on every
-  # single apply. Skipping that wait here reflects the actual current state
-  # honestly (instances launch but aren't yet serving traffic) rather than
-  # papering over it with a longer timeout that would fail anyway. Remove
-  # this once the app is actually deployed to the ASG.
+  # 600s, not the 60s this started at. Boot is no longer "install Docker
+  # and stop": user_data now runs dnf update -y, installs and starts
+  # Docker, reads six SSM parameters, does an ECR docker login, pulls a
+  # full image over the NAT Gateway, polls a candidate container for up to
+  # 30s, then swaps it in (see templates/deploy.sh.tpl). On a small
+  # instance type that is realistically several minutes. With
+  # health_check_type = "ELB", a 60s grace period would let the ASG mark
+  # instances unhealthy and terminate them mid-boot, so the fleet could
+  # never converge to healthy.
+  health_check_grace_period = 600
+
+  # Still "0" today, but for a narrower reason than this comment used to
+  # give. What is known to be true right now: aws_ssm_parameter.image_tag
+  # above is created with value "none" and only ever changed outside
+  # Terraform by .github/workflows/deploy.yml, so until the first real CI
+  # deploy runs, deploy.sh reads "none", no-ops, and no container is ever
+  # started — nothing can pass the ELB health check regardless of the
+  # grace period, and Terraform's default 10-minute capacity wait would
+  # time out on every apply. (The older claim that user_data "only
+  # bootstraps Docker" is no longer true — it does pull and run the
+  # backend image.)
+  #
+  # Once a real image tag has been deployed, instances are expected to
+  # come up healthy within the grace period above and this "0" could
+  # reasonably become a real wait. Whether it should is a live-behavior
+  # question — how long a first boot actually takes on this instance type
+  # has never been measured — so this is left as-is rather than guessed at,
+  # and is worth revisiting after the first real deploy.
   wait_for_capacity_timeout = "0"
 
   min_size         = var.min_size

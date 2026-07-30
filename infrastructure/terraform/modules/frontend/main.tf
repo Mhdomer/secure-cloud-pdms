@@ -177,6 +177,39 @@ data "aws_cloudfront_response_headers_policy" "security_headers" {
   name = "Managed-SecurityHeadersPolicy"
 }
 
+########################################
+# SPA routing — an OAC-fronted private bucket returns 403 (not 404) for a
+# missing key, so a hard refresh of a deep link (e.g. /patients/123) must
+# still be answered with index.html for client-side routing (react-router)
+# to take over.
+#
+# This is deliberately a CloudFront Function attached to ONE behavior, not
+# the distribution-wide custom_error_response pair it replaces.
+# custom_error_response is a member of the distribution config as a whole,
+# so it fired on errors from EVERY origin including the /api/* -> ALB
+# behavior: every backend 403 (src/backend/src/middleware/errorHandler.js's
+# RBAC-denial path) and every 404 (notFoundHandler) was silently rewritten
+# into a 200 with an HTML body, and src/frontend/src/lib/api.ts's axios
+# error handling never saw the real status code. function_association is
+# per-behavior, so this rewrite can never reach /api/* at all.
+########################################
+
+resource "aws_cloudfront_function" "spa_fallback" {
+  name    = "${var.project_name}-${var.environment}-spa-fallback"
+  runtime = "cloudfront-js-2.0"
+  publish = true
+  comment = "Rewrites any request with no file extension to /index.html for client-side routing (react-router). Attached only to the default (S3/frontend) behavior — never /api/*, since function_association is per-behavior, unlike the custom_error_response this replaces (which was distribution-wide and silently rewrote every backend 403/404 into a 200)."
+  code    = <<-JS
+    function handler(event) {
+      var uri = event.request.uri;
+      if (!uri.includes('.')) {
+        event.request.uri = '/index.html';
+      }
+      return event.request;
+    }
+  JS
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   # checkov:skip=CKV_AWS_86: Standard CloudFront access logging needs a
   # dedicated target bucket with S3 ACLs re-enabled for the
@@ -263,6 +296,14 @@ resource "aws_cloudfront_distribution" "frontend" {
     compress                   = true
     cache_policy_id            = data.aws_cloudfront_cache_policy.caching_optimized.id
     response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security_headers.id
+
+    # SPA fallback, scoped to this behavior only — see the
+    # aws_cloudfront_function.spa_fallback comment above for why this is
+    # not a distribution-level custom_error_response.
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_fallback.arn
+    }
   }
 
   # /api/* — CachingDisabled + AllViewer forwards cookies/headers/query
@@ -279,20 +320,10 @@ resource "aws_cloudfront_distribution" "frontend" {
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer.id
   }
 
-  # SPA routing — an OAC-fronted private bucket returns 403 (not 404) for
-  # a missing key, so both must map to index.html for client-side routing
-  # (react-router) to work on a hard refresh of a deep link.
-  custom_error_response {
-    error_code         = 403
-    response_code      = 200
-    response_page_path = "/index.html"
-  }
-
-  custom_error_response {
-    error_code         = 404
-    response_code      = 200
-    response_page_path = "/index.html"
-  }
+  # No custom_error_response blocks by design — see
+  # aws_cloudfront_function.spa_fallback above. SPA routing is handled
+  # per-behavior by that function instead, so backend error statuses on
+  # /api/* reach the browser unmodified.
 
   restrictions {
     geo_restriction {

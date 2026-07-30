@@ -48,15 +48,42 @@ resource "aws_security_group" "rds" {
 
 ########################################
 # alb-sg rules
+#
+# CloudFront is the intended sole entry point for this application
+# (docs/superpowers/specs/2026-07-30-post-sprint4-deploy-and-frontend-hosting-design.md
+# Decision 1): the browser only ever talks to the CloudFront distribution,
+# which serves the React build from S3 and proxies /api/* to this ALB as a
+# second origin. So the ALB's own ingress is scoped to AWS's managed
+# prefix list of CloudFront origin-facing servers rather than the whole
+# internet — otherwise anyone could bypass CloudFront and hit the backend
+# directly over plain HTTP with no Origin header (which
+# src/backend/src/utils/corsValidator.js deliberately allows, for
+# non-browser clients).
+#
+# DEPLOYMENT PREREQUISITE: the CloudFront managed prefix list has a
+# "weight" of 55 — it counts as 55 rules against the security group's
+# rules quota, whose AWS default is 60 per security group ("AWS-managed
+# prefix list weight", Amazon VPC User Guide). The two ingress rules below
+# therefore count as 110 and need a Service Quotas increase on
+# "Inbound or outbound rules per security group" before this module can
+# apply. AWS's documented alternative, if that increase is not granted, is
+# to open only one of the two ports and pin the CloudFront origin protocol
+# policy to match (modules/frontend's custom_origin_config already follows
+# var.enable_https, so exactly one of these two ports is ever actually used
+# at a time).
 ########################################
+
+data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
+  name = "com.amazonaws.global.cloudfront.origin-facing"
+}
 
 resource "aws_vpc_security_group_ingress_rule" "alb_https" {
   security_group_id = aws_security_group.alb.id
-  description        = "HTTPS from internet"
-  cidr_ipv4          = "0.0.0.0/0"
-  ip_protocol        = "tcp"
-  from_port          = 443
-  to_port             = 443
+  description       = "HTTPS from CloudFront origin-facing servers only (AWS managed prefix list) - not the open internet"
+  prefix_list_id    = data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
 }
 
 resource "aws_vpc_security_group_ingress_rule" "alb_http_redirect" {
@@ -66,16 +93,20 @@ resource "aws_vpc_security_group_ingress_rule" "alb_http_redirect" {
   # (the intended long-term state). While the project-level enable_https
   # override in infrastructure/terraform/variables.tf is false (no domain/
   # ACM cert yet — temporary, documented exception), this same port instead
-  # carries real application traffic via aws_lb_listener.http_forward. This
-  # rule is not re-scoped for that mode since the port number is identical
-  # either way; see enable_https's description for the actual security
-  # trade-off being made.
+  # carries real application traffic via aws_lb_listener.http_forward. The
+  # port number is identical either way; what did change is the source —
+  # this is no longer open to 0.0.0.0/0 but scoped to the CloudFront
+  # origin-facing prefix list, so the plaintext-port exposure that
+  # enable_https = false implies is now reachable only through CloudFront,
+  # which itself terminates TLS at the viewer. See enable_https's
+  # description for the remaining trade-off (CloudFront-to-ALB is still
+  # plaintext inside AWS's network until a domain/ACM cert exists).
   security_group_id = aws_security_group.alb.id
-  description        = "HTTP from internet - 443 redirect when enable_https=true, direct app forward when enable_https=false (see infrastructure/terraform/variables.tf)"
-  cidr_ipv4          = "0.0.0.0/0"
-  ip_protocol        = "tcp"
-  from_port          = 80
-  to_port             = 80
+  description       = "HTTP from CloudFront origin-facing servers only (AWS managed prefix list) - 443 redirect when enable_https=true, direct app forward when enable_https=false (see infrastructure/terraform/variables.tf)"
+  prefix_list_id    = data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_to_ec2" {

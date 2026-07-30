@@ -199,6 +199,47 @@ resource "aws_iam_role_policy" "manage_project_resources" {
         ]
         Resource = "*"
       },
+      {
+        Sid      = "ManageProjectEcr"
+        Effect   = "Allow"
+        Action   = ["ecr:*"]
+        Resource = var.ecr_repository_arn
+        # Management-level (create/describe/delete the repository, its
+        # lifecycle policy and encryption config) — distinct from the
+        # runtime push permissions in publish_and_rollout's
+        # PublishBackendImageToEcr statement below, which only cover a
+        # docker push. `terraform apply` needs both.
+      },
+      {
+        # checkov:skip=CKV_AWS_355: CloudFront distributions do support
+        # resource-level ARNs for most actions, but the four data-source
+        # lookups modules/frontend/main.tf performs (aws_cloudfront_cache_policy
+        # x2, aws_cloudfront_origin_request_policy,
+        # aws_cloudfront_response_headers_policy) call List*/Get*-by-name
+        # APIs that have no resource-level ARN — same category of AWS API
+        # gap as the other Resource:"*" statements already accepted in this
+        # file (see ManageProjectComputeNetworking above).
+        # checkov:skip=CKV_AWS_356: same false positive as CKV_AWS_355 — the
+        # access boundary for this role is the OIDC trust condition (one
+        # repo, one GitHub Environment), not a resource-ARN restriction
+        # these specific by-name lookup APIs don't offer.
+        Sid      = "ManageProjectCloudFront"
+        Effect   = "Allow"
+        Action   = ["cloudfront:*"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ManageProjectSsmParameters"
+        Effect = "Allow"
+        Action = ["ssm:*"]
+        Resource = [
+          "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${var.project_name}/${var.environment}/*",
+        ]
+        # Covers modules/rds's existing /pdms/prod/db/* parameters (a
+        # pre-existing gap this same statement now also closes — Sprint 4's
+        # live apply used operator credentials, not this role, so the gap
+        # never surfaced) and this plan's new /pdms/prod/app/* parameters.
+      },
     ]
   })
 }
@@ -343,19 +384,32 @@ resource "aws_iam_role_policy" "publish_and_rollout" {
         ]
       },
       {
+        # Deliberately TWO statements, not one. ssm:SendCommand authorizes
+        # every resource it references — the document AND each target
+        # instance — so a single statement listing both resources under one
+        # tag Condition fails the document half of that check: the
+        # AWS-owned AWS-RunShellScript document carries no Name tag, and
+        # StringEquals on an absent key evaluates false. This split (an
+        # unconditioned statement for the document, a tag-conditioned one
+        # for the instances) is AWS's own documented pattern — Systems
+        # Manager user guide, "Restricting access to Run Command based on
+        # tags". Do not merge these back together.
+        Sid      = "AuthorizeRunShellScriptDocument"
+        Effect   = "Allow"
+        Action   = ["ssm:SendCommand"]
+        Resource = "arn:aws:ssm:${data.aws_region.current.name}::document/AWS-RunShellScript"
+      },
+      {
         # Scoped via the exact tag every instance in modules/ec2's launch
         # template already carries (tag_specifications: Name =
         # "${project}-${environment}-app"), not Resource: "*" on its own —
         # this IAM condition's correctness against a live account is
         # unverified until the first real SSM RunCommand call; verify at
         # the same time as the ECR KMS assumption (Task 2's comment).
-        Sid    = "TriggerBackendRollout"
-        Effect = "Allow"
-        Action = ["ssm:SendCommand"]
-        Resource = [
-          "arn:aws:ssm:${data.aws_region.current.name}::document/AWS-RunShellScript",
-          "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:instance/*",
-        ]
+        Sid      = "TriggerBackendRolloutOnTaggedInstances"
+        Effect   = "Allow"
+        Action   = ["ssm:SendCommand"]
+        Resource = "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:instance/*"
         Condition = {
           StringEquals = {
             "ssm:resourceTag/Name" = "${var.project_name}-${var.environment}-app"
