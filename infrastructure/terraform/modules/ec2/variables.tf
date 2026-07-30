@@ -63,3 +63,28 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "app_port" {
+  description = "Port the backend container listens on — deploy.sh binds the container here."
+  type        = number
+}
+
+variable "ecr_repository_arn" {
+  description = "ECR repository ARN the instance role may pull the backend image from."
+  type        = string
+}
+
+variable "ecr_repository_url" {
+  description = "ECR repository URL (registry/repo, no tag) deploy.sh pulls images from."
+  type        = string
+}
+
+variable "ssm_app_parameter_prefix" {
+  description = "SSM Parameter Store path prefix for app-level (non-DB) runtime config — JWT secret, deployed image tag. e.g. /pdms/prod/app"
+  type        = string
+}
+
+variable "cloudfront_domain_name" {
+  description = "modules/frontend's CloudFront distribution domain — becomes the backend's CLOUDFRONT_ORIGIN/FRONTEND_URL env vars so the single-origin design resolves to a real value."
+  type        = string
+}

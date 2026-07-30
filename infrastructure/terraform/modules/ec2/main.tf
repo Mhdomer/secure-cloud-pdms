@@ -78,6 +78,46 @@ resource "aws_iam_role_policy" "app_permissions" {
         Action   = ["kms:Decrypt"]
         Resource = var.kms_key_arn
       },
+      {
+        Sid    = "PullBackendImageFromEcr"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchCheckLayerAvailability",
+        ]
+        Resource = var.ecr_repository_arn
+      },
+      {
+        # checkov:skip=CKV_AWS_355: ecr:GetAuthorizationToken has no
+        # resource-level ARN in the AWS API — it authenticates the caller
+        # to the ECR registry as a whole, not to one repository. AWS's own
+        # example IAM policies for ECR pull access grant this action on
+        # Resource: "*" for exactly this reason.
+        Sid      = "AuthenticateToEcr"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        # Explicit two-entry list, not a "${var.ssm_app_parameter_prefix}/*"
+        # wildcard — deploy.sh never reads previous_image_tag (that one
+        # exists solely for the CI-side manual-rollback path), and an
+        # explicit list is what this codebase already reaches for when a
+        # wildcard would grant more than is actually used (see
+        # modules/github-oidc's local.other_project_role_arns doing the
+        # same thing for a stronger reason).
+        Sid    = "ReadAppConfigFromSsm"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+        ]
+        Resource = [
+          "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_app_parameter_prefix}/jwt_secret",
+          "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_app_parameter_prefix}/image_tag",
+        ]
+      },
     ]
   })
 }
@@ -87,6 +127,69 @@ resource "aws_iam_instance_profile" "ec2" {
   role = aws_iam_role.ec2.name
 
   tags = var.tags
+}
+
+########################################
+# App runtime config in SSM — mirrors modules/rds's own "generate +
+# store" pattern exactly (random_password + SecureString +
+# ignore_changes = [value]) for jwt_secret. image_tag/previous_image_tag
+# are mutated outside Terraform by .github/workflows/deploy.yml on every
+# deploy; ignore_changes here is required for the same reason as
+# db_password — without it, the next terraform-apply (which runs on every
+# merge to main, not just Terraform changes) would silently reset the
+# running app back to whatever tag Terraform's own default declares.
+########################################
+
+resource "random_password" "jwt_secret" {
+  length  = 64
+  special = false
+}
+
+resource "aws_ssm_parameter" "jwt_secret" {
+  name   = "${var.ssm_app_parameter_prefix}/jwt_secret"
+  type   = "SecureString"
+  key_id = var.kms_key_arn
+  value  = random_password.jwt_secret.result
+  tags   = var.tags
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_ssm_parameter" "image_tag" {
+  # checkov:skip=CKV2_AWS_34: Not a secret — a Docker image tag / "none"
+  # pointer string with zero confidentiality value (the same tag is already
+  # public in the ECR repository and CI logs). deploy.sh (above) reads this
+  # with plain ssm:GetParameter, no --with-decryption; making this a
+  # SecureString would return ciphertext to that read and break the
+  # rollout script's "is anything deployed yet" / "which tag to pull"
+  # logic. Contrast with modules/rds's SSM parameters, which are all
+  # SecureString because they collectively form a DB connection string —
+  # a materially different sensitivity class from a version pointer.
+  name  = "${var.ssm_app_parameter_prefix}/image_tag"
+  type  = "String"
+  value = "none"
+  tags  = var.tags
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+# Read only by .github/workflows/deploy.yml (manual-rollback lever) — the
+# EC2 role below is deliberately not granted read access to this one.
+resource "aws_ssm_parameter" "previous_image_tag" {
+  # checkov:skip=CKV2_AWS_34: Same rationale as aws_ssm_parameter.image_tag
+  # above — a non-secret tag pointer, not credentials.
+  name  = "${var.ssm_app_parameter_prefix}/previous_image_tag"
+  type  = "String"
+  value = "none"
+  tags  = var.tags
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 ########################################
@@ -110,7 +213,7 @@ resource "aws_launch_template" "app" {
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                  = "required" # IMDSv2 only
+    http_tokens                 = "required" # IMDSv2 only
     http_put_response_hop_limit = 1
   }
 
@@ -123,29 +226,33 @@ resource "aws_launch_template" "app" {
 
     ebs {
       volume_size           = var.root_volume_size
-      volume_type            = "gp3"
-      encrypted               = true
-      kms_key_id              = var.kms_key_arn
-      delete_on_termination   = true
+      volume_type           = "gp3"
+      encrypted             = true
+      kms_key_id            = var.kms_key_arn
+      delete_on_termination = true
     }
   }
 
   # No key_name — no SSH key pair issued. Instance access is exclusively
   # via SSM Session Manager (see aws_iam_role_policy_attachment.ssm_managed_instance_core).
 
-  # Application container deployment (Docker pull, env bootstrap from SSM)
-  # is implemented in Sprint 3 alongside the Node.js/Express backend build.
-  # This bootstrap only installs the SSM agent prerequisites and Docker
-  # runtime so Sprint 3 can layer the container deployment on top.
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-    set -euo pipefail
-    dnf update -y
-    dnf install -y docker
-    systemctl enable docker
-    systemctl start docker
-  EOF
-  )
+  # Renders modules/ec2/templates/deploy.sh.tpl with this module's actual
+  # config, then embeds it (base64) into user_data.sh.tpl so the instance
+  # writes it to disk and runs it once at boot. See that template's header
+  # comment and
+  # docs/superpowers/specs/2026-07-30-post-sprint4-deploy-and-frontend-hosting-design.md
+  # Decision 2 for why this is one script invoked in two places, not
+  # duplicated logic.
+  user_data = base64encode(templatefile("${path.module}/templates/user_data.sh.tpl", {
+    deploy_script_b64 = base64encode(templatefile("${path.module}/templates/deploy.sh.tpl", {
+      aws_region         = data.aws_region.current.name
+      ecr_repository_url = var.ecr_repository_url
+      app_port           = var.app_port
+      ssm_app_prefix     = var.ssm_app_parameter_prefix
+      ssm_db_prefix      = var.ssm_parameter_prefix
+      cloudfront_origin  = "https://${var.cloudfront_domain_name}"
+    }))
+  }))
 
   tag_specifications {
     resource_type = "instance"
@@ -162,10 +269,10 @@ resource "aws_launch_template" "app" {
 }
 
 resource "aws_autoscaling_group" "app" {
-  name                = "${var.project_name}-${var.environment}-app-asg"
-  vpc_zone_identifier = var.app_subnet_ids
-  target_group_arns   = [var.target_group_arn]
-  health_check_type          = "ELB"
+  name                      = "${var.project_name}-${var.environment}-app-asg"
+  vpc_zone_identifier       = var.app_subnet_ids
+  target_group_arns         = [var.target_group_arn]
+  health_check_type         = "ELB"
   health_check_grace_period = 60
 
   # TEMPORARY: no application is deployed to these instances yet — the

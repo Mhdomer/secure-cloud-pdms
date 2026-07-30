@@ -12,7 +12,8 @@ locals {
     Owner       = "alamin-clinic-fyp"
   }
 
-  ssm_db_prefix = "/${var.project_name}/${var.environment}/db"
+  ssm_db_prefix  = "/${var.project_name}/${var.environment}/db"
+  ssm_app_prefix = "/${var.project_name}/${var.environment}/app"
 }
 
 ########################################
@@ -142,19 +143,24 @@ module "frontend" {
 module "ec2" {
   source = "./modules/ec2"
 
-  project_name          = var.project_name
-  environment           = var.environment
-  app_subnet_ids        = module.vpc.app_subnet_ids
-  ec2_security_group_id = module.security.ec2_sg_id
-  target_group_arn      = module.alb.target_group_arn
-  instance_type         = var.ec2_instance_type
-  ami_id                = var.ec2_ami_id
-  kms_key_arn           = module.kms.key_arn
-  ssm_parameter_prefix  = local.ssm_db_prefix
-  min_size              = var.ec2_min_size
-  max_size              = var.ec2_max_size
-  desired_capacity      = var.ec2_desired_capacity
-  tags                  = local.common_tags
+  project_name             = var.project_name
+  environment              = var.environment
+  app_subnet_ids           = module.vpc.app_subnet_ids
+  ec2_security_group_id    = module.security.ec2_sg_id
+  target_group_arn         = module.alb.target_group_arn
+  app_port                 = var.app_port
+  ecr_repository_arn       = module.ecr.repository_arn
+  ecr_repository_url       = module.ecr.repository_url
+  ssm_app_parameter_prefix = local.ssm_app_prefix
+  cloudfront_domain_name   = module.frontend.distribution_domain_name
+  instance_type            = var.ec2_instance_type
+  ami_id                   = var.ec2_ami_id
+  kms_key_arn              = module.kms.key_arn
+  ssm_parameter_prefix     = local.ssm_db_prefix
+  min_size                 = var.ec2_min_size
+  max_size                 = var.ec2_max_size
+  desired_capacity         = var.ec2_desired_capacity
+  tags                     = local.common_tags
 }
 
 ########################################
