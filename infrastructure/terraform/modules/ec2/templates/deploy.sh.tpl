@@ -22,7 +22,7 @@ CLOUDFRONT_ORIGIN="${cloudfront_origin}"
 
 log() { echo "[deploy.sh] $*"; }
 
-IMAGE_TAG=$(aws ssm get-parameter --region "$AWS_REGION" --name "$SSM_APP_PREFIX/image_tag" --query 'Parameter.Value' --output text)
+IMAGE_TAG=$(aws ssm get-parameter --region "$AWS_REGION" --name "$SSM_APP_PREFIX/image_tag" --with-decryption --query 'Parameter.Value' --output text)
 
 if [ "$IMAGE_TAG" = "none" ] || [ -z "$IMAGE_TAG" ]; then
   log "No image deployed yet (image_tag=none) — nothing to do."

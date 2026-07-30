@@ -158,19 +158,11 @@ resource "aws_ssm_parameter" "jwt_secret" {
 }
 
 resource "aws_ssm_parameter" "image_tag" {
-  # checkov:skip=CKV2_AWS_34: Not a secret — a Docker image tag / "none"
-  # pointer string with zero confidentiality value (the same tag is already
-  # public in the ECR repository and CI logs). deploy.sh (above) reads this
-  # with plain ssm:GetParameter, no --with-decryption; making this a
-  # SecureString would return ciphertext to that read and break the
-  # rollout script's "is anything deployed yet" / "which tag to pull"
-  # logic. Contrast with modules/rds's SSM parameters, which are all
-  # SecureString because they collectively form a DB connection string —
-  # a materially different sensitivity class from a version pointer.
-  name  = "${var.ssm_app_parameter_prefix}/image_tag"
-  type  = "String"
-  value = "none"
-  tags  = var.tags
+  name   = "${var.ssm_app_parameter_prefix}/image_tag"
+  type   = "SecureString"
+  key_id = var.kms_key_arn
+  value  = "none"
+  tags   = var.tags
 
   lifecycle {
     ignore_changes = [value]
@@ -180,12 +172,11 @@ resource "aws_ssm_parameter" "image_tag" {
 # Read only by .github/workflows/deploy.yml (manual-rollback lever) — the
 # EC2 role below is deliberately not granted read access to this one.
 resource "aws_ssm_parameter" "previous_image_tag" {
-  # checkov:skip=CKV2_AWS_34: Same rationale as aws_ssm_parameter.image_tag
-  # above — a non-secret tag pointer, not credentials.
-  name  = "${var.ssm_app_parameter_prefix}/previous_image_tag"
-  type  = "String"
-  value = "none"
-  tags  = var.tags
+  name   = "${var.ssm_app_parameter_prefix}/previous_image_tag"
+  type   = "SecureString"
+  key_id = var.kms_key_arn
+  value  = "none"
+  tags   = var.tags
 
   lifecycle {
     ignore_changes = [value]
