@@ -45,3 +45,18 @@ variable "terraform_lock_table" {
 variable "tags" {
   type = map(string)
 }
+
+variable "ecr_repository_arn" {
+  description = "ECR repository ARN the deploy role may push the backend image to."
+  type        = string
+}
+
+variable "ssm_app_parameter_prefix" {
+  description = "SSM Parameter Store path prefix for app-level runtime config (image_tag, previous_image_tag). Must match modules/ec2's var.ssm_app_parameter_prefix."
+  type        = string
+}
+
+variable "cloudfront_distribution_arn" {
+  description = "modules/frontend's CloudFront distribution ARN — scopes the deploy role's cache-invalidation permission to exactly this distribution."
+  type        = string
+}

@@ -215,4 +215,8 @@ module "github_oidc" {
   terraform_state_key     = var.terraform_state_key
   terraform_lock_table    = var.terraform_lock_table
   tags                    = local.common_tags
+
+  ecr_repository_arn          = module.ecr.repository_arn
+  ssm_app_parameter_prefix    = local.ssm_app_prefix
+  cloudfront_distribution_arn = module.frontend.distribution_arn
 }

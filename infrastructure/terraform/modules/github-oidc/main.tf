@@ -292,6 +292,97 @@ resource "aws_iam_role_policy" "manage_project_iam" {
 }
 
 ########################################
+# Backend image publishing + rollout trigger + frontend cache
+# invalidation — the two new deploy.yml jobs
+# (publish-backend-image, publish-frontend) added alongside
+# terraform-apply. Same OIDC trust boundary as every other statement in
+# this module: only a job declaring environment: production ever presents
+# a token this role's trust policy accepts.
+########################################
+
+resource "aws_iam_role_policy" "publish_and_rollout" {
+  name = "${var.project_name}-${var.environment}-deploy-publish-policy"
+  role = aws_iam_role.deploy.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "PublishBackendImageToEcr"
+        Effect = "Allow"
+        Action = [
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:BatchCheckLayerAvailability",
+        ]
+        Resource = var.ecr_repository_arn
+      },
+      {
+        # checkov:skip=CKV_AWS_355: same AWS API limitation as the
+        # equivalent statement in modules/ec2 — ecr:GetAuthorizationToken
+        # has no resource-level ARN.
+        Sid      = "AuthenticateToEcr"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        # Deliberately excludes jwt_secret — CI has no reason to read or
+        # write that parameter; only modules/ec2's instance role does.
+        Sid    = "ManageAppDeploySsmParameters"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:PutParameter",
+        ]
+        Resource = [
+          "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_app_parameter_prefix}/image_tag",
+          "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_app_parameter_prefix}/previous_image_tag",
+        ]
+      },
+      {
+        # Scoped via the exact tag every instance in modules/ec2's launch
+        # template already carries (tag_specifications: Name =
+        # "${project}-${environment}-app"), not Resource: "*" on its own —
+        # this IAM condition's correctness against a live account is
+        # unverified until the first real SSM RunCommand call; verify at
+        # the same time as the ECR KMS assumption (Task 2's comment).
+        Sid    = "TriggerBackendRollout"
+        Effect = "Allow"
+        Action = ["ssm:SendCommand"]
+        Resource = [
+          "arn:aws:ssm:${data.aws_region.current.name}::document/AWS-RunShellScript",
+          "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:instance/*",
+        ]
+        Condition = {
+          StringEquals = {
+            "ssm:resourceTag/Name" = "${var.project_name}-${var.environment}-app"
+          }
+        }
+      },
+      {
+        # checkov:skip=CKV_AWS_355: ssm:GetCommandInvocation has no
+        # resource-level ARN in the AWS API — it reads a command's
+        # execution result by command-id + instance-id, not a resource
+        # this role manages.
+        Sid      = "PollBackendRolloutResult"
+        Effect   = "Allow"
+        Action   = ["ssm:GetCommandInvocation"]
+        Resource = "*"
+      },
+      {
+        Sid      = "InvalidateFrontendDistribution"
+        Effect   = "Allow"
+        Action   = ["cloudfront:CreateInvalidation", "cloudfront:GetInvalidation"]
+        Resource = var.cloudfront_distribution_arn
+      },
+    ]
+  })
+}
+
+########################################
 # Guardrail — defense-in-depth, not the sole control. The real protection is
 # structural: manage_project_iam above grants IAM actions only against the
 # explicit local.other_project_role_arns list, which never includes this
