@@ -22,9 +22,14 @@ terraform/
     cloudtrail/   # CloudTrail trail, encrypted S3 bucket, CloudWatch Logs integration
     monitoring/   # App log group + failed-login/ALB-5xx-rate/RDS-CPU alarms + dashboard (Sprint 4, chapter-4 §4.3.8.6)
     github-oidc/  # GitHub Actions OIDC provider + least-privilege deploy role for deploy.yml (Sprint 4)
+    ecr/          # Backend container image repository, IMMUTABLE tags (Sprint 4 follow-up)
+    frontend/     # S3 + CloudFront frontend hosting, also proxies /api/* to the ALB (Sprint 4 follow-up)
 ```
 
-Frontend delivery (S3 + CloudFront) and application container deployment are implemented in Sprint 3 alongside the Node.js/Express backend and React frontend.
+Frontend delivery (S3 + CloudFront, `modules/frontend`) and backend deployment automation
+(`modules/ecr` + SSM-based rollout in `modules/ec2`) were built as a Sprint 4 follow-up — see
+`docs/superpowers/specs/2026-07-30-post-sprint4-deploy-and-frontend-hosting-design.md` and
+`docs/psm2/sprints/sprint-5-prep-summary.md`.
 
 ## Usage
 

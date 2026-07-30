@@ -58,5 +58,9 @@ for how/when each one was set:
 
 ## Deliberately out of scope for Sprint 4
 
-- **Container registry (ECR) and automated EC2 rollout.** `container-scan` builds and Trivy-scans the backend image but never pushes it anywhere — chapter-3/chapter-5's Sprint 4 scope is the CI/CD pipeline plus CloudWatch and CloudTrail, not container registry provisioning. Publishing the scanned image and rolling it out to the EC2 Auto Scaling Group (via SSM `RunShellScript` — port 22 is never open) is a documented follow-up, not implemented here. Confirmed live: hitting the ALB DNS name returns a 503, since nothing is deployed to the instances yet.
+- ~~Container registry (ECR) and automated EC2 rollout~~ — **built**, see
+  `docs/superpowers/specs/2026-07-30-post-sprint4-deploy-and-frontend-hosting-design.md` and
+  `docs/psm2/sprints/sprint-5-prep-summary.md`. `deploy.yml`'s `publish-backend-image` job pushes to
+  ECR and rolls out via SSM `RunShellScript` (port 22 still never open) after this workflow's scans
+  pass and `terraform-apply` succeeds.
 - **Triggering `deploy.yml` through an actual GitHub Actions run.** The underlying `terraform init/validate/plan/apply` sequence this job runs has now been verified for real (see `docs/psm2/sprints/sprint-4-summary.md`) — run manually, locally, with the same AWS account and Terraform config this workflow uses. What hasn't been exercised yet is the workflow *file* itself actually firing on a real push to `main` (OIDC token exchange from within an Actions runner, the `production` environment's approval gate stopping the job, etc.) — that still needs a real push to confirm end-to-end, since no GitHub Actions runner was available to trigger from this environment.

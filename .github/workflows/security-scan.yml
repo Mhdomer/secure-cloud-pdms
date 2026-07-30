@@ -62,13 +62,16 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build backend image
-        # Built and scanned only — never pushed to a registry from this
-        # workflow. Publishing a scanned image (ECR) and rolling it out to
-        # the EC2 Auto Scaling Group via SSM is tracked as a follow-up item
-        # (docs/psm2/sprints/sprint-4-summary.md) and intentionally out of
-        # this sprint's scope, which chapter-3/chapter-5 define as the CI/CD
-        # pipeline + CloudWatch + CloudTrail, not container registry
-        # provisioning.
+        # Built and scanned only — still never pushed from this job. This
+        # job is called by both ci.yml (every PR) and deploy.yml (every
+        # merge), and deliberately has no AWS credentials — only a job
+        # declaring environment: production gets an OIDC token this
+        # project's deploy role trusts (see modules/github-oidc/main.tf's
+        # header comment). Publishing now happens in deploy.yml's
+        # publish-backend-image job instead, which rebuilds this exact
+        # commit's image under that trust boundary after this scan has
+        # already passed. See
+        # docs/superpowers/specs/2026-07-30-post-sprint4-deploy-and-frontend-hosting-design.md.
         uses: docker/build-push-action@v6
         with:
           context: src/backend
