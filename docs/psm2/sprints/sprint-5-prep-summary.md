@@ -209,20 +209,25 @@ move on" discipline):
   experimental commands enabled; if not, the guard silently falls through to the old push behavior
   (safe direction — the push still happens — just without the intended re-run protection).
 
-### Blocking gap found during this review, NOT fixed here — out of this plan's scope
+### Blocking gap found during this review — since fixed (2026-07-30, live-CI-driven follow-up)
 
-**The CI deploy role has zero `wafv2:*` IAM permission anywhere, but `modules/alb` (untouched by any
+**The CI deploy role had zero `wafv2:*` IAM permission anywhere, but `modules/alb` (untouched by any
 of this plan's 9 tasks or its fix wave) creates `aws_wafv2_web_acl.alb`, its association, and its
-logging configuration.** This is the *exact same failure class* the deploy-role IAM fix above just
-closed for ECR/CloudFront/SSM — `terraform apply` under the deploy role will AccessDeny on these three
-WAF resources on the next real run. It surfaced only as a byproduct of this review's rigor; `modules/alb`
-was never in scope for any task in this plan, so it wasn't fixed here rather than being silently
-patched outside the plan's stated boundaries. **Needs its own small IAM fix (add a `wafv2:*`
-statement to the deploy role, scoped to the WAF ACL's resources, following the same pattern as the ECR/
-CloudFront/SSM statements above) before the next live `terraform apply` is attempted.** A related,
-smaller issue: the WAF's CloudWatch log group is named `aws-waf-logs-pdms-prod` (AWS mandates that
-literal prefix), but the existing `ManageProjectLogs` statement is scoped to `log-group:/pdms/prod*` —
-never matches, same root cause.
+logging configuration.** This was the *exact same failure class* the deploy-role IAM fix above closed
+for ECR/CloudFront/SSM — `terraform apply` under the deploy role would AccessDeny on these three WAF
+resources. Originally left unfixed here as out of this plan's stated scope (`modules/alb` was never
+touched by any task or the fix wave) — but the first real `push`-triggered pipeline run (2026-07-30,
+after every other gate — Checkov, Trivy, SonarQube — was fixed and passing for the first time) reached
+far enough to make this a genuine, immediate blocker rather than a theoretical one, so it was fixed
+proactively rather than waiting to discover it as yet another failed live run. Added a `ManageProjectWaf`
+statement (`wafv2:*`, `Resource: "*"` — WAFv2's Create/Update actions have no resource-level ARN, same
+category of gap as `ManageProjectComputeNetworking`) to `modules/github-oidc/main.tf`, following the
+exact same pattern as the ECR/CloudFront/SSM statements. Also fixed the related, smaller issue found at
+the same time: the WAF's CloudWatch log group is named `aws-waf-logs-pdms-prod` (AWS mandates that
+literal prefix), which could never match the existing `ManageProjectLogs` statement's
+`log-group:/pdms/prod*` pattern regardless of wildcard placement — added a second resource pair to that
+same statement covering the `aws-waf-logs-` prefix explicitly. `checkov` reconfirmed clean afterward:
+399 passed, 0 failed, 46 skipped.
 
 ---
 
