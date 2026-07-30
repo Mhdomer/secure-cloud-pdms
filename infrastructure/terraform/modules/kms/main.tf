@@ -302,6 +302,59 @@ data "aws_iam_policy_document" "cmk" {
       values   = [data.aws_caller_identity.current.account_id]
     }
   }
+
+  # Auto Scaling (modules/ec2's ASG launches instances with a customer-
+  # managed-KMS-encrypted root EBS volume) — the generic AllowServiceUsage
+  # statement above grants ec2.amazonaws.com, but Auto Scaling launches
+  # instances via its own service-linked role
+  # (AWSServiceRoleForAutoScaling), a DIFFERENT principal with its own
+  # hardcoded, non-extensible permission set that does not include KMS
+  # access to customer managed keys at all (AWS's own docs: "the default
+  # permissions that pass to Amazon EC2 Auto Scaling SLR don't include
+  # permissions to access AWS KMS keys... Amazon EC2 Auto Scaling SLR must
+  # have additional permissions with customer managed keys" —
+  # https://docs.aws.amazon.com/autoscaling/ec2/userguide/key-policy-requirements-EBS-encryption.html).
+  # Confirmed live: every instance launch failed with
+  # Client.InvalidKMSKey.InvalidState for over two hours (repeated launch
+  # attempts, every one cancelled) despite a direct aws ec2 create-volume
+  # call with this exact key succeeding instantly under an admin identity —
+  # the key itself was never the problem, only this specific principal's
+  # missing grant was. These are the two statements AWS's own
+  # documentation specifies as the minimum required, added verbatim rather
+  # than adapted, since a subtly wrong Condition here would repeat exactly
+  # today's multi-hour pattern of live-only-discoverable KMS gaps.
+  statement {
+    sid    = "AllowAutoScalingServiceLinkedRoleUseOfKey"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"]
+    }
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "AllowAutoScalingServiceLinkedRoleGrantCreation"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"]
+    }
+    actions   = ["kms:CreateGrant"]
+    resources = ["*"]
+    condition {
+      test     = "Bool"
+      variable = "kms:GrantIsForAWSResource"
+      values   = ["true"]
+    }
+  }
 }
 
 data "aws_region" "current" {}
