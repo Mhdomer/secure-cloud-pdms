@@ -125,6 +125,8 @@ jobs:
         run: |
           echo "ecr_repository_url=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
           echo "kms_key_arn=$(terraform output -raw kms_key_arn)" >> "$GITHUB_OUTPUT"
+          echo "ssm_app_prefix=$(terraform output -raw ssm_app_parameter_prefix)" >> "$GITHUB_OUTPUT"
+          echo "ec2_instance_tag=$(terraform output -raw ec2_instance_tag_name)" >> "$GITHUB_OUTPUT"
 
       - name: Log in to ECR
         run: |
@@ -138,7 +140,17 @@ jobs:
             -f src/backend/Dockerfile src/backend
 
       - name: Push backend image
-        run: docker push "${{ steps.tf.outputs.ecr_repository_url }}:${{ github.sha }}"
+        # The ECR repo is IMMUTABLE, so a re-run of this job after a failure
+        # in a LATER step (the rollout wait is the likely one) would other-
+        # wise die here with ImageTagAlreadyExistsException before it could
+        # retry anything useful. The tag is the commit SHA, so an already-
+        # present tag is by definition the same source that was just rebuilt.
+        run: |
+          if docker manifest inspect "${{ steps.tf.outputs.ecr_repository_url }}:${{ github.sha }}" >/dev/null 2>&1; then
+            echo "Image already pushed for this commit, skipping."
+          else
+            docker push "${{ steps.tf.outputs.ecr_repository_url }}:${{ github.sha }}"
+          fi
 
       - name: Record previous tag and set new tag
         # Both parameters are SecureString (Task 4 switched from plain String
@@ -146,7 +158,7 @@ jobs:
         # fix-round note) — every read/write needs --with-decryption /
         # --key-id accordingly, not the plain form.
         env:
-          SSM_APP_PREFIX: /pdms/prod/app
+          SSM_APP_PREFIX: ${{ steps.tf.outputs.ssm_app_prefix }}
           KMS_KEY_ARN: ${{ steps.tf.outputs.kms_key_arn }}
         run: |
           CURRENT_TAG=$(aws ssm get-parameter --name "$SSM_APP_PREFIX/image_tag" --with-decryption --query 'Parameter.Value' --output text)
@@ -155,10 +167,12 @@ jobs:
 
       - name: Trigger rollout via SSM
         id: rollout
+        env:
+          INSTANCE_TAG: ${{ steps.tf.outputs.ec2_instance_tag }}
         run: |
           COMMAND_ID=$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --targets "Key=tag:Name,Values=pdms-prod-app" \
+            --targets "Key=tag:Name,Values=$INSTANCE_TAG" \
             --parameters 'commands=["/opt/pdms/deploy.sh"]' \
             --query 'Command.CommandId' --output text)
           echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
@@ -172,11 +186,21 @@ jobs:
         # at all). Matches every other gate in this pipeline — no step
         # anywhere hangs indefinitely instead of failing loudly.
         timeout-minutes: 8
+        env:
+          INSTANCE_TAG: ${{ steps.tf.outputs.ec2_instance_tag }}
         run: |
           COMMAND_ID="${{ steps.rollout.outputs.command_id }}"
           INSTANCE_IDS=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=pdms-prod-app" "Name=instance-state-name,Values=running" \
+            --filters "Name=tag:Name,Values=$INSTANCE_TAG" "Name=instance-state-name,Values=running" \
             --query 'Reservations[].Instances[].InstanceId' --output text)
+
+          # Without this, zero matching instances means the for loop below
+          # never runs and the step exits 0 — reporting a successful rollout
+          # that never happened anywhere.
+          if [ -z "$INSTANCE_IDS" ]; then
+            echo "No running instances found matching tag:Name=$INSTANCE_TAG — cannot verify rollout."
+            exit 1
+          fi
 
           MAX_ATTEMPTS=24  # 24 * 20s = 8 minutes, matching this step's own timeout-minutes above
           for INSTANCE_ID in $INSTANCE_IDS; do
@@ -249,7 +273,17 @@ jobs:
           echo "distribution_id=$(terraform output -raw cloudfront_distribution_id)" >> "$GITHUB_OUTPUT"
 
       - name: Sync to S3
-        run: aws s3 sync src/frontend/dist "s3://${{ steps.tf.outputs.bucket }}" --delete
+        # Two passes, deliberately ordered. index.html is the only file with
+        # a stable name; every asset it references is content-hashed. If the
+        # single --delete sync uploaded index.html at the same time as it
+        # deleted the previous build's chunks, a browser could fetch the new
+        # index.html and then 404 on assets that had not landed yet (or an
+        # old index.html referencing chunks already deleted). So: upload all
+        # the new hashed assets first (and prune old ones), then flip
+        # index.html over to point at them, then invalidate.
+        run: |
+          aws s3 sync src/frontend/dist "s3://${{ steps.tf.outputs.bucket }}" --delete --exclude index.html
+          aws s3 sync src/frontend/dist "s3://${{ steps.tf.outputs.bucket }}" --exclude "*" --include index.html
 
       - name: Invalidate CloudFront
         run: aws cloudfront create-invalidation --distribution-id "${{ steps.tf.outputs.distribution_id }}" --paths "/*"

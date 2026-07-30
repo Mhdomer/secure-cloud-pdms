@@ -42,6 +42,15 @@ for how/when each one was set:
 
 - **GitHub Environment** named `production`, with a required-reviewer protection rule (you —
   `Mhdomer`), referenced by `deploy.yml`'s `environment: production`. Set via `gh api`, not the web UI.
+
+  **Expect three approval prompts per merge, not one.** Three jobs in `deploy.yml` declare
+  `environment: production` — `terraform-apply`, `publish-backend-image`, and `publish-frontend` — and
+  GitHub evaluates the environment's protection rules per job, so each one pauses for its own
+  approval. This is intended, not a broken pipeline: each job independently re-authenticates via OIDC,
+  and the `sub` claim GitHub mints for it is the `repo:OWNER/REPO:environment:production` form that
+  `modules/github-oidc`'s trust policy accepts — the environment declaration is what puts all three
+  inside the same trust boundary in the first place. Dropping it from two of them to get a single
+  prompt would also drop their ability to assume the deploy role at all.
 - **Secrets, all 5 set**: `SONAR_TOKEN`, `SONAR_HOST_URL`, `AWS_DEPLOY_ROLE_ARN`
   (`arn:aws:iam::730077843716:role/pdms-prod-deploy-role` — OIDC role ARN, no long-lived AWS access
   keys are ever stored), `TF_KMS_KEY_ADMINISTRATOR_ARNS`, `TF_EC2_AMI_ID` (map 1:1 to `infrastructure/terraform/variables.tf`'s no-default variables, supplied as `TF_VAR_*` instead of a
