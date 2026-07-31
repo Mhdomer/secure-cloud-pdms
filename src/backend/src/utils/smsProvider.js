@@ -14,7 +14,12 @@ const logger = require('../config/logger');
  */
 async function sendOtp(phoneNumber, code) {
   if (process.env.NODE_ENV === 'production') {
-    logger.warn('OTP stub provider invoked in production — no real SMS was sent', { phoneNumber });
+    // Sprint 5 pentest finding: previously logged the full phone number here
+    // too. The point of this line is "the stub provider is wrongly still
+    // active in prod" (a config bug alert) — that doesn't need PII attached,
+    // and this is a phone number, not the fixed-shape ID this project's
+    // other no-PHI logging conventions were built around.
+    logger.warn('OTP stub provider invoked in production — no real SMS was sent');
   } else {
     logger.info('OTP generated (stub SMS provider — not actually sent)', { phoneNumber, code });
   }

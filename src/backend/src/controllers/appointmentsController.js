@@ -779,10 +779,11 @@ async function rescheduleAppointment(req, res) {
 
 async function sendSmsReminder(req, res) {
   const { appointmentId } = req.params;
+  const { role, doctorId } = req.rlsSession;
 
   const appt = await withTransaction(req.rlsSession, async (client) => {
     const apptRes = await client.query(
-      `SELECT a.appointment_id, a.scheduled_at, p.full_name AS patient_name, p.contact_number, d.full_name AS doctor_name
+      `SELECT a.appointment_id, a.doctor_id, a.scheduled_at, p.full_name AS patient_name, p.contact_number, d.full_name AS doctor_name
          FROM appointments a
          JOIN patients p ON p.patient_id = a.patient_id
          LEFT JOIN doctors d ON d.doctor_id = a.doctor_id
@@ -792,6 +793,17 @@ async function sendSmsReminder(req, res) {
     if (!apptRes.rows.length) {
       const err = new Error('Appointment not found');
       err.statusCode = 404;
+      throw err;
+    }
+
+    // Application-layer ownership check — appointments has no RLS, same
+    // pattern as confirmAppointment/completeAppointment above. Sprint 5
+    // pentest finding: this was the one mutation in this file missing it,
+    // letting any doctor account trigger an SMS reminder for any patient's
+    // appointment regardless of assignment.
+    if (role === ROLES.DOCTOR && apptRes.rows[0].doctor_id !== doctorId) {
+      const err = new Error('You are not assigned to this appointment');
+      err.statusCode = 403;
       throw err;
     }
 
