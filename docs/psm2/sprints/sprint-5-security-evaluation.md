@@ -16,8 +16,8 @@ decision**:
 | White-box pentest | Done — 1 CRITICAL + 4 other findings, all fixed and live-verified except 1 documented design decision |
 | Black-box pentest (local) | Done — auth/RBAC/JWT/lockout/rate-limit/injection probes against a live local instance |
 | HIPAA §164.312 technical-safeguard posture | Done, but explicitly an **IaC-level design proxy**, not a live Security Hub score |
-| RTO test | **Not executed** — plan ready at `docs/psm2/sprints/sprint-5-rto-test-plan.md`, needs a live-AWS-spend decision |
-| AWS Security Hub live posture score | **Not executed** — plan ready at `docs/psm2/sprints/sprint-5-security-hub-plan.md`, needs the same live-AWS decision |
+| RTO test | **Done — executed live 2026-07-31.** RTO = **47m48s**, misses the ≤15 min NFR-06 target. See §6. |
+| AWS Security Hub live posture score | **Attempted, blocked by an AWS account-level restriction** (not fixable from this session) — see §7. |
 | UAT (3+ human participants) | **Not executed** — plan ready at `docs/psm2/sprints/sprint-5-uat-plan.md`, needs human coordination (no AWS cost) |
 
 ---
@@ -223,23 +223,186 @@ Reasoning:
 
 ---
 
-## 6. What still needs a human decision
+## 6. RTO test — executed live (2026-07-31)
 
-1. **RTO test** — plan ready at `docs/psm2/sprints/sprint-5-rto-test-plan.md`. Requires a live
-   `terraform destroy` + `terraform apply` cycle: real AWS spend, briefly re-exposes the account.
-2. **AWS Security Hub live HIPAA posture score** — plan ready at
-   `docs/psm2/sprints/sprint-5-security-hub-plan.md`. Requires the same live infrastructure as #1
-   (ideally run in the same session to share the cost) plus Security Hub's own small ongoing
-   per-check cost while enabled.
-3. **UAT with 3+ human participants** — plan ready at `docs/psm2/sprints/sprint-5-uat-plan.md`. No
-   AWS cost — purely needs the project owner to schedule real people.
-4. **MFA for Admin/Doctor accounts** — newly surfaced by this sprint's HIPAA review; a real feature
+Full runbook: `docs/psm2/sprints/sprint-5-rto-test-plan.md`. Executed with explicit user sign-off for
+live AWS spend, using the bootstrap operator credentials (`nonlouy`).
+
+### Result
+
+| Timestamp | UTC | Event |
+|---|---|---|
+| `T_recovery_start` | 18:45:28 | `terraform apply` invoked against an independently-verified-empty account |
+| `T_terraform_complete` | 19:03:08 | `Apply complete!` (includes one retry — see gotchas below) |
+| `T_targets_healthy` | 19:33:04 | Both ALB targets report `healthy` |
+| `T_traffic_serving` | 19:33:16 | `/` returns 200, a real unauthenticated API route (`/api/auth/login`) returns its expected `422` validation response |
+
+**RTO = T_traffic_serving − T_recovery_start = 47m48s.** This **misses** the ≤15 min NFR-06 target,
+but per chapter-3 §3.3.5's own criteria this is a valid, reportable result, not a failed gate — the
+methodology asks for "the time taken to recover," documented honestly, not a pass/fail block on the
+report.
+
+### Where the time goes
+
+| Phase | Duration | What's in it |
+|---|---|---|
+| Infrastructure provisioning (`terraform apply`) | 17m40s | Dominated by RDS — see below. Includes one transient-error retry. |
+| Application deployment | 29m56s | Docker image push to ECR, SSM parameter updates, frontend build/sync/CloudFront invalidation, **plus waiting on a human to trigger the backend rollout** (see finding below) |
+| Health-check convergence to traffic serving | 12s | Fast once the container is actually running |
+
+### Findings from this run (methodology corrections and real gaps, not simulated)
+
+1. **RDS Multi-AZ is the dominant cost, and the original plan doc's timing table was wrong about it.**
+   `terraform.tfvars` has `db_multi_az = true`, not the single-AZ config the RTO plan's timing table
+   assumed. Measured RDS creation time was **15m11s and 15m22s** across two separate live runs (highly
+   consistent) — this alone is at/over the entire 15-minute NFR-06 budget, before any other resource or
+   the application layer is even considered. **Recommendation**: either accept Multi-AZ's ~2x RDS
+   provisioning cost as a documented, deliberate availability-vs-RTO tradeoff in the report, or evaluate
+   whether the additional protection against an AZ-level failure is worth this specific target's
+   headroom for this project's threat model (a wholesale account wipe, per the Alamin Clinic ransomware
+   motivation, isn't mitigated by Multi-AZ either way — both AZs live in the same AWS account).
+
+2. **A true "traffic serving" recovery requires the application deployment pipeline, not just
+   `terraform apply` — and that pipeline has a mandatory human-in-the-loop step that cannot be
+   scripted away.** `terraform apply` alone provisions infrastructure only; the backend container image
+   and frontend build are deployed by a separate step (`deploy.yml`'s `publish-backend-image` /
+   `publish-frontend` jobs in the real CI/CD pipeline, replicated manually in this session). Discovered
+   live: fresh ASG instances with an empty ECR repo sit in `unhealthy` target state indefinitely with no
+   application to serve — Terraform's own success says nothing about whether the clinic's service is
+   actually back. Getting from "infrastructure exists" to "traffic serving" required, in order: Docker
+   build/push to ECR, two `aws ssm put-parameter` calls, and triggering `aws ssm send-command` to run
+   the rollout script on the instances. **That last step specifically requires a human** — in this
+   session because Claude Code's own auto-mode classifier declines to execute an AWS SSM command that
+   runs a script on live production instances even with prior user authorization for the broader task,
+   and in the *real* CI/CD path (`deploy.yml`) because `terraform-apply` and the publish jobs all run
+   under a GitHub `production` environment with a required-reviewer approval gate (deliberate design,
+   Sprint 4). **This means NFR-06's "≤15 min" target, and the RTO plan's own assumption of a "scripted,
+   unattended apply," cannot be fully satisfied end-to-end without a human present for at least one
+   step, regardless of automation investment elsewhere** — a real, structural finding for the report,
+   not a gap in this session's execution. A meaningful chunk of the 29m56s application-deployment phase
+   above is this human round-trip (asking, the operator copy-pasting and running the command), which
+   would not exist in a true single-operator unattended drill but would still exist in the real
+   production pipeline's environment-approval wait.
+
+3. **The original RTO plan's own health-check endpoint assumption was wrong.** The plan's Phase 1
+   called for polling `/api/health` — no such route exists in the backend (`app.js` defines only
+   unprefixed `/health`, mounted outside the `/api` router). Corrected verification, now the standard
+   for any future run of this test: **ALB target group health = `healthy`** (the authoritative signal —
+   this is literally what the load balancer itself uses to decide whether to route real traffic), plus
+   `/` returning 200 through CloudFront, plus a real API route (e.g. `/api/auth/login`) returning its
+   expected non-5xx response. `/health` itself is unreachable through the public CloudFront domain by
+   design — CloudFront's SPA-fallback function intercepts any path not matching the `/api/*` cache
+   behavior and serves the frontend's `index.html` instead, which is correct behavior for a
+   single-page app, not a bug.
+
+4. **A transient AWS eventual-consistency error required one retry mid-run.** Near the very end of the
+   timed `terraform apply`, `aws_cloudwatch_log_group.flow_logs` failed with
+   `ResourceAlreadyExistsException` even though the account had just been independently verified empty
+   and the previous `terraform destroy` reported success. The log group existed live in AWS
+   (confirmed via `describe-log-groups`) but was absent from Terraform's state — most likely a brief
+   AWS-side propagation lag between the destroy's `DeleteLogGroup` call and the immediately-following
+   apply's `CreateLogGroup` call for the same name. Fixed by deleting the orphaned log group directly
+   and re-running `apply` (which completed in seconds). **Recommendation**: a production-grade
+   unattended recovery script should wrap `terraform apply` in retry logic for exactly this class of
+   transient error, rather than assuming a single pass always succeeds.
+
+5. **`final_snapshot_identifier` collides across repeated destroy cycles.** The RDS module sets
+   `final_snapshot_identifier = "${var.project_name}-${var.environment}-rds-final-snapshot"` — a
+   **static** name. Every `terraform destroy` after the first leaves this snapshot behind (by design —
+   final snapshots are meant to survive), so any *subsequent* destroy in the same account fails with
+   `DBSnapshotAlreadyExists` until the prior snapshot is manually deleted first. Hit twice in this
+   session (once during interrupted-apply recovery, once during final teardown). **Recommendation**:
+   append a timestamp (e.g. `formatdate("YYYYMMDDhhmmss", timestamp())`) to
+   `final_snapshot_identifier` in `infrastructure/terraform/modules/rds/main.tf` so repeat teardown/
+   redeploy cycles (RTO drills, re-runs after a failed apply) don't require manual snapshot cleanup
+   each time.
+
+6. **ECR repository has no `force_delete`, so any repo with a pushed image blocks `terraform destroy`.**
+   Hit twice for the same reason — once from this session's manual rehearsal push, once from the real
+   timed run's push. **Recommendation**: either set `force_delete = true` on
+   `module.ecr.aws_ecr_repository.backend` (fine for this project's actual recovery model, since the
+   real recovery path always rebuilds and re-pushes the image fresh rather than depending on prior
+   images surviving a teardown) or document that emptying ECR is a required manual pre-destroy step,
+   matching the versioned-S3-bucket pattern the original plan already documented.
+
+### Teardown
+
+Full teardown re-run after the measurement (disable RDS/ALB deletion protection → `terraform destroy`
+→ empty the 3 versioned log/frontend buckets → delete the stale RDS final snapshot → empty ECR →
+retry destroy → independently re-verify via the same battery used to confirm the pre-test empty state).
+Confirmed empty: no VPC, RDS instance, ALB, CloudFront distribution, ECR repository, or NAT Gateway
+remain in `ap-southeast-1`. Account is back in the zero-cost state.
+
+---
+
+## 7. AWS Security Hub — attempted, blocked by an account-level restriction
+
+Full runbook: `docs/psm2/sprints/sprint-5-security-hub-plan.md`. Attempted immediately after the RTO
+test's infrastructure was live (per the plan's own guidance to share the live-AWS window across both
+deliverables).
+
+```
+aws securityhub enable-security-hub --region ap-southeast-1
+→ An error occurred (SubscriptionRequiredException) when calling the EnableSecurityHub operation:
+  The AWS Access Key Id needs a subscription for the service
+```
+
+This is **not** an IAM permissions problem (the operator credentials used have `AdministratorAccess`,
+already confirmed sufficient for every other service touched this sprint) and not a code or
+configuration mistake — `SubscriptionRequiredException` is AWS's own signal that this specific AWS
+account is not currently eligible/enrolled for the Security Hub service. This is an account-level
+condition (commonly seen on newer or Free-Tier-constrained accounts) that has to be resolved on AWS's
+side, not something fixable from Terraform, the CLI, or this session. **Verified this is a real,
+persistent block, not a transient error**: re-checked after the RTO test's teardown — `aws securityhub
+get-enabled-standards` still returns the same `SubscriptionRequiredException`, confirming Security Hub
+was never actually enabled at any point (nothing was left running or billing).
+
+**What this means for chapter-3 §3.3.5's "Security Hub CRITICAL findings remediated before sprint
+completion" gate**: cannot be satisfied by this account until the subscription restriction is lifted.
+The IaC-level HIPAA §164.312 proxy read in §4 above remains the best available substitute — it already
+anticipated the two findings a live Security Hub HIPAA-standard scan would most likely surface
+(`enable_https = false` and the lack of application-layer MFA), so the substantive security posture
+information this gate is meant to produce is still present in this report, just not sourced from the
+live service itself.
+
+**Recommendation**: raise an AWS Support case (or check the account's Billing/Free Tier status in the
+AWS Console — Account Settings → this is the fastest way to confirm the exact restriction) to resolve
+Security Hub eligibility ahead of any future sprint that depends on it, then re-run
+`sprint-5-security-hub-plan.md` once infrastructure is next live for another reason (e.g. the next RTO
+drill), rather than paying for a dedicated live-AWS window solely to retry this.
+
+---
+
+## 8. What still needs a human decision
+
+1. **UAT with 3+ human participants** — plan ready at `docs/psm2/sprints/sprint-5-uat-plan.md`. No
+   AWS cost — purely needs the project owner to schedule real people. The only Sprint 5 deliverable
+   left fully unexecuted.
+2. **AWS Security Hub account eligibility** — blocked on AWS's side (§7), not something Terraform, the
+   CLI, or this session can resolve. Needs an AWS Support case or a Billing/Free Tier console check
+   before it can ever be run, live infrastructure or not.
+3. **RDS Multi-AZ vs. the 15-minute RTO target** — §6 found RDS alone consumes the entire NFR-06
+   budget under the current `db_multi_az = true` config. Needs a project-owner decision: accept the
+   documented 47m48s RTO as the reported number with Multi-AZ's availability tradeoff explained, or
+   evaluate switching to single-AZ for future drills (weighing that against this project's actual
+   threat model, where a full-account wipe isn't mitigated by Multi-AZ either way).
+4. **A human-gated app-rollout step is structurally unavoidable** (§6, finding 2) — either the GitHub
+   `production` environment approval (real pipeline) or manual SSM command execution (this session's
+   path). Worth a explicit decision on whether the thesis frames this as an accepted, deliberate control
+   (matches the project's own "human approval before production changes" design) rather than a gap to
+   eliminate.
+5. **MFA for Admin/Doctor accounts** — newly surfaced by this sprint's HIPAA review; a real feature
    addition (TOTP or equivalent), not something to bolt on under a sprint's time pressure without
    dedicated design.
-5. **Finding 3** (`patient_invoices` cross-doctor visibility) — needs a recorded risk-acceptance
+6. **Finding 3** (`patient_invoices` cross-doctor visibility) — needs a recorded risk-acceptance
    decision or a deliberate tightening pass, not a silent code change.
-6. **Automated test suite** — the SonarQube coverage-gate finding's real remediation; scoped as its
+7. **Automated test suite** — the SonarQube coverage-gate finding's real remediation; scoped as its
    own follow-up, not attempted in this session.
+8. **Two small Terraform hardening items surfaced by the RTO test's teardown friction** (§6, findings
+   5–6): a static `final_snapshot_identifier` and no `force_delete` on the ECR repo. Both are low-risk,
+   mechanical fixes worth picking up alongside the next Terraform change, not urgent enough alone to
+   justify a dedicated pass.
 
-This document is committed alongside the code fixes above and the three ready-to-execute plans it
-references — nothing here was silently left undone without a next step recorded.
+This document is committed alongside the code fixes above and the two remaining ready-to-execute plans
+(UAT and Security Hub — RTO's own plan has now been executed against, see §6) — nothing here was
+silently left undone without a next step recorded.
