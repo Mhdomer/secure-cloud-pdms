@@ -4,6 +4,7 @@ const AuditLog = require('../models/AuditLog');
 const Patient = require('../models/Patient');
 const Doctor = require('../models/Doctor');
 const CareTeam = require('../models/CareTeam');
+const logger = require('../config/logger');
 const { AUDIT_ACTIONS, ROLES } = require('../config/constants');
 
 const SERIALIZATION_FAILURE = '40001';
@@ -397,8 +398,14 @@ exports.sendTicketSms = async (req, res) => {
     const visit = rows[0];
     const trackingUrl = `${process.env.FRONTEND_URL}/queue-tracker?visitId=${visit.visit_id}&queueNo=${visit.queue_no}`;
     const smsMessage = `مجمع الأمين الطبي: تذكرة الانتظار رقم #${visit.queue_no} للمريض ${visit.patient_name}. تابع دورك في الطابور مباشرة عبر الرابط: ${trackingUrl}`;
-    
-    console.log(`[QUEUE SMS] Dispatched ticket link to ${visit.contact_number || 'patient'}: ${smsMessage}`);
+
+    // Stub SMS provider (no real gateway wired for queue tickets yet) — log
+    // that the dispatch happened without the message body, which embeds the
+    // patient's full name. Never log PHI (Sprint 5 pentest finding: this
+    // previously wrote patient_name + smsMessage to stdout via console.log,
+    // which ships to CloudWatch per authController.js's own no-PHI-in-logs
+    // convention, same discipline services/whatsapp.js already documents).
+    logger.info('Ticket SMS dispatched (stub provider)', { visitId: visit.visit_id, queueNo: visit.queue_no });
 
     await AuditLog.log(client, {
       userId: req.user.userId,

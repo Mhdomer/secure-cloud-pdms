@@ -338,6 +338,24 @@ async function assignDoctor(req, res) {
 
     const updated = await Patient.assignDoctor(client, patientId, doctorId);
 
+    // Sprint 5 pentest finding: this used to only update
+    // patients.assigned_doctor_id, which the *current* doctor_select_records
+    // RLS policy on medical_records (schema.sql) does not fall back to — a
+    // newly-reassigned doctor could see the patient's demographic profile
+    // (admin_select_patients / doctor_select_assigned do check
+    // assigned_doctor_id directly) but got a silently empty medical-history
+    // list until an admin separately ran UC-09b. Mirrors the same
+    // CareTeam.add call visitsController.create already makes for walk-ins,
+    // so a reassignment behaves the same as any other route onto this
+    // patient's care team. Upsert (ON CONFLICT DO UPDATE), so re-running
+    // this for an already-primary doctor is a no-op, not an error.
+    await CareTeam.add(client, {
+      patientId,
+      doctorId,
+      isPrimary: true,
+      assignedBy: req.user.userId,
+    });
+
     await AuditLog.log(client, {
       userId: req.user.userId,
       action: AUDIT_ACTIONS.ASSIGN_DOCTOR,

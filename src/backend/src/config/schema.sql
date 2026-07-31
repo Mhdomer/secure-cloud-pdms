@@ -1222,6 +1222,75 @@ CREATE TRIGGER trg_enforce_visit_status_transition
 ALTER TABLE medical_records ALTER COLUMN updated_at SET DEFAULT NOW();
 UPDATE medical_records SET updated_at = created_at WHERE updated_at IS NULL;
 
+-- ── sick_leaves RLS (Sprint 5 pentest finding — CRITICAL cross-tenant IDOR) ─
+-- sick_leaves was originally created by scripts/apply-feature-additions.js
+-- with no RLS at all — the table definition is repeated here (idempotent,
+-- IF NOT EXISTS) so this fix applies whether or not that script has already
+-- run. Without RLS, GET /sick-leaves/patient/:patientId (authorized for
+-- DOCTOR, ADMIN, SUPERADMIN, and PATIENT) returned every row matching the
+-- URL's patientId regardless of who asked — any authenticated patient could
+-- read any other patient's diagnosis and work restrictions by substituting
+-- a different patientId, and any doctor could read (and, via
+-- sickLeavesController.createSickLeave, forge an official SEHA-SL-######
+-- certificate for) a patient never under their care. Mirrors the same
+-- admin/doctor(care-team)/patient(own) three-way split already used for
+-- lab_results and visits above.
+CREATE TABLE IF NOT EXISTS sick_leaves (
+  leave_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visit_id          UUID REFERENCES visits(visit_id) ON DELETE SET NULL,
+  patient_id        UUID NOT NULL REFERENCES patients(patient_id) ON DELETE CASCADE,
+  doctor_id         UUID NOT NULL REFERENCES doctors(doctor_id) ON DELETE CASCADE,
+  reference_no      VARCHAR(50) NOT NULL UNIQUE,
+  start_date        DATE NOT NULL,
+  days_count        INTEGER NOT NULL DEFAULT 1,
+  diagnosis         TEXT NOT NULL,
+  work_restrictions TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sick_leaves_patient ON sick_leaves(patient_id);
+CREATE INDEX IF NOT EXISTS idx_sick_leaves_doctor  ON sick_leaves(doctor_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON sick_leaves TO pdms_app;
+
+ALTER TABLE sick_leaves ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sick_leaves FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS admin_all_sick_leaves ON sick_leaves;
+CREATE POLICY admin_all_sick_leaves ON sick_leaves
+  FOR ALL
+  USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
+
+-- Doctor: sees/creates sick leaves only for patients directly assigned to
+-- them or on their care team — same union labResultsController's RLS uses.
+DROP POLICY IF EXISTS doctor_select_sick_leaves ON sick_leaves;
+CREATE POLICY doctor_select_sick_leaves ON sick_leaves
+  FOR SELECT
+  USING (patient_id IN (
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM patient_care_team
+     WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ));
+
+DROP POLICY IF EXISTS doctor_insert_sick_leaves ON sick_leaves;
+CREATE POLICY doctor_insert_sick_leaves ON sick_leaves
+  FOR INSERT
+  WITH CHECK (patient_id IN (
+    SELECT patient_id FROM patients
+     WHERE assigned_doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+    UNION
+    SELECT patient_id FROM patient_care_team
+     WHERE doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID
+  ));
+
+-- Patient: only their own sick leaves, read-only.
+DROP POLICY IF EXISTS patient_own_sick_leaves ON sick_leaves;
+CREATE POLICY patient_own_sick_leaves ON sick_leaves
+  FOR SELECT
+  USING (patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::UUID);
+
 -- Apply the new RLS policies to the running database ----------------------
 -- Run this block manually once on the live DB after deploying schema changes:
 --

@@ -9,8 +9,15 @@ const AuditLog = require('../models/AuditLog');
 const { AUDIT_ACTIONS } = require('../config/constants');
 
 const BCRYPT_COST = 12;
-const WEAK_PASSWORD_MESSAGE = 'Password must be at least 8 characters and contain at least one number';
-const PASSWORD_PATTERN = /^(?=.*\d).{8,}$/;
+// Sprint 5 pentest finding: this was the weakest password policy in the
+// codebase (8 chars + 1 digit, no case requirement) despite covering the
+// two highest-traffic password-setting paths — every staff-registered
+// patient's first password (QR flow) and every forgot-password reset both
+// land here. Aligned to the same policy auth.routes.js's isStrongPassword
+// enforces for self-registration/admin-created accounts/self password-change
+// (min 8 chars, 1 lowercase, 1 uppercase, 1 digit).
+const WEAK_PASSWORD_MESSAGE = 'Password must be at least 8 characters with uppercase, lowercase, and a number';
+const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 /** Shared by validateToken and setPassword so both apply identical checks. */
 async function resolveToken(executor, token) {
