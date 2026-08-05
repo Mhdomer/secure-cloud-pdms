@@ -13,6 +13,7 @@ node_modules/
 npm-debug.log
 dist/
 *.tsbuildinfo
+coverage/
 
 # Uploaded patient files (dev local storage — Sprint 4 moves this to S3)
 src/backend/uploads/

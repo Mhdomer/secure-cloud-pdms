@@ -35,6 +35,25 @@ jobs:
         with:
           fetch-depth: 0 # SonarQube needs full git history for new-code/blame analysis
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: src/backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: src/backend
+        run: npm ci
+
+      - name: Run backend tests with coverage
+        # Generates src/backend/coverage/lcov.info, which
+        # sonar.javascript.lcov.reportPaths (sonar-project.properties) reads
+        # in the SonarQube Scan step below. No continue-on-error — a failing
+        # test suite should block the gate exactly like any other finding.
+        working-directory: src/backend
+        run: npm run test:coverage
+
       - name: SonarQube Scan
         # v4 is EOL and flagged by GitHub as containing a known security
         # vulnerability (confirmed via a live run, 2026-07-30 — GitHub's own
