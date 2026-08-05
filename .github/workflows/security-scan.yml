@@ -66,6 +66,19 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          # sonar.projectVersion has never been set (confirmed via the
+          # project's own analysis history: every past analysis shows
+          # projectVersion "not provided"), so the "previous_version" New
+          # Code Definition has been anchored to this project's very first
+          # scan (2026-07-27) the entire time -- every commit since then
+          # counts as "new code" needing 80% coverage, not just each PR's
+          # own diff. Passing a value that changes on every run (the
+          # workflow run number) makes each analysis its own version,
+          # which resets the baseline to "since the last analysis" instead
+          # of "since 2026-07-27" -- this is what actually makes the
+          # coverage gate track real per-PR diffs going forward.
+          args: -Dsonar.projectVersion=${{ github.run_number }}
 
       - name: SonarQube Quality Gate
         uses: SonarSource/sonarqube-quality-gate-action@v1
