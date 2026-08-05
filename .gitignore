@@ -48,6 +48,7 @@ docs/references/mindcraft refrence files/
 .claude/
 claude-sessions/
 .agents/
+docs/psm2/sprints/sprint-5-security-evaluation.md
 
 # MCP config — contains GitHub token, never commit
 .mcp.json
@@ -60,3 +61,4 @@ docs/clinic_imgs/
 docs/Modern_Hospital_Landing_Visuals/
 docs/new_landingpage/
 docs/psm1-submission/MohamedMakhlouf_PSM1_FinalReport_MD_format/
+docs/error-troulbeshooting-cicd
