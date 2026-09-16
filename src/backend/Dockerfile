@@ -28,6 +28,16 @@ WORKDIR /app
 RUN addgroup -S pdms && adduser -S pdms -G pdms \
   && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
+# Patch the Alpine OS layer. With the Trivy gate lowered from CRITICAL-only
+# to CRITICAL,HIGH (see .github/workflows/security-scan.yml), the base
+# image's own libssl3/libcrypto3 3.5.6-r0 became the only remaining HIGH
+# findings in this image — 4 of them, all fixed upstream in 3.5.7-r0. The
+# npm removal above already took the bundled-npm findings (tar, minimatch,
+# glob, pacote, sigstore) out of the picture, and the application's own
+# dependencies scan clean, so this is the last layer left to patch rather
+# than suppress.
+RUN apk upgrade --no-cache
+
 COPY --from=build /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src

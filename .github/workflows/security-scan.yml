@@ -149,7 +149,13 @@ jobs:
         with:
           image-ref: pdms-backend:${{ github.sha }}
           format: table
-          severity: CRITICAL
+          # Was CRITICAL-only, which is why this gate reported a clean image
+          # on 2026-07-31 while `npm audit` showed 3 HIGH advisories in the
+          # backend's own dependencies (multer, among them a DoS via crafted
+          # multipart field names). HIGH is where the dependency CVEs that
+          # actually affect this app land; CRITICAL-only was a gate
+          # calibrated not to see them.
+          severity: CRITICAL,HIGH
           exit-code: '1'
           vuln-type: os,library
 
