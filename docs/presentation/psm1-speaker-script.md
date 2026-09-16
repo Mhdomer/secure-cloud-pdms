@@ -71,7 +71,9 @@ Each of these three gaps maps directly to one of my four project objectives."
 
 **Objective 3** is to build a DevSecOps CI/CD pipeline with automated security gates — SonarQube for static code analysis, Trivy for container scanning, and Checkov for infrastructure scanning — each one blocking the pipeline on failure.
 
-**Objective 4** is to achieve a ransomware recovery RTO of under 15 minutes using Terraform infrastructure-as-code. For reference, Alamin Clinic took five days."
+**Objective 4** is to achieve a fast ransomware recovery RTO using Terraform infrastructure-as-code. For reference, Alamin Clinic took five days."
+
+> **PSM2 update (2026-09-16):** the original objective said "under 15 minutes." The PSM2 drill measured 17m40s for infrastructure and 47m48s to fully serving traffic, which established the 15-minute figure had been set without measurement — RDS Multi-AZ provisioning alone is ~15 min. The objective is now NFR-06a (≤25 min infrastructure) and NFR-06b (≤60 min full service). Against five days of real downtime, the comparison still lands.
 
 ---
 
@@ -103,7 +105,7 @@ Out of scope: mobile application, payment processing, and third-party EHR integr
 
 **AWS Well-Architected Framework** provides cloud-native security guidance and CloudTrail for API logging, but it does not cover application-layer RBAC — that is left entirely to the developer.
 
-**The research gap** is this: no existing system combines three-layer RBAC, a full DevSecOps CI/CD pipeline, and Terraform-based disaster recovery with an RTO under 15 minutes — all in a single cloud-native deployment suitable for Malaysian healthcare. That gap is exactly what this project fills."
+**The research gap** is this: no existing system combines three-layer RBAC, a full DevSecOps CI/CD pipeline, and Terraform-based disaster recovery with a sub-hour measured RTO — all in a single cloud-native deployment suitable for Malaysian healthcare. That gap is exactly what this project fills."
 
 ---
 
@@ -205,7 +207,7 @@ There are five test categories.
 
 **Pipeline testing** — confirming that each security gate correctly blocks the pipeline on CRITICAL findings, and that Terraform Apply only runs when all three scans pass.
 
-**Recovery testing** — destroying the test environment completely, then running terraform apply and measuring the actual recovery time. The target is under 15 minutes.
+**Recovery testing** — destroying the test environment completely, then running terraform apply and measuring the actual recovery time. The targets are 25 minutes for infrastructure and 60 minutes to fully serving traffic.
 
 **Compliance audit** — formal validation against HIPAA Section 164.312 and Malaysia's Personal Data Protection Act 2010.
 
@@ -231,7 +233,7 @@ All of these are planned for PSM 2. The system has not yet been implemented."
 
 This project proposes a secure, cloud-based patient data management system that directly eliminates all three critical gaps identified from the Alamin Clinic ransomware case study.
 
-The three-layer RBAC ensures only the right person accesses the right data. The audit trail ensures every action is recorded and cannot be tampered with. And Terraform infrastructure-as-code ensures that if the worst happens, the entire system can be rebuilt in under 15 minutes — compared to the five days it took Alamin Clinic.
+The three-layer RBAC ensures only the right person accesses the right data. The audit trail ensures every action is recorded and cannot be tampered with. And Terraform infrastructure-as-code ensures that if the worst happens, the entire system can be rebuilt in under an hour — compared to the five days it took Alamin Clinic.
 
 PSM 1 is complete. Implementation follows in PSM 2.
 
@@ -277,9 +279,15 @@ Thank you very much for your time. I am happy to answer any questions."
 
 ---
 
-**Q: How do you validate the RTO of under 15 minutes?**
+**Q: How do you validate the RTO?**
 
-"In PSM 2, I will conduct a formal recovery drill. I will destroy the test environment completely, then start a timer and run terraform apply from a clean AWS account. The timer stops when the system passes a health check — meaning the load balancer returns HTTP 200. I will repeat this three times and record the average. The 15-minute target is feasible because all infrastructure state is in Terraform code — there are no manual steps."
+> **Answer updated after the PSM2 drill (2026-09-16).** The PSM1 answer below assumed 15 minutes was achievable and that there were no manual steps. Both turned out to be wrong, and the honest version is a better answer.
+
+"I ran a formal recovery drill on 31 July 2026. I destroyed the environment completely, started a timer, and ran terraform apply against an independently-verified-empty account. The timer stopped when the ALB reported healthy targets and a real API route responded. Infrastructure came back in 17 minutes 40 seconds; full service took 47 minutes 48 seconds.
+
+That missed the original 15-minute target, and measuring it is what showed why the target was wrong. RDS Multi-AZ creation alone takes about 15 minutes — it spends the whole budget before anything else exists. And the deploy pipeline needs a human approval by design, so a fully unattended recovery was never compatible with a control I deliberately built. I could have hit 15 minutes by removing that gate, but trading a security control for a recovery metric is the wrong call on this project.
+
+So I split the requirement: NFR-06a, infrastructure within 25 minutes, and NFR-06b, full service within 60 minutes including the approval wait. Both are met by the measured drill. Getting under 15 minutes would need a warm standby with pre-provisioned RDS, which means paying for always-on infrastructure — that's in future work."
 
 ---
 

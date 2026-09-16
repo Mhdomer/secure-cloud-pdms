@@ -46,7 +46,7 @@ Three root-cause gaps identified from the ransomware case study:
 1. Design a three-tier AWS VPC architecture with isolated Public, Private Application, and Private Database subnets
 2. Implement Role-Based Access Control enforced at three independent layers: JWT (application), AWS IAM (infrastructure), and PostgreSQL Row-Level Security (database)
 3. Build a DevSecOps CI/CD pipeline integrating SonarQube SAST, Trivy container scanning, and Checkov IaC scanning — with automated security gates that block deployment on failure
-4. Achieve a ransomware recovery RTO of under 15 minutes using Terraform infrastructure-as-code
+4. Achieve a fast ransomware recovery RTO using Terraform infrastructure-as-code (PSM1 stated 15 minutes; the PSM2 drill measured 17m40s infrastructure / 47m48s full service, and the requirement is now NFR-06a ≤25 min / NFR-06b ≤60 min)
 
 ---
 
@@ -76,7 +76,7 @@ Compare three systems against the proposed system:
 | RBAC | Basic | Enterprise | 3-layer (JWT + IAM + RLS) |
 | Audit Trail | None | Yes | CloudTrail + audit_log |
 | Cloud | On-premise | Private cloud | AWS public cloud |
-| IaC / DR | None | Proprietary | Terraform (RTO < 15 min) |
+| IaC / DR | None | Proprietary | Terraform (measured RTO 17m40s infra / 47m48s full service) |
 | DevSecOps Pipeline | None | None | 6-stage automated |
 
 **Research Gap:** No existing system combines three-layer RBAC, a full DevSecOps pipeline, and Terraform-based disaster recovery in a single open-source cloud-native deployment targeting Malaysian healthcare.
@@ -154,7 +154,7 @@ HIPAA Compliance mapping:
 - §164.312(a)(1) Access Control → 3-layer RBAC
 - §164.312(b) Audit Controls → CloudTrail + audit_log
 - §164.312(e)(2) Encryption → TLS 1.2+ (ALB) + AES-256 (RDS)
-- §164.312(a)(2)(ii) Emergency Access → Terraform RTO < 15 min
+- §164.312(a)(2)(ii) Emergency Access → Terraform RTO, measured 47m48s to full service
 
 ---
 
@@ -176,7 +176,7 @@ Testing will be conducted in PSM 2:
 - **Functional Testing:** Test cases covering all 18 use cases, both positive and negative scenarios
 - **Security Testing:** Penetration testing to validate RBAC layers and RLS policies
 - **Pipeline Testing:** Confirm each security gate correctly blocks on critical findings
-- **Recovery Testing:** Destroy test environment → run terraform apply → measure RTO (target: under 15 minutes)
+- **Recovery Testing:** Destroy test environment → run terraform apply → measure RTO (targets: infrastructure under 25 min, full service under 60 min)
 - **Compliance Audit:** Validate against HIPAA §164.312 and Malaysia PDPA 2010
 
 ---

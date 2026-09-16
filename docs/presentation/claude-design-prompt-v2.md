@@ -195,7 +195,7 @@ Present the four objectives using SmartArt or numbered icons:
 1. Design a three-tier AWS VPC with isolated subnets
 2. Implement RBAC at three layers: JWT · IAM · PostgreSQL RLS
 3. Build a DevSecOps CI/CD pipeline with three automated security gates
-4. Achieve RTO < 15 minutes using Terraform infrastructure-as-code
+4. Achieve a fast RTO using Terraform infrastructure-as-code — NFR-06a ≤25 min infrastructure, NFR-06b ≤60 min full service (measured 17m40s / 47m48s)
 
 Below the objectives, add a compact scope line:
 3 roles (Doctor · Admin · Patient) | AWS only | PSM 1 = Design | PSM 2 = Implementation
@@ -213,7 +213,7 @@ Very briefly compare three existing systems against the proposed solution using 
 | RBAC | Basic | Enterprise | 3-layer (JWT+IAM+RLS) |
 | Audit Trail | None | Yes | CloudTrail + audit_log |
 | Cloud Deployment | On-premise | Private | AWS (public cloud) |
-| IaC / DR | None | Proprietary | Terraform RTO < 15 min |
+| IaC / DR | None | Proprietary | Terraform, measured RTO 17m40s infra / 47m48s full service |
 | DevSecOps Pipeline | None | None | 6-stage automated |
 
 Below the table, clearly state the research gap in one or two bullet points.
