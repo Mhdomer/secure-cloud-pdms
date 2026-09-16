@@ -435,9 +435,11 @@ async function confirmAppointment(req, res) {
       throw err;
     }
 
-    // Application-layer ownership check — appointments has no RLS, so a
-    // doctor confirming their own appointment must be verified here rather
-    // than relying on a database policy.
+    // Application-layer ownership check. `appointments` gained RLS on
+    // 2026-09-15, so this is now the first of two layers rather than the
+    // only one — the doctor_select/update_appointments policies enforce the
+    // same boundary in the database. Kept because it returns a precise 403
+    // instead of a silent zero-row UPDATE.
     if (role === ROLES.DOCTOR && existing.doctor_id !== doctorId) {
       const err = new Error('You are not assigned to this appointment');
       err.statusCode = 403;
@@ -496,8 +498,9 @@ async function completeAppointment(req, res) {
       throw err;
     }
 
-    // Application-layer ownership check — appointments has no RLS, same
-    // pattern as confirmAppointment/cancelAppointment above.
+    // Application-layer ownership check, same pattern as
+    // confirmAppointment/cancelAppointment above. Backed by the
+    // doctor_update_appointments RLS policy since 2026-09-15.
     if (existing.doctor_id !== doctorId) {
       const err = new Error('You are not assigned to this appointment');
       err.statusCode = 403;
@@ -537,8 +540,9 @@ async function completeAppointment(req, res) {
 
 /**
  * Quick Check-In (Feature E) — Staff marks a patient as physically present.
- * Admin/superadmin only (appointments has no RLS, so this is the entire
- * access boundary — same pattern as scheduleAppointment/cancelAppointment).
+ * Admin/superadmin only. Since 2026-09-15 the admin_all_appointments RLS
+ * policy enforces the same restriction in the database, so this is one of
+ * two layers — same pattern as scheduleAppointment/cancelAppointment.
  * Uses 409, not 400, for an already-arrived/completed/cancelled appointment,
  * matching confirmAppointment/cancelAppointment's existing convention for
  * "valid request, wrong resource state" in this file.
@@ -611,9 +615,11 @@ async function cancelAppointment(req, res) {
           throw err;
         }
 
-        // UC-21 — Application-layer ownership check for patient self-cancel:
-        // appointments has no RLS, so this must be verified here, same
-        // principle as confirmAppointment's doctor ownership check above.
+        // UC-21 — Application-layer ownership check for patient self-cancel,
+        // same principle as confirmAppointment's doctor ownership check
+        // above. The patient_update_appointments RLS policy enforces this
+        // independently since 2026-09-15; this check turns what would be a
+        // silent no-op UPDATE into an explicit 403.
         if (role === ROLES.PATIENT && existing.patient_id !== patientId) {
           const err = new Error('You are not permitted to cancel this appointment');
           err.statusCode = 403;
@@ -695,9 +701,10 @@ async function rescheduleAppointment(req, res) {
           throw err;
         }
 
-        // Application-layer ownership check for patient self-reschedule —
-        // appointments has no RLS, same principle as cancelAppointment's
-        // UC-21 check above.
+        // Application-layer ownership check for patient self-reschedule,
+        // same principle as cancelAppointment's UC-21 check above. Also
+        // enforced by the patient_update_appointments RLS policy since
+        // 2026-09-15.
         if (role === ROLES.PATIENT && existing.patient_id !== patientId) {
           const err = new Error('You are not permitted to reschedule this appointment');
           err.statusCode = 403;
@@ -796,8 +803,8 @@ async function sendSmsReminder(req, res) {
       throw err;
     }
 
-    // Application-layer ownership check — appointments has no RLS, same
-    // pattern as confirmAppointment/completeAppointment above. Sprint 5
+    // Application-layer ownership check, same pattern as
+    // confirmAppointment/completeAppointment above. Sprint 5
     // pentest finding: this was the one mutation in this file missing it,
     // letting any doctor account trigger an SMS reminder for any patient's
     // appointment regardless of assignment.

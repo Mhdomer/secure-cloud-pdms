@@ -125,9 +125,10 @@ async function getMyInvoices(req, res) {
 
 /**
  * Admin/superadmin/doctor: download any invoice file. Patient: only their
- * own — patient_invoices carries no RLS (see the model's header comment),
- * so this ownership check is the only thing standing between a patient
- * session and someone else's invoice.
+ * own. Since 2026-09-15 the patient_select_own_invoices RLS policy enforces
+ * that in the database too, so this check is no longer the only thing
+ * standing between a patient session and someone else's invoice — it now
+ * turns what RLS would render as a 404-by-absence into an explicit one.
  */
 async function downloadInvoice(req, res) {
   const { invoiceId } = req.params;

@@ -179,10 +179,13 @@ CREATE TABLE IF NOT EXISTS medical_records (
 ALTER TABLE medical_records ADD COLUMN IF NOT EXISTS prescriptions_data JSONB;
 
 -- ── appointments ───────────────────────────────────────────────────────────
--- No RLS on this table (Chapter 4 Section 4.4.3 scopes RLS to medical_records
--- and patients only). Access boundaries are enforced entirely at the
--- application layer — see src/middleware/rbacMiddleware.js and the
--- ownership checks in appointmentsController.js.
+-- RLS-protected since 2026-09-15 — see the "appointments + patient_invoices
+-- RLS" block near the end of this file for the policies and for the
+-- SECURITY DEFINER helpers that keep double-booking detection working under
+-- a patient session. Chapter 4 Section 4.4.3 originally scoped RLS to
+-- medical_records and patients only; access here used to rest entirely on
+-- the application layer (src/middleware/rbacMiddleware.js plus the ownership
+-- checks in appointmentsController.js), which remain as the first layer.
 CREATE TABLE IF NOT EXISTS appointments (
   appointment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id     UUID REFERENCES patients(patient_id) ON DELETE CASCADE,
@@ -1290,6 +1293,178 @@ DROP POLICY IF EXISTS patient_own_sick_leaves ON sick_leaves;
 CREATE POLICY patient_own_sick_leaves ON sick_leaves
   FOR SELECT
   USING (patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::UUID);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- appointments + patient_invoices RLS (added 2026-09-15)
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Both tables hold patient data and, until now, were defended only at the
+-- application layer: authorizeRole plus hand-written ownership checks in
+-- appointmentsController/invoicesController. Those checks are correct today
+-- (every Appointment.findById call site either verifies ownership or is
+-- admin-only), but they are a single layer — one new endpoint that forgets
+-- the check is an IDOR, which is exactly how `sick_leaves` shipped without
+-- protection in Sprint 5. These policies make the DB the second, independent
+-- layer the report claims throughout.
+--
+-- Every app.current_*_id cast below is NULLIF-guarded, per
+-- docs/psm2/rls-policy-guidelines.md. An admin session has neither a
+-- doctorId nor a patientId, so both GUCs arrive as '' and a bare ''::UUID
+-- would 500 the request for every role — not just the one the clause targets.
+--
+-- No policy here references `patients` or any other RLS-protected table.
+-- That is deliberate: `patients`.doctor_select_assigned already subqueries
+-- `appointments`, so a policy pointing back would be mutual recursion and
+-- Postgres would abort with "infinite recursion detected in policy".
+
+-- ── Doctor-availability helpers (SECURITY DEFINER) ────────────────────────
+-- Self-booking (UC-20) and patient reschedule (UC-21b) run their
+-- double-booking checks inside the PATIENT's own transaction. Once
+-- appointments is RLS-protected, a patient session can no longer see other
+-- patients' rows — so a plain conflict query would return nothing, the check
+-- would silently pass, and two patients could book the same doctor at the
+-- same time. RLS would have turned a security fix into a correctness bug.
+--
+-- These two functions answer only "is this doctor busy?" — a uuid and a
+-- boolean. They never return a patient_id, a name, or a reason. A patient
+-- learns that a slot is taken, never who holds it, which is the minimum
+-- disclosure the booking flow actually needs.
+--
+-- SECURITY DEFINER runs them as the function owner (postgres, the superuser
+-- that applies this file), which bypasses RLS. `SET search_path = public,
+-- pg_temp` is required, not cosmetic: without it a caller could prepend a
+-- schema of their own and hijack the unqualified table reference inside a
+-- definer-rights function. EXECUTE is revoked from PUBLIC and granted only
+-- to pdms_app.
+
+CREATE OR REPLACE FUNCTION appointment_conflict_id(
+  p_doctor_id    UUID,
+  p_scheduled_at TIMESTAMPTZ,
+  p_exclude      UUID DEFAULT NULL
+) RETURNS UUID
+  LANGUAGE sql
+  STABLE
+  SECURITY DEFINER
+  SET search_path = public, pg_temp
+AS $$
+  SELECT appointment_id
+    FROM appointments
+   WHERE doctor_id = p_doctor_id
+     AND scheduled_at = p_scheduled_at
+     AND status IN ('scheduled', 'confirmed')
+     AND appointment_id IS DISTINCT FROM p_exclude
+   LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION doctor_slot_taken(
+  p_doctor_id    UUID,
+  p_scheduled_at TIMESTAMPTZ,
+  p_duration     INTEGER,
+  p_exclude      UUID DEFAULT NULL
+) RETURNS BOOLEAN
+  LANGUAGE sql
+  STABLE
+  SECURITY DEFINER
+  SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+      FROM appointments
+     WHERE doctor_id = p_doctor_id
+       AND status IN ('scheduled', 'confirmed')
+       AND appointment_id IS DISTINCT FROM p_exclude
+       AND scheduled_at < (p_scheduled_at + (p_duration || ' minutes')::INTERVAL)
+       AND (scheduled_at + (duration_minutes || ' minutes')::INTERVAL) > p_scheduled_at
+  );
+$$;
+
+REVOKE ALL ON FUNCTION appointment_conflict_id(UUID, TIMESTAMPTZ, UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION doctor_slot_taken(UUID, TIMESTAMPTZ, INTEGER, UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION appointment_conflict_id(UUID, TIMESTAMPTZ, UUID) TO pdms_app;
+GRANT EXECUTE ON FUNCTION doctor_slot_taken(UUID, TIMESTAMPTZ, INTEGER, UUID) TO pdms_app;
+
+-- ── appointments ──────────────────────────────────────────────────────────
+ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE appointments FORCE ROW LEVEL SECURITY;
+
+-- Admin/superadmin: the reception desk schedules, reschedules, checks in and
+-- cancels across every patient, and superadmin's system-health panel counts
+-- today's appointments clinic-wide (usersController.getSystemHealth).
+DROP POLICY IF EXISTS admin_all_appointments ON appointments;
+CREATE POLICY admin_all_appointments ON appointments
+  FOR ALL
+  USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'))
+  WITH CHECK (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
+
+-- Doctor: their own clinic list only — mirrors Appointment.listForDoctor's
+-- existing `doctor_id = $1` filter, so no working query changes shape.
+DROP POLICY IF EXISTS doctor_select_appointments ON appointments;
+CREATE POLICY doctor_select_appointments ON appointments
+  FOR SELECT
+  USING (doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID);
+
+-- Doctor: confirm / complete their own appointments (UC-12, UC-14).
+DROP POLICY IF EXISTS doctor_update_appointments ON appointments;
+CREATE POLICY doctor_update_appointments ON appointments
+  FOR UPDATE
+  USING (doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID)
+  WITH CHECK (doctor_id = NULLIF(current_setting('app.current_doctor_id', true), '')::UUID);
+
+-- Patient: read their own appointments (mirrors Appointment.listForPatient).
+DROP POLICY IF EXISTS patient_select_appointments ON appointments;
+CREATE POLICY patient_select_appointments ON appointments
+  FOR SELECT
+  USING (patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::UUID);
+
+-- Patient: self-booking (UC-20). WITH CHECK pins the new row to the booking
+-- session's own patient_id, so a tampered request body cannot book an
+-- appointment in someone else's name.
+DROP POLICY IF EXISTS patient_insert_appointments ON appointments;
+CREATE POLICY patient_insert_appointments ON appointments
+  FOR INSERT
+  WITH CHECK (patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::UUID);
+
+-- Patient: reschedule / cancel their own (UC-21b). USING gates which rows
+-- may be touched; WITH CHECK stops an UPDATE from reassigning the row to a
+-- different patient on the way out.
+DROP POLICY IF EXISTS patient_update_appointments ON appointments;
+CREATE POLICY patient_update_appointments ON appointments
+  FOR UPDATE
+  USING (patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::UUID)
+  WITH CHECK (patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::UUID);
+
+-- ── patient_invoices ──────────────────────────────────────────────────────
+-- Billing documents (invoices, consent forms) uploaded by reception. The
+-- grant on this table is SELECT, INSERT only — files are immutable once
+-- uploaded — so there is deliberately no UPDATE or DELETE policy.
+ALTER TABLE patient_invoices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patient_invoices FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS admin_all_patient_invoices ON patient_invoices;
+CREATE POLICY admin_all_patient_invoices ON patient_invoices
+  FOR ALL
+  USING (current_setting('app.current_role', true) IN ('admin', 'superadmin'))
+  WITH CHECK (current_setting('app.current_role', true) IN ('admin', 'superadmin'));
+
+-- Doctor: clinic-wide read. This mirrors the behaviour that exists today —
+-- invoicesController.downloadInvoice lets any doctor fetch any invoice file,
+-- and only the patient branch is ownership-checked. Narrowing doctors to
+-- their own patients would be a tighter, more minimum-necessary rule, but it
+-- is a behaviour change rather than a second layer under existing behaviour,
+-- so it is left as a deliberate follow-up rather than smuggled in here.
+DROP POLICY IF EXISTS doctor_select_patient_invoices ON patient_invoices;
+CREATE POLICY doctor_select_patient_invoices ON patient_invoices
+  FOR SELECT
+  USING (current_setting('app.current_role', true) = 'doctor');
+
+-- Patient: their own billing documents only. This is the layer that backs up
+-- the hand-written check in invoicesController.downloadInvoice, whose own
+-- comment called itself "the only thing standing between a patient session
+-- and someone else's invoice". It is no longer the only thing.
+DROP POLICY IF EXISTS patient_select_own_invoices ON patient_invoices;
+CREATE POLICY patient_select_own_invoices ON patient_invoices
+  FOR SELECT
+  USING (patient_id = NULLIF(current_setting('app.current_patient_id', true), '')::UUID);
+
 
 -- Apply the new RLS policies to the running database ----------------------
 -- Run this block manually once on the live DB after deploying schema changes:

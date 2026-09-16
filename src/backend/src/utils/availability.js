@@ -70,17 +70,19 @@ async function isSlotAvailable(client, doctorId, scheduledAt, durationMinutes, e
     return false;
   }
 
+  // Routed through the doctor_slot_taken() SECURITY DEFINER helper rather
+  // than reading `appointments` directly. That table is RLS-protected, and
+  // this function runs inside the caller's own session — including a
+  // patient's during self-booking (UC-20) and reschedule (UC-21b), where the
+  // policies correctly hide every other patient's row. Querying directly
+  // here would see an empty table, report the slot free, and double-book the
+  // doctor. The helper returns a bare boolean and never discloses who holds
+  // the overlapping slot. See the RLS block in config/schema.sql.
   const overlap = await client.query(
-    `SELECT 1
-       FROM appointments
-      WHERE doctor_id = $1
-        AND status IN ('scheduled', 'confirmed')
-        AND appointment_id IS DISTINCT FROM $4
-        AND scheduled_at < ($2::timestamptz + ($3 || ' minutes')::interval)
-        AND (scheduled_at + (duration_minutes || ' minutes')::interval) > $2::timestamptz`,
+    `SELECT doctor_slot_taken($1, $2, $3, $4) AS taken`,
     [doctorId, scheduledAt, durationMinutes, excludeAppointmentId]
   );
-  return overlap.rows.length === 0;
+  return overlap.rows[0].taken === false;
 }
 
 module.exports = { isSlotAvailable };

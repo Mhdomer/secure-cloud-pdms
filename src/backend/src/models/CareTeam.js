@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * patient_care_team table — no RLS of its own; access is gated by the
+ * patient_care_team table — RLS-protected; access is additionally gated by the
  * ADMIN/DOCTOR role checks in patients.routes.js (UC-09b), same as
  * doctor_availability. patients/medical_records/lab_results RLS policies
  * (schema.sql) reference this table directly so a doctor's SELECT access

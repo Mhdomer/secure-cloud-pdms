@@ -1,11 +1,14 @@
 'use strict';
 
 /**
- * patient_invoices table — no RLS (billing documents; access is role-gated
- * only via authorizeRole, not per-patient like medical_records/lab_results).
- * Controllers still call this through withTransaction because the
- * accompanying patient-existence check reads the RLS-protected `patients`
- * table in the same transaction.
+ * patient_invoices table — RLS-protected since 2026-09-15. Admin/superadmin
+ * have full access, doctors retain clinic-wide read (matching the behaviour
+ * invoicesController.downloadInvoice already allowed), and a patient session
+ * can only ever see its own billing documents.
+ *
+ * Before that the table was role-gated via authorizeRole only, which left
+ * the hand-written ownership check in downloadInvoice as the single thing
+ * separating one patient's invoices from another's.
  */
 class PatientInvoice {
   static async create(

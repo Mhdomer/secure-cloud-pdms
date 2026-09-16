@@ -1,24 +1,36 @@
 'use strict';
 
 /**
- * appointments table — NO RLS (Chapter 4 §4.4.3 scopes RLS to patients and
- * medical_records only). All access boundaries for this table are enforced
- * at the application layer (rbacMiddleware + explicit ownership checks in
- * appointmentsController.js). Every method accepts a generic `executor`
- * (pool or transaction client).
+ * appointments table — RLS-protected since 2026-09-15 (admin full access,
+ * doctor scoped to their own clinic list, patient scoped to their own
+ * appointments). Chapter 4 §4.4.3 originally scoped RLS to patients and
+ * medical_records only; that was widened because appointment rows are
+ * patient data and the application-layer ownership checks in
+ * appointmentsController.js were the single layer guarding them.
+ *
+ * Those checks remain, deliberately — they return precise 403/404 responses
+ * where RLS alone would produce a silent zero-row result. Every method
+ * accepts a generic `executor` (pool or transaction client), and any query
+ * that must legitimately see across patients goes through a SECURITY
+ * DEFINER helper rather than reading the table directly — see findConflict.
  */
 class Appointment {
+  /**
+   * Goes through the appointment_conflict_id() SECURITY DEFINER helper
+   * rather than reading `appointments` directly. Since that table became
+   * RLS-protected, a patient self-booking (UC-20) can no longer see other
+   * patients' rows — a direct query here would find no conflict, pass, and
+   * let two patients book the same doctor at the same time. The helper
+   * answers only "is that slot taken", returning an id and nothing about
+   * whose appointment it is. See the RLS block in config/schema.sql.
+   */
   static async findConflict(executor, doctorId, scheduledAt, excludeAppointmentId = null) {
     const result = await executor.query(
-      `SELECT appointment_id, scheduled_at
-         FROM appointments
-        WHERE doctor_id = $1
-          AND scheduled_at = $2
-          AND status IN ('scheduled', 'confirmed')
-          AND appointment_id IS DISTINCT FROM $3`,
+      `SELECT appointment_conflict_id($1, $2, $3) AS appointment_id`,
       [doctorId, scheduledAt, excludeAppointmentId]
     );
-    return result.rows[0] || null;
+    const appointmentId = result.rows[0]?.appointment_id || null;
+    return appointmentId ? { appointment_id: appointmentId, scheduled_at: scheduledAt } : null;
   }
 
   static async create(executor, { patientId, doctorId, scheduledAt, type, notes, createdBy, durationMinutes }) {
