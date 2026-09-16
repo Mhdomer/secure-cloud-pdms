@@ -17,7 +17,10 @@ Before doing anything, read:
 
 ### 1. Apply schema additions to the live local DB
 Run the SQL in docs/psm2/schema-additions.sql against the local PostgreSQL database.
-Connection: host=localhost port=5432 dbname=pdms user=postgres password=2013
+Connection: host=localhost port=5432 dbname=pdms user=postgres
+(Password: see MIGRATION_DB_PASSWORD in src/backend/.env - never inline it here.
+The literal that used to sit on this line was committed in 3d00815 and has
+since been rotated; see docs/psm2/credential-exposure-2026-09-15.md.)
 Confirm each ALTER TABLE and CREATE TABLE succeeded.
 
 ### 2. Update schema.sql to include the new columns/tables

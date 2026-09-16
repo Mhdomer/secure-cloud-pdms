@@ -253,7 +253,7 @@ not something to edit after the fact.
 | Finding | Why deferred |
 |---|---|
 | 1-A — live Twilio SID/Auth Token in `.env` | Requires rotating via the Twilio console, which this session has no access to. **Still needs manual rotation.** |
-| 1-B — `MIGRATION_DB_PASSWORD=2013` | This is the Postgres *superuser* password (bypasses all RLS), not the least-privilege app role rotated above. Higher blast radius if changed incorrectly (could lock out local DB admin access); left for the user to rotate deliberately. |
+| 1-B — `MIGRATION_DB_PASSWORD` (value redacted 2026-09-15) | This is the Postgres *superuser* password (bypasses all RLS), not the least-privilege app role rotated above. Higher blast radius if changed incorrectly (could lock out local DB admin access); left for the user to rotate deliberately. |
 | 2-E — local disk uploads (`src/backend/uploads/`) won't survive an Auto Scaling Group | Needs a real S3 bucket + IAM policy in Terraform plus a `multer-s3` rewrite — explicitly Sprint 4 scope per `CLAUDE.md`'s sprint plan, not a same-session code fix. |
 | 4-A — `authStore.ts` persists `userId`/`username`/`role` to `localStorage` | A correct fix means adding a `/api/auth/me` endpoint and a bootstrap-on-load flow (the store currently has no other way to repopulate `user` after a page refresh) — a drive-by partial fix (e.g. `partialize`-ing the field out) would break role-based rendering on every page refresh. Needs a deliberate follow-up, not a patch. |
 | 6-D — no DB-level CHECK/trigger on visit status transitions | App-layer enforcement in `visitsController.updateStatus` is already correct per the audit; this would only be additional defense-in-depth via a `BEFORE UPDATE` trigger. Rated MEDIUM ("consider"), not urgent. |

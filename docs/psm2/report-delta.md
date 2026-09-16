@@ -2203,6 +2203,24 @@ locked via 3 failed logins, then a successful reset flow confirmed both
 
 ---
 
+## DELTA-048 — Sprint 5 follow-up (2026-09-15) — **pending sign-off**
+
+Source: `docs/psm2/nfr-06-rto-decision-2026-09-15.md`,
+`docs/psm2/rls-expansion-2026-09-15.md`,
+`docs/psm2/credential-exposure-2026-09-15.md`.
+
+| Chapter | Section | Change |
+|---|---|---|
+| Chapter 3 | §3.5.2 / Appendix D Table D.2 | **Needs author decision first.** Replace NFR-06 (RTO ≤ 15 min) with NFR-06a (infrastructure recovery ≤ 25 min, measured 17m40s) and NFR-06b (full service restoration ≤ 60 min, measured 47m48s). Rationale: RDS Multi-AZ alone takes ~15m11s, and the deploy approval gate is a deliberate control that makes unattended recovery impossible by design |
+| Chapter 5 | Evaluation / Limitations | Record the original ≤15 min target, the measured 47m48s, both structural causes, and the revision — a requirement corrected by measurement, not a target met because it was never tested |
+| Chapter 5 | Future Work | Warm standby / pre-provisioned RDS as the architecture that would actually reach sub-15-minute recovery, and its always-on cost |
+| Chapter 4 | §4.4.3 Row-Level Security | RLS now covers 11 tables, not 2 — add `appointments` and `patient_invoices` with their policy tables. Explain the SECURITY DEFINER helpers (`appointment_conflict_id`, `doctor_slot_taken`) and why they are required: self-booking’s double-booking check runs inside the patient’s own session, so RLS would otherwise have silently permitted double-bookings |
+| Chapter 4 | §4.x Security Design | Note the disclosure property the helpers buy — a patient learns a slot is taken, never whose it is — as a minimum-necessary design decision |
+| Chapter 5 | Testing / Verification | The security controls now have automated tests: 192 backend tests covering JWT verification (real signature tampering, `alg=none`, cookie-only delivery), the full RBAC role matrix, and live-PostgreSQL cross-tenant isolation as the regression test for the Sprint 5 `sick_leaves` IDOR. State plainly that the live DB suite is skipped in CI for want of a database there |
+| Chapter 5 | Lessons Learned | The committed local Postgres superuser password — a documented control in the project’s own CLAUDE.md, crossed in the project’s own repository, caught by a later audit of it. Assessed (localhost-only), redacted, history retained with a stated reason |
+
+---
+
 ## How to use this file
 
 1. After each sprint ends, check this file before editing the report.
