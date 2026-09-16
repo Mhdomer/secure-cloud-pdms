@@ -41,7 +41,7 @@ A three-tier AWS system that closes all three gaps simultaneously:
 |---|---|
 | No RBAC | 3-layer RBAC: JWT + AWS IAM + PostgreSQL RLS |
 | No audit trail | CloudTrail (AWS API level) + audit_log table (data level) |
-| No disaster recovery | Terraform IaC — full rebuild in under 15 minutes |
+| No disaster recovery | Terraform IaC — full rebuild measured at 47m48s to serving traffic, vs. five days of actual downtime |
 
 ---
 
@@ -402,7 +402,8 @@ Memorise these — examiners will ask:
 | bcrypt cost factor | 12 |
 | JWT access token expiry | 15 minutes |
 | JWT refresh token expiry | 7 days |
-| Target RTO | Under 15 minutes |
+| Target RTO | NFR-06a ≤ 25 min (infrastructure), NFR-06b ≤ 60 min (full service). Revised from an original ≤ 15 min after the drill measured 47m48s |
+| Measured RTO | 17m40s infrastructure / 47m48s full service (2026-07-31) |
 | Actual Alamin Clinic downtime | 5 days |
 | Account lockout threshold | 3 failed attempts |
 | Rate limit (general) | 100 requests per 15 minutes per IP |

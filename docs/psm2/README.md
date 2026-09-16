@@ -38,6 +38,6 @@ PSM 1 (Analysis & Design) is complete. This directory tracks PSM 2 planning.
 - [ ] Pipeline: GitHub Actions (6 stages — SonarQube, Trivy, Checkov)
 - [ ] Testing: Functional tests (all 18 UC, positive + negative)
 - [ ] Testing: Penetration testing (RBAC + RLS validation)
-- [ ] Testing: RTO drill (target: < 15 min)
+- [ ] Testing: RTO drill (targets: infrastructure < 25 min, full service < 60 min — NFR-06a/06b, revised from 15 min after measurement)
 - [ ] Compliance: HIPAA §164.312 audit
 - [ ] Compliance: PDPA 2010 (Malaysia) review

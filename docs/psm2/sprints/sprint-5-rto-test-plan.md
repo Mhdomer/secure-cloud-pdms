@@ -16,7 +16,11 @@ procedure from scratch.
 Chapter-3 methodology Section 3.3.5 / 3.5.2 (NFR-06): simulate a total infrastructure wipe (the
 ransomware scenario that motivated this whole project — Alamin Clinic's on-premise server was down
 for five days) and measure how long it takes to get the system back to a healthy, serving state using
-nothing but the Terraform configuration already committed to `main`. **Target: ≤ 15 minutes.**
+nothing but the Terraform configuration already committed to `main`. **Target at the time this plan
+was written: ≤ 15 minutes.** That target was superseded on 2026-09-16, after this drill measured
+47m48s and established it had been set without a supporting measurement — NFR-06a (≤ 25 min
+infrastructure) and NFR-06b (≤ 60 min full service) replace it. This plan is kept as written, as the
+record of how the test was designed; see `docs/psm2/nfr-06-rto-decision-2026-09-15.md`.
 
 This specifically measures **infrastructure redeployment time** (chapter-5 §5.3's own wording: "time
 required for redeployment, compared to NFR-06"), not a full clinical-data point-in-time restore. RDS's
@@ -124,7 +128,8 @@ terraform apply -var-file="terraform.tfvars" -auto-approve
 ```
 
 Do not hand-hold this with `-auto-approve` removed and manual confirmation — a real recovery under
-time pressure wouldn't pause for a human to type "yes", and NFR-06's 15-minute target implicitly
+time pressure wouldn't pause for a human to type "yes", and NFR-06's 15-minute target (superseded
+2026-09-16 by NFR-06a/NFR-06b — see `docs/psm2/nfr-06-rto-decision-2026-09-15.md`) implicitly
 assumes a scripted, unattended apply. (`-auto-approve` is safe here specifically because Phase 0
 already independently verified the account is empty — there is nothing a stray `apply` could
 destructively overwrite.)

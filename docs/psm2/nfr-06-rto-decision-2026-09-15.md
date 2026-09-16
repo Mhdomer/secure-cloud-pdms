@@ -1,9 +1,14 @@
 # NFR-06 (RTO ≤ 15 min) — resolution decision
 
-**Status: recommendation, pending supervisor/author sign-off.** This changes a
-stated non-functional requirement in a submitted PSM1 report, so it is an
-academic call, not an implementation one. Nothing in `docs/report/` has been
-edited; `report-delta.md` carries the pending entry.
+**Status: ACCEPTED by the author, 2026-09-16, and applied.** This changes a
+stated non-functional requirement in a submitted PSM1 report. The submitted
+Table D.2 is preserved unchanged as the historical record; the revision lands
+as Table D.5 alongside the other PSM2 requirement changes, and every living
+document that stated the 15-minute target now states the revised pair.
+
+**Still worth raising with Dr. Johan** at the next supervision — revising a
+submitted requirement is defensible and documented here, but he should hear
+it from you rather than find it in the PSM2 report.
 
 ## The problem
 

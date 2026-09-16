@@ -299,7 +299,7 @@ Check: CKV_AWS_23: "Ensure every security groups rule has a description"
 
 In your CI/CD pipeline, Checkov runs in Stage 5. A `HIGH` or `CRITICAL` policy failure blocks the pipeline before `terraform apply` ever runs — infrastructure security is enforced at commit time, not deployment time.
 
-**Interview defence:** *"Terraform gives me a recovery time objective of under 15 minutes for a complete environment rebuild. If a ransomware attack encrypted every EBS volume and RDS database, I don't restore — I destroy and rebuild from Terraform state stored in S3, which was never inside the VPC and is unaffected by the attack. The RTO is bounded by how long terraform apply takes, not how long backup restoration takes."*
+**Interview defence:** *"Terraform gives me a measured recovery time objective of about 18 minutes for the infrastructure and 48 minutes to fully serving traffic, for a complete environment rebuild. If a ransomware attack encrypted every EBS volume and RDS database, I don't restore — I destroy and rebuild from Terraform state stored in S3, which was never inside the VPC and is unaffected by the attack. The RTO is bounded by how long terraform apply takes, not how long backup restoration takes."*
 
 ---
 
@@ -375,7 +375,7 @@ This is your strongest differentiator — the original motivation for the projec
 
 | Attack Vector | Your Mitigation |
 |---|---|
-| Encrypt EBS volumes | RDS automated backups to S3 (outside VPC). Rebuild from `terraform apply` in 15 min. |
+| Encrypt EBS volumes | RDS automated backups to S3 (outside VPC). Rebuild from `terraform apply` in a measured ~18 min for infrastructure, ~48 min to fully serving. |
 | Encrypt database | Point-in-time recovery up to 5 minutes before attack. Separate from EC2. |
 | Encrypt application server | Docker container — rebuild from ECR image. Stateless by design. |
 | Delete backups | S3 versioning + MFA delete on backup bucket. Backups require MFA to delete. |

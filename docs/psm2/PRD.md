@@ -96,7 +96,8 @@ search for Admin (`GET /patients?q=`) rather than a UUID paste for that role.
 | NFR-03 | Security | Least-privilege IAM | No wildcard (*) in IAM policies | Manual IAM policy review |
 | NFR-04 | Security | Pipeline security gate | Critical finding = pipeline blocked, no deploy | Test: inject deliberate CVE, confirm pipeline fails |
 | NFR-05 | Availability | Uptime | 99.9% (≤8.7 hours downtime/year) | CloudWatch uptime metric |
-| NFR-06 | Recovery | RTO | ≤15 minutes from wipe to working | Timed Terraform destroy + apply test |
+| NFR-06a | Recovery | RTO (infrastructure) | ≤25 minutes, unattended — measured 17m40s | Timed Terraform destroy + apply test |
+| NFR-06b | Recovery | RTO (full service) | ≤60 minutes incl. deploy approval gate — measured 47m48s | Timed drill to ALB serving live traffic |
 | NFR-07 | Compliance | HIPAA posture | Security Hub HIPAA standard enabled | Security Hub dashboard score |
 | NFR-08 | Compliance | Audit log retention | 90 days minimum | CloudTrail S3 lifecycle policy |
 | NFR-09 | Performance | API response time | ≤3 seconds at 50 concurrent users | Load test with Artillery/k6 |

@@ -106,7 +106,7 @@ Table 2.2 presents a side-by-side comparison of the current and proposed workflo
 | Data entry | Manual typing by admin, error-prone | Structured web forms with validation |
 | Architecture | Single flat server, all tiers co-hosted | Three-tier VPC — presentation, app, DB isolated |
 | Authentication | Single shared login, trust-based | JWT tokens + RBAC enforced at app & DB layers |
-| Backup and recovery | No backup policy; full data loss risk | Automated RDS snapshots + Terraform redeploy in < 15 min |
+| Backup and recovery | No backup policy; full data loss risk | Automated RDS snapshots + Terraform redeploy (measured 47m48s to full service, against five days of actual clinic downtime) |
 | Audit trail | None | CloudTrail API logs + application audit_log table |
 | Deployment | Manual FTP/USB, no security gate | GitHub Actions CI/CD with Trivy, SonarQube, & Checkov |
 | Encryption | None at rest; inconsistent in transit | KMS AES-256 at rest; TLS 1.2+ in transit |
@@ -272,7 +272,7 @@ The current framework does not meet the criteria for any of the technical safegu
 
 This chapter provides the theoretical basis and comparison of the proposed secure cloud-based system for managing patient data. Four major vulnerabilities of the current legacy on-premises solution were identified based on structured interviews conducted as part of the Alamin Clinic case study: the flat structure of the network, poor access control, lack of data encryption, and weak infrastructure resilience. All those factors combined helped the ransomware breach and led to five days of downtime and considerable data loss. The 5W1H technique was applied to categorize all the aforementioned problems along six axes.
 
-To address these problems, workflow analysis outlines the transformation from the current manual solution to a new, secure architecture. Main improvements include moving from a flat network to three-tier VPC, switching from FTP deployments to the DevSecOps CI/CD pipeline, implementation of zero trust access control using JWT and Row-Level Security (RLS) in PostgreSQL, reduction of infrastructure recovery time to 15 minutes using Terraform, and implementing continuous audit with AWS CloudTrail. The thorough literature review proves these solutions according to academic and industry standards and ensures HIPPA-compliant technology stack using AWS Security Hub. Finally, the chapter explains the methodology used to develop the project.
+To address these problems, workflow analysis outlines the transformation from the current manual solution to a new, secure architecture. Main improvements include moving from a flat network to three-tier VPC, switching from FTP deployments to the DevSecOps CI/CD pipeline, implementation of zero trust access control using JWT and Row-Level Security (RLS) in PostgreSQL, reduction of infrastructure recovery time from five days to well under an hour using Terraform, and implementing continuous audit with AWS CloudTrail. The thorough literature review proves these solutions according to academic and industry standards and ensures HIPPA-compliant technology stack using AWS Security Hub. Finally, the chapter explains the methodology used to develop the project.
 
 ---
 

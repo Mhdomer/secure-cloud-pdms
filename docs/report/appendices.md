@@ -100,14 +100,14 @@ Figures C.5 and C.6 present the signed confirmation letter from Al Amin clinic (
 | NFR-03 | Security | All IAM roles shall be configured with least-privilege policies, granting only the permissions required for the role's function. | IAM policy review, AWS IAM Access Analyzer |
 | NFR-04 | Security | The CI/CD pipeline shall block deployment on any critical or high-severity finding from Trivy, SonarQube, or Checkov. | GitHub Actions pipeline log |
 | NFR-05 | Availability | The system shall maintain 99.9% uptime through multi-AZ EC2 and RDS deployment. | CloudWatch availability metric |
-| NFR-06 | Recovery | The system shall be fully redeployable from a clean Terraform state within 15 minutes of a complete infrastructure wipe. | RTO stress test, measured recovery time |
+| NFR-06 | Recovery | The system shall be fully redeployable from a clean Terraform state within 15 minutes of a complete infrastructure wipe. *(Superseded in PSM2 by NFR-06a / NFR-06b — see Table D.5.)* | RTO stress test, measured recovery time |
 | NFR-07 | Compliance | The system shall achieve and maintain a passing HIPAA posture score as measured by AWS Security Hub. | Security Hub HIPAA standard findings report |
 | NFR-08 | Auditability | All AWS API calls and patient data access events shall be logged in CloudTrail with a minimum retention period of 90 days. | CloudTrail configuration, S3 log bucket |
 | NFR-09 | Performance | The system shall respond to authenticated API requests within 3 seconds under normal load (up to 50 concurrent users). | Load test results |
 | NFR-10 | Scalability | The application tier shall support horizontal scaling through EC2 Auto Scaling to accommodate increased patient load. | Auto Scaling group configuration |
 | NFR-11 | Maintainability | All infrastructure shall be defined as version-controlled Terraform code, with no manually provisioned resources in the production environment. | Terraform state file audit |
 
-**Tables D.1 and D.2 are the requirements as submitted in the PSM1 report.** Tables D.3 and D.4 below are additions raised during PSM2 Sprint 3/3c implementation — each traces back to an entry in `docs/psm2/report-delta.md` (cited in the Source column) and was not part of the original PSM1 design.
+**Tables D.1 and D.2 are the requirements as submitted in the PSM1 report** and are reproduced unchanged, including NFR-06, which PSM2 measurement later superseded (Table D.5). Tables D.3 and D.4 below are additions raised during PSM2 Sprint 3/3c implementation — each traces back to an entry in `docs/psm2/report-delta.md` (cited in the Source column) and was not part of the original PSM1 design.
 
 **Table D.3** — Functional Requirements (PSM2 Sprint 3 / 3c Additions)
 
@@ -157,6 +157,31 @@ Figures C.5 and C.6 present the signed confirmation letter from Al Amin clinic (
 | NFR-14 | Performance | The system shall maintain sub-second query response on patient timeline and appointment schedule queries under concurrent clinic load. | Composite index review; query timing under load | DELTA-031 |
 | NFR-15 | Security | Every RLS policy that casts a session variable to `::uuid` shall guard the empty-string case with `NULLIF(..., '')` before casting. | `schema.sql` review against `rls-policy-guidelines.md` | DELTA-029 |
 | NFR-16 | Privacy | The public queue-status endpoint shall return only position counts and numbers, never patient names or other identifying information. | Endpoint response review (unauthenticated) | DELTA-039 |
+
+**Table D.5** — Revised Non-Functional Requirement (PSM2 Sprint 5)
+
+Unlike Tables D.3 and D.4, which add requirements, this table *replaces* one. NFR-06 was
+specified during PSM1 design without a measurement behind it. The Sprint 5 recovery drill
+(2026-07-31) measured an actual recovery time of **47 minutes 48 seconds** against the stated
+15-minute target. Investigation established that the original figure was never achievable:
+Amazon RDS Multi-AZ instance creation alone measured 15m11s and 15m22s across two independent
+runs, consuming the entire budget before any other resource exists. Separately, the deployment
+pipeline requires a human approval step by design (GitHub `production` environment with a
+required reviewer), so a fully unattended recovery — which the original requirement assumed —
+is incompatible with a deliberate security control of this system.
+
+NFR-06 is therefore replaced by two separately measured requirements, distinguishing what
+automation governs from what human process governs.
+
+| ID | Category | Requirement | Measured | Metric / Verification Method | Source |
+| --- | --- | --- | --- | --- | --- |
+| NFR-06a | Recovery | The infrastructure tier shall be fully redeployable from a clean Terraform state within 25 minutes of a complete infrastructure wipe, unattended. | 17m40s | RTO stress test — `terraform apply` start to all resources provisioned and healthy | DELTA-048 |
+| NFR-06b | Recovery | The system shall be restored to serving live traffic within 60 minutes of a complete infrastructure wipe, inclusive of the mandatory deployment approval gate. | 47m48s | RTO stress test — recovery start to ALB serving HTTP 200 and a live API route responding | DELTA-048 |
+
+Both revised targets are satisfied by the measured drill. Neither is met by weakening a security
+control. The architecture that would satisfy the original 15-minute figure — a warm standby with
+pre-provisioned RDS — is recorded as future work in Chapter 5, together with its always-on cost,
+which is incompatible with this project's zero-cost-when-idle posture.
 
 ---
 

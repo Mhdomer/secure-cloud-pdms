@@ -98,7 +98,7 @@ See [docs/psm2/README.md](docs/psm2/README.md) for the full checklist.
 - [ ] Database: Schema + PostgreSQL Row-Level Security policies
 - [ ] Frontend: React SPA (4 role-specific views)
 - [ ] Pipeline: GitHub Actions (SonarQube → Trivy → Checkov → Terraform Apply)
-- [ ] Testing: Functional, penetration, RTO drill (target: < 15 min)
+- [ ] Testing: Functional, penetration, RTO drill (targets: infrastructure < 25 min, full service < 60 min — revised from the original 15 min after measurement; see Appendix D Table D.5)
 - [ ] Compliance: HIPAA §164.312 + PDPA 2010 (Malaysia)
 
 ---
