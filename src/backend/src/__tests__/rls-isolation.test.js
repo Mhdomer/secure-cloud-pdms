@@ -48,7 +48,13 @@ describeDb('cross-tenant isolation (live PostgreSQL RLS)', () => {
       database: process.env.DB_NAME,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      ssl: false,
+      // Mirrors config/database.js so this suite can run against a managed
+      // provider (Neon, Supabase) as well as local Postgres. Unset DB_SSL
+      // means false, which is what local dev uses — unchanged.
+      ssl:
+        process.env.DB_SSL === 'true'
+          ? { rejectUnauthorized: true }
+          : false,
       connectionTimeoutMillis: 5000,
     });
 
