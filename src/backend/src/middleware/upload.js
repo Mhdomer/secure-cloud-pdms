@@ -5,7 +5,12 @@ const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
 
-const UPLOAD_DIR = path.join(__dirname, '../../uploads');
+// Configurable so the module can run where the application bundle is
+// read-only — Vercel's filesystem, for instance, where mkdirSync against the
+// bundle throws at require time and takes the whole process down before the
+// first request. Absent the variable this resolves to exactly the path it
+// always did.
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads');
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
