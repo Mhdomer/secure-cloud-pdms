@@ -29,10 +29,50 @@ jobs:
     uses: ./.github/workflows/security-scan.yml
     secrets: inherit
 
+  demo-guard:
+    # The same check as demo-branch-guard.yml, repeated here so it BLOCKS
+    # rather than merely reports. That workflow is a standalone tripwire: it
+    # turns the run red after demo artefacts reach main, but nothing depends
+    # on it, so a deploy would still proceed beside a red check.
+    #
+    # Making it a required status check in branch protection would block the
+    # merge button instead, but that also stops direct pushes to main — too
+    # high a price on a single-maintainer project. Gating the deploy chain
+    # gets the outcome that matters: demo configuration reaching main cannot
+    # reach real infrastructure.
+    #
+    # Keep this list identical to the one in demo-branch-guard.yml.
+    name: Demo artefacts must not reach main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fail if demo artefacts are present
+        run: |
+          FOUND=""
+          for f in vercel.json api/index.js DO-NOT-MERGE.md scripts/seed-demo.js scripts/reset-demo.js scripts/init-demo-db.sql; do
+            if [ -e "$f" ]; then FOUND="$FOUND $f"; fi
+          done
+          if [ -n "$FOUND" ]; then
+            echo "::error::Demo build artefacts found on main:$FOUND"
+            echo ""
+            echo "Deployment is blocked. The demo branch (demo/vercel-do-not-merge)"
+            echo "appears to have been merged into main; it must not be."
+            echo "See docs/superpowers/specs/2026-09-18-vercel-demo-build-design.md"
+            echo "and the 'Demo build' entry in CLAUDE.md."
+            echo ""
+            echo "To recover: git revert the merge commit on main. Do not delete the"
+            echo "files individually — the guarded production changes came with them."
+            exit 1
+          fi
+          echo "No demo artefacts on main."
+
   terraform-apply:
     name: Terraform Plan & Apply
-    needs: scan
-    if: needs.scan.result == 'success'
+    needs: [scan, demo-guard]
+    if: needs.scan.result == 'success' && needs.demo-guard.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Requires a GitHub Environment named "production" with a required-
