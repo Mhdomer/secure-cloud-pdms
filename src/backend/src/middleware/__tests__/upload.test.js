@@ -1,7 +1,14 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
+
+const TEST_UPLOAD_DIR = path.join(os.tmpdir(), 'pdms-upload-test');
+
+afterAll(() => {
+  fs.rmSync(TEST_UPLOAD_DIR, { recursive: true, force: true });
+});
 
 // upload.js creates its directory at require time, so each case needs a fresh
 // module registry with the environment already set.
@@ -32,8 +39,7 @@ describe('upload directory resolution', () => {
   });
 
   it('uses UPLOAD_DIR when set, so a read-only bundle does not crash the app', () => {
-    const target = path.join(os.tmpdir(), 'pdms-upload-test');
-    const { UPLOAD_DIR } = loadUploadModule({ UPLOAD_DIR: target });
-    expect(UPLOAD_DIR).toBe(target);
+    const { UPLOAD_DIR } = loadUploadModule({ UPLOAD_DIR: TEST_UPLOAD_DIR });
+    expect(UPLOAD_DIR).toBe(TEST_UPLOAD_DIR);
   });
 });

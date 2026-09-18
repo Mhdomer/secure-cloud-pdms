@@ -63,4 +63,21 @@ describe('database TLS configuration', () => {
       expect(config.ssl.rejectUnauthorized).toBe(true);
     }
   });
+
+  it('throws rather than silently falling back when the RDS CA bundle is missing', () => {
+    // The design's explicit rule: a missing bundle must fail loudly, not
+    // quietly verify against a different trust anchor.
+    const fs = require('fs');
+    fs.readFileSync.mockImplementationOnce(() => {
+      throw new Error('ENOENT: no such file or directory');
+    });
+    expect(() => loadWith({ DB_SSL: 'true' })).toThrow();
+  });
+
+  it('throws when DB_SSL_MODE is set but DB_SSL is not "true"', () => {
+    // Otherwise the mode is silently ignored and TLS ends up disabled with
+    // no signal that anything was wrong.
+    expect(() => loadWith({ DB_SSL_MODE: 'standard' })).toThrow(/DB_SSL_MODE requires DB_SSL=true/);
+    expect(() => loadWith({ DB_SSL: 'false', DB_SSL_MODE: 'standard' })).toThrow(/DB_SSL_MODE requires DB_SSL=true/);
+  });
 });

@@ -13,5 +13,13 @@
  * instance rather than once per request. Cold starts still create one. Neon's
  * POOLED endpoint must be used, or concurrent cold starts exhaust the
  * connection limit.
+ *
+ * app.js itself does not validate JWT_SECRET — only server.js did, and this
+ * file requires app.js directly, bypassing it. Run the same check here,
+ * before the require, so a placeholder secret fails the boot instead of
+ * silently signing tokens with a publicly known value.
  */
+const { assertBootConfig } = require('../src/backend/src/config/assertBootConfig');
+assertBootConfig();
+
 module.exports = require('../src/backend/src/app');

@@ -21,6 +21,14 @@ for (const key of requiredEnvVars) {
   }
 }
 
+// DB_SSL_MODE only means anything once TLS itself is on. Without this guard,
+// setting DB_SSL_MODE while leaving DB_SSL unset/false silently disables TLS
+// entirely (the ssl ternary below short-circuits on DB_SSL first) with no
+// signal that the mode was ignored.
+if (process.env.DB_SSL_MODE && process.env.DB_SSL !== 'true') {
+  throw new Error('DB_SSL_MODE requires DB_SSL=true');
+}
+
 const pool = new Pool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
