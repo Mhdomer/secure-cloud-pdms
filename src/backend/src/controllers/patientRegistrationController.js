@@ -9,7 +9,7 @@ const Patient = require('../models/Patient');
 const Otp = require('../models/Otp');
 const AuditLog = require('../models/AuditLog');
 const { AUDIT_ACTIONS, ROLES } = require('../config/constants');
-const { generateOtpCode, OTP_TTL_MS, MAX_OTP_ATTEMPTS } = require('../utils/otp');
+const { generateOtpCode, OTP_TTL_MS, MAX_OTP_ATTEMPTS, shouldSurfaceOtp } = require('../utils/otp');
 const { sendOtp } = require('../utils/smsProvider');
 const { issueSessionCookie } = require('../utils/session');
 
@@ -59,10 +59,14 @@ async function requestOtp(req, res) {
     message: 'Verification code sent.',
   };
   // Dev/demo convenience only — no real SMS provider is wired up yet (open
-  // decision #1 in docs/psm2/self-registration-design.md). Never present
-  // once NODE_ENV is production; a real provider must replace the stub
-  // before this flow is used outside a demo.
-  if (process.env.NODE_ENV !== 'production') {
+  // decision #1 in docs/psm2/self-registration-design.md). DEMO_MODE
+  // additionally surfaces it in the hosted demonstration build, which runs
+  // NODE_ENV=production so Express does not leak stack traces. The code is
+  // stored hashed and cannot be recovered after generation, so a demo
+  // participant has no other way to complete the flow. Generation, hashing,
+  // attempt counting and expiry are unchanged — only delivery is
+  // substituted. See docs/superpowers/specs/2026-09-18-vercel-demo-build-design.md.
+  if (shouldSurfaceOtp()) {
     response.devOtpCode = code;
   }
 

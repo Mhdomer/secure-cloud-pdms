@@ -8,7 +8,7 @@ const Patient = require('../models/Patient');
 const Otp = require('../models/Otp');
 const AuditLog = require('../models/AuditLog');
 const { AUDIT_ACTIONS } = require('../config/constants');
-const { generateOtpCode, OTP_TTL_MS, MAX_OTP_ATTEMPTS } = require('../utils/otp');
+const { generateOtpCode, OTP_TTL_MS, MAX_OTP_ATTEMPTS, shouldSurfaceOtp } = require('../utils/otp');
 const { sendOtp } = require('../utils/smsProvider');
 const { generateSetupToken } = require('../lib/generateSetupToken');
 
@@ -85,9 +85,12 @@ async function requestOtp(req, res) {
     message: 'If this account exists, a verification code has been sent.',
   };
   // Dev/demo convenience only, and only on the real-match branch — same
-  // NODE_ENV gate patientRegistrationController.js uses. Showing a dev code
-  // on the no-match branch would itself leak which branch was taken.
-  if (patient && process.env.NODE_ENV !== 'production') {
+  // shouldSurfaceOtp rule patientRegistrationController.js uses (now
+  // DEMO_MODE-aware for the hosted demonstration build; see
+  // docs/superpowers/specs/2026-09-18-vercel-demo-build-design.md). Showing
+  // a dev code on the no-match branch would itself leak which branch was
+  // taken.
+  if (patient && shouldSurfaceOtp()) {
     response.devOtpCode = code;
   }
 
