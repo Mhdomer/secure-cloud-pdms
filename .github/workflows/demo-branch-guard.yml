@@ -1,0 +1,43 @@
+name: Demo Branch Guard
+
+# The demo build (docs/superpowers/specs/2026-09-18-vercel-demo-build-design.md)
+# lives on demo/vercel-do-not-merge and must never reach main. That branch
+# carries Vercel configuration and demo-mode behaviour that would be wrong to
+# ship on the production path. Branch naming and DO-NOT-MERGE.md are advisory;
+# this job is the one that actually stops it.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  demo-branch-guard:
+    name: Demo artefacts must not reach main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fail if demo artefacts are present
+        run: |
+          FOUND=""
+          for f in vercel.json api/index.js DO-NOT-MERGE.md scripts/seed-demo.js scripts/reset-demo.js scripts/init-demo-db.sql; do
+            if [ -e "$f" ]; then FOUND="$FOUND $f"; fi
+          done
+          if [ -n "$FOUND" ]; then
+            echo "::error::Demo build artefacts found on main:$FOUND"
+            echo ""
+            echo "The demo branch (demo/vercel-do-not-merge) appears to have been merged."
+            echo "It must not be. See docs/superpowers/specs/2026-09-18-vercel-demo-build-design.md"
+            echo "and the 'Demo build' entry in CLAUDE.md."
+            echo ""
+            echo "To recover: git revert the merge commit on main. Do not delete the files"
+            echo "individually — the guarded production changes came with them."
+            exit 1
+          fi
+          echo "No demo artefacts on main."
