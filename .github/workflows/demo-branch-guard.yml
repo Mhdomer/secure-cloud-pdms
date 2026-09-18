@@ -5,6 +5,18 @@ name: Demo Branch Guard
 # carries Vercel configuration and demo-mode behaviour that would be wrong to
 # ship on the production path. Branch naming and DO-NOT-MERGE.md are advisory;
 # this job is the one that actually stops it.
+#
+# Limits worth knowing before relying on this:
+# - The check only looks for files ADDED by the demo branch. It says nothing
+#   about the files the demo branch MODIFIED on top of main's originals
+#   (database.js, upload.js, both OTP-surfacing controllers, both route
+#   files, routes/index.js) — so a full merge of the branch trips it, but a
+#   cherry-pick of just those edits would not.
+# - This job is not a required status check unless branch protection on
+#   main is configured to make it one. Until then, a failure here fails the
+#   build but does not block the merge button.
+# - src/backend/src/routes/demo.routes.js does not exist yet. Add it to the
+#   file list below once it's created.
 on:
   push:
     branches: [main]

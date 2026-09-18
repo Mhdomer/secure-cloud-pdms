@@ -646,10 +646,10 @@ Find the equivalent `NODE_ENV !== 'production'` guard around `devOtpCode` and ap
 
 ```bash
 cd "D:/Main_/FYP/PSM 1 SECRH"
-grep -rn "DEMO_MODE === 'true'" src/backend/src/controllers/
+grep -rn "shouldSurfaceOtp" src/backend/src/controllers/*.js
 ```
 
-Expected: two occurrences, one per controller.
+Expected: two occurrences, one call site per controller. (The predicate itself now lives in `src/backend/src/utils/otp.js` after an approved refactor — this only checks the two call sites.)
 
 - [ ] **Step 7: Run the whole suite**
 
@@ -1332,7 +1332,10 @@ Import the repository in Vercel, set the production branch to `demo/vercel-do-no
 | `JWT_EXPIRES_IN` | `30m` |
 | `COOKIE_SECURE` | `true` |
 | `FRONTEND_URL` | the Vercel URL |
+| `CLOUDFRONT_ORIGIN` | the Vercel deployment URL (same value as `FRONTEND_URL` — single origin) |
 | `DEMO_RESET_SECRET` | a generated value |
+
+`CLOUDFRONT_ORIGIN` is read by `src/backend/src/middleware/corsValidator.js` at module load, not per-request — if it's missing, the app fails to initialize and every request returns a 500 with no hint that an env var was the cause.
 
 - [ ] **Step 3: Create the UAT project**
 
