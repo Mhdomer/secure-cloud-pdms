@@ -8,6 +8,7 @@ const { authenticateJWT } = require('../middleware/authMiddleware');
 const { authorizeRole } = require('../middleware/rbacMiddleware');
 const { setupRLSContext } = require('../middleware/rlsContext');
 const { uploadSingle } = require('../middleware/upload');
+const { blockInDemo } = require('../middleware/demoGuard');
 const asyncHandler = require('../utils/asyncHandler');
 const labResultsController = require('../controllers/labResultsController');
 const { ROLES } = require('../config/constants');
@@ -19,6 +20,7 @@ router.post(
   '/patients/:patientId/lab-results',
   authenticateJWT,
   authorizeRole(ROLES.DOCTOR),
+  blockInDemo('File upload'),
   uploadSingle,
   [
     param('patientId').isUUID(),
@@ -71,6 +73,7 @@ router.get(
   '/lab-results/:resultId/file',
   authenticateJWT,
   authorizeRole(ROLES.DOCTOR, ROLES.PATIENT),
+  blockInDemo('File download'),
   [param('resultId').isUUID()],
   validateRequest,
   setupRLSContext,
