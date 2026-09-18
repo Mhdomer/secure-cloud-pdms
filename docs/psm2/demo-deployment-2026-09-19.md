@@ -1,6 +1,6 @@
 # Hosted demonstration build — deployment record (2026-09-19)
 
-**Live:** https://secure-cloud-pdms.vercel.app
+**Live:** https://alamin-clinic.vercel.app
 **Branch:** `demo/vercel-do-not-merge` (never merged — see `DO-NOT-MERGE.md`)
 **Database:** Neon Postgres 18.6, project `pdms-demo`, region `ap-southeast-1`
 
@@ -120,3 +120,14 @@ static analysis, and does not work. Worth one paragraph in Chapter 5.
   accept the branch. GitHub-triggered builds of this branch also run.
 - Environment variables live in `src/backend/.env.vercel.local` (gitignored)
   and are mirrored into the Vercel project for Production and Preview.
+- The Vercel project is still named `secure-cloud-pdms`; `alamin-clinic.vercel.app`
+  was attached to it as an additional domain. The project's original
+  `secure-cloud-pdms.vercel.app` address still resolves but now returns
+  `{"error":"Origin not allowed"}` on every API call, because
+  `corsValidator.js` allows exactly one origin by exact string match and that
+  origin is the new domain. Only one URL can be live at a time — share the
+  alamin-clinic one and nothing else.
+- `vercel domains inspect` reports "You don't have access to the domain" for
+  `.vercel.app` subdomains even when the project owns them. It is not a
+  reliable ownership check; hitting the API and recognising the app's own
+  response is.
