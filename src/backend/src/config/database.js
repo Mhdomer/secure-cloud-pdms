@@ -29,12 +29,24 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   // rds.force_ssl = 1 is enforced server-side (Chapter 4 §4.3.8.5); the
   // client must also request SSL or the connection is rejected outright.
+  //
+  // DB_SSL_MODE=standard verifies against Node's bundled public trust store
+  // instead of the RDS private root — for managed providers (Neon, Supabase)
+  // that present a publicly trusted certificate and ship no CA bundle.
+  //
+  // There is deliberately no fallback from the RDS path to this one. If the
+  // bundle is missing, the connection must fail rather than quietly verify
+  // against a different trust anchor; a silent TLS downgrade is precisely the
+  // class of defect this system exists to avoid. Certificate verification
+  // stays on in every mode.
   ssl:
     process.env.DB_SSL === 'true'
-      ? {
-        rejectUnauthorized: true,
-        ca: fs.readFileSync(RDS_CA_BUNDLE_PATH).toString(),
-      }
+      ? process.env.DB_SSL_MODE === 'standard'
+        ? { rejectUnauthorized: true }
+        : {
+          rejectUnauthorized: true,
+          ca: fs.readFileSync(RDS_CA_BUNDLE_PATH).toString(),
+        }
       : false,
   max: 10,
   idleTimeoutMillis: 30000,
