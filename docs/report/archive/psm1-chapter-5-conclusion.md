@@ -1,3 +1,17 @@
+> **Superseded — archived for reference only.**
+>
+> This is the PSM1 conclusion, written in future tense while the implementation
+> was still planned. The UTM template places Implementation and Testing at
+> Chapter 5 and Conclusion at Chapter 6 for PSM2, so this file was archived on
+> 2026-09-19 and replaced by:
+>
+> - `docs/report/chapter-5-implementation-testing.md`
+> - `docs/report/chapter-6-conclusion.md`
+>
+> Kept because §5.2.1 (literature review findings) and §5.4 (deferred
+> implementation notes) contain material the PSM2 chapters draw on, and because
+> it records what was claimed before any of it had been measured.
+
 
 tags: [fyp, psm1, chapter-5, conclusion]
 phase: 5
